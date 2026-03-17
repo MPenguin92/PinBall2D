@@ -20,7 +20,8 @@ PinBall2D/
 │   │   ├── Player.cs              # 玩家发射器（旋转、发射弹球）
 │   │   ├── PlayerRender.cs        # 玩家渲染（LineRenderer 方向预览线）
 │   │   ├── Mgr/
-│   │   │   ├── GameLogicManager.cs # 单例，统一调度 Tick
+│   │   │   ├── GameEnum.cs        # 通用枚举（BounceDirection、GameState）
+│   │   │   ├── GameLogicManager.cs # 单例，统一调度 Tick，受游戏状态控制
 │   │   │   └── PoolManager.cs     # PinBall/Unit 缓存池与活跃列表
 │   │   ├── PInBall/
 │   │   │   ├── PinBallBase.cs     # 弹球基类（运动、碰撞、反弹）
@@ -34,7 +35,9 @@ PinBall2D/
 │   ├── Design/
 │   │   ├── Design.md              # 设计概述与各模块文档索引
 │   │   └── PROJECT.md             # 本文档
-│   ├── Player.md, Border.md, Unit.md, PinBall.md, GamePlay.md
+│   └── Function/                  # 功能说明（按模块）
+│       ├── GamePlay.md            # 主逻辑、游戏状态、池
+│       ├── Player.md, Border.md, Unit.md, PinBall.md
 ├── ProjectSettings/
 ├── UserSettings/
 ├── Library/
@@ -42,7 +45,7 @@ PinBall2D/
 └── .gitignore
 ```
 
-说明：`Border` 使用的 `BounceDirection` 枚举可定义在单独 `GameEnum.cs`（若存在）或与 `Border` 同程序集。
+说明：所有通用枚举集中在 `Mgr/GameEnum.cs`（如 `BounceDirection`、`GameState`）。
 
 ### 2.1 脚本职责总览
 
@@ -51,7 +54,8 @@ PinBall2D/
 | `Border.cs` | 1_Scripts/ | 矩形边框，反弹法线与底边标识 |
 | `Player.cs` | 1_Scripts/ | 旋转瞄准、F 键发射弹球、弹药容量 |
 | `PlayerRender.cs` | 1_Scripts/ | LineRenderer 方向预览线（反射/阻挡） |
-| `GameLogicManager.cs` | 1_Scripts/Mgr/ | 单例，统一调度 Tick，委托 PoolManager 管理池 |
+| `GameEnum.cs` | 1_Scripts/Mgr/ | 通用枚举：BounceDirection、GameState |
+| `GameLogicManager.cs` | 1_Scripts/Mgr/ | 单例，统一调度 Tick，受游戏状态控制，委托 PoolManager 管理池 |
 | `PoolManager.cs` | 1_Scripts/Mgr/ | PinBall/Unit 对象池与活跃列表 |
 | `PinBallBase.cs` | 1_Scripts/PInBall/ | 弹球运动、碰撞与反弹、底边回收 |
 | `PinBallRender.cs` | 1_Scripts/PInBall/ | 弹球外观渲染（预留扩展） |
@@ -66,7 +70,13 @@ PinBall2D/
 
 所有游戏对象（Player、PinBall、Unit）**不持有独立的 `Update`**，由 **GameLogicManager.UpdateGame()** 统一调用各自的 `Tick`。处于缓存池内（已隐藏）的物体不参与 Tick。
 
-### 3.2 对象池（PoolManager）
+### 3.2 游戏状态（GameState）
+
+- **GameState** 枚举：`Preparing`（准备中）、`Running`（运行中）、`Paused`（暂停）、`Ended`（结束）。
+- **主逻辑 Update**：仅当 `GameLogicManager.CurrentState == GameState.Running` 时执行 `UpdateGame()`；准备中/暂停/结束状态下不驱动 Tick。
+- 通过 `SetGameState(GameState)` 或 Inspector 修改状态；`StartGame()` 会先设为 `Preparing`，初始化完成后设为 `Running`。
+
+### 3.3 对象池（PoolManager）
 
 PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `UnityEngine.Pool.ObjectPool<T>`：
 
@@ -79,16 +89,23 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 
 ## 4. 核心脚本详解
 
-### 4.1 BounceDirection 与 Border
+### 4.1 GameEnum.cs — 通用枚举
 
-- **BounceDirection**：枚举（Up / Down / Left / Right），供 Border 指定反弹法线，可由 `GameEnum.cs` 或与 Border 同程序集定义。
-- **Border.cs**：矩形障碍，弹球碰触后镜面反射；底边（`isBottomBorder`）时弹球不反射，回收并补充 Player 弹药。提供 `BorderRect`、`GetNormal()`、`RefreshRect()` 等。
+- **路径**：`Assets/1_Scripts/Mgr/GameEnum.cs`
+- **BounceDirection**：Up / Down / Left / Right，供 Border 指定反弹法线。
+- **GameState**：Preparing（准备中）、Running（运行中）、Paused（暂停）、Ended（结束），供 GameLogicManager 控制是否执行每帧 Update。
+- 后续新增枚举可在此文件中统一添加。
+
+### 4.2 Border.cs — 边框
+
+- 矩形障碍，弹球碰触后镜面反射；底边（`isBottomBorder`）时弹球不反射，回收并补充 Player 弹药。
+- **可配置**：`bounceDirection`、`isBottomBorder`。**核心**：`BorderRect`、`GetNormal()`、`RefreshRect()`；Gizmos 底边红色、其余黄色。
 
 ---
 
-### 4.2 GameLogicManager.cs — 游戏逻辑管理器（单例）
+### 4.3 GameLogicManager.cs — 游戏逻辑管理器（单例）
 
-- **职责**：整局调度入口，统一驱动所有 Tick；**不直接持有对象池**，池相关操作委托给 PoolManager。
+- **职责**：整局调度入口，统一驱动所有 Tick；**不直接持有对象池**，池相关操作委托给 PoolManager；**游戏状态**控制下仅在 Running 时执行 UpdateGame。
 - **单例**：`Instance` 在 `Awake` 赋值，`OnDestroy` 时置空。
 
 #### Inspector 配置
@@ -98,6 +115,7 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 | References | `player` | 场景中的 Player |
 | References | `playerRender` | 场景中的 PlayerRender |
 | References | `poolManager` | 场景中的 PoolManager（负责池与活跃列表） |
+| Game State | `gameState` | 当前游戏状态（Preparing/Running/Paused/Ended），仅 Running 时执行 UpdateGame |
 
 #### 核心数据
 
@@ -109,18 +127,18 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 
 | 方法 | 说明 |
 |------|------|
-| `StartGame()` | 收集 Border；初始化 Player；清空池活跃列表并注册场景中已有 Unit（`poolManager.ClearActivePinBalls` / `ClearActiveUnits` / `RegisterExistingUnit`） |
-| `UpdateGame()` | 每帧：刷新所有 Rect → Player.Tick → 逆向遍历活跃 PinBall/Unit 调用 Tick → PlayerRender.Tick |
+| `StartGame()` | 设状态为 Preparing；收集 Border、初始化 Player、清空池并注册场景 Unit；最后设为 Running |
+| `UpdateGame()` | 每帧（**仅当 gameState == Running 时**）：刷新所有 Rect → Player.Tick → 逆向遍历活跃 PinBall/Unit 调用 Tick → PlayerRender.Tick |
+| `SetGameState(state)` | 设置当前游戏状态（如 Paused、Ended） |
 | `SpawnPinBall(pos, dir, speed)` | 委托 `poolManager.SpawnPinBall` |
 | `RecyclePinBall(pb)` | 委托 `poolManager.RecyclePinBall`，并调用 `player.AddPinBall()` |
-| `SpawnUnit(pos)` | 委托 `poolManager.SpawnUnit` |
-| `RecycleUnit(unit)` | 委托 `poolManager.RecycleUnit` |
+| `SpawnUnit(pos)` / `RecycleUnit(unit)` | 委托 PoolManager |
 
-**生命周期**：`Awake`（单例）→ `Start` → `StartGame()` → 每帧 `Update` → `UpdateGame()`。
+**生命周期**：`Awake`（单例）→ `Start` → `StartGame()`（Preparing → … → Running）→ 每帧 `Update` 仅在 **Running** 时调用 `UpdateGame()`。
 
 ---
 
-### 4.3 PoolManager.cs — 缓存池管理器
+### 4.4 PoolManager.cs — 缓存池管理器
 
 - **职责**：PinBall 与 Unit 的对象池创建、出池/入池、活跃列表维护；不处理游戏规则（如补弹由 GameLogicManager 负责）。
 
@@ -153,14 +171,6 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 | `RecycleUnit(unit)` | 从 activeUnits 移除并 Release 回池 |
 
 **生命周期**：`Awake` → `InitPools()`；`OnDestroy` → 两个池 `Dispose()`。
-
----
-
-### 4.4 Border.cs — 边框
-
-- **职责**：矩形障碍，弹球镜面反射；底边时弹球回收（由 PinBallBase 调用 GameLogicManager.RecyclePinBall）。
-- **可配置**：`bounceDirection`、`isBottomBorder`。
-- **核心**：`BorderRect`、`GetNormal()`、`RefreshRect()`；Gizmos 底边红色、其余黄色。
 
 ---
 
@@ -215,7 +225,7 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 
 1. **GameLogicManager.Awake**：设置单例。
 2. **PoolManager.Awake**：`InitPools()`，创建两个 ObjectPool 及池根节点（若未指定）。
-3. **GameLogicManager.Start** → **StartGame()**：收集 `borders`；`player.Init()`；`poolManager.ClearActivePinBalls()` / `ClearActiveUnits()`；场景中已有 Unit 逐一 `Init()` 并 `poolManager.RegisterExistingUnit()`。
+3. **GameLogicManager.Start** → **StartGame()**：设 `gameState = Preparing`；收集 `borders`、`player.Init()`、清空池并注册场景 Unit；最后设 `gameState = Running`。
 
 ### 5.2 每帧更新顺序
 

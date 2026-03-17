@@ -25,6 +25,17 @@ public class GameLogicManager : MonoBehaviour
 
     public Player Player => player;
 
+    [Header("Game State")]
+    [SerializeField]
+    private GameState gameState = GameState.Preparing;
+
+    public GameState CurrentState => gameState;
+
+    public void SetGameState(GameState state)
+    {
+        gameState = state;
+    }
+
     private void Awake()
     {
         Instance = this;
@@ -38,16 +49,20 @@ public class GameLogicManager : MonoBehaviour
 
     private void Start()
     {
-        StartGame();
+        // 游戏由开始界面点击「开始」按钮后调用 StartGame()，此处不再自动开始
     }
 
     private void Update()
     {
+        if (gameState != GameState.Running)
+            return;
         UpdateGame();
     }
 
     public void StartGame()
     {
+        gameState = GameState.Preparing;
+
         borders = FindObjectsByType<Border>(FindObjectsSortMode.None);
 
         if (player != null)
@@ -65,6 +80,8 @@ public class GameLogicManager : MonoBehaviour
                 poolManager.RegisterExistingUnit(existingUnits[i]);
             }
         }
+
+        gameState = GameState.Running;
     }
 
     public void UpdateGame()
