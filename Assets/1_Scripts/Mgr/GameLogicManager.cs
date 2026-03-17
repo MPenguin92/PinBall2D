@@ -47,11 +47,6 @@ public class GameLogicManager : MonoBehaviour
             Instance = null;
     }
 
-    private void Start()
-    {
-        // 游戏由开始界面点击「开始」按钮后调用 StartGame()，此处不再自动开始
-    }
-
     private void Update()
     {
         if (gameState != GameState.Running)
