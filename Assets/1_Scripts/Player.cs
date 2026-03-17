@@ -1,205 +1,94 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Player : MonoBehaviour
 {
     [SerializeField]
-    private float moveSpeed = 8f;
+    private float rotateSpeed = 120f;
 
     [SerializeField]
-    private float baseHitPower = 0.5f;
-
-    public float BaseHitPower => baseHitPower;
+    private float maxAngle = 80f;
 
     [SerializeField]
-    private float maxHitPower = 2f;
+    private int maxPinBallCount = 5;
 
     [SerializeField]
-    private float powerChargeSpeed = 1f;
+    private float fireInterval = 0.3f;
 
-    private float currentHitPower;
+    [SerializeField]
+    private float firePinBallSpeed = 10f;
 
-    public float Radius => transform.localScale.x * 0.5f;
-    public float CurrentHitPower => currentHitPower;
-    public float MaxHitPower => maxHitPower;
+    private int currentPinBallCount;
+    private float fireTimer;
 
-    private void OnEnable()
+    public int CurrentPinBallCount => currentPinBallCount;
+
+    public int MaxPinBallCount => maxPinBallCount;
+
+    public Vector2 Direction
     {
-        ResetHitPower();
+        get
+        {
+            float angleRad = transform.eulerAngles.z * Mathf.Deg2Rad;
+            return new Vector2(-Mathf.Sin(angleRad), Mathf.Cos(angleRad));
+        }
     }
 
-    private void Update()
+    public void Init()
     {
-        HandleMove();
-        HandleCharge();
-        HandleHit();
+        currentPinBallCount = maxPinBallCount;
+        fireTimer = 0f;
+        transform.rotation = Quaternion.identity;
     }
 
-    private void HandleMove()
+    public void Tick()
     {
-        float horizontalInput = 0f;
-        if (Input.GetKey(KeyCode.A))
-        {
-            horizontalInput -= 1f;
-        }
+        HandleRotation();
+        HandleFire();
 
-        if (Input.GetKey(KeyCode.D))
-        {
-            horizontalInput += 1f;
-        }
-
-        Vector3 position = transform.position;
-        position.x += horizontalInput * moveSpeed * Time.deltaTime;
-        position.x = ClampXWithBorders(position.x);
-        transform.position = position;
+        if (fireTimer > 0f)
+            fireTimer -= Time.deltaTime;
     }
 
-    private float ClampXWithBorders(float targetX)
+    public void AddPinBall(int count = 1)
     {
-        if (!TryGetHorizontalLimits(out float minX, out float maxX))
-        {
-            return targetX;
-        }
-
-        return Mathf.Clamp(targetX, minX, maxX);
+        currentPinBallCount = Mathf.Min(currentPinBallCount + count, maxPinBallCount);
     }
 
-    private bool TryGetHorizontalLimits(out float minX, out float maxX)
+    private void HandleRotation()
     {
-        minX = float.NegativeInfinity;
-        maxX = float.PositiveInfinity;
+        float input = 0f;
+        if (Input.GetKey(KeyCode.A)) input -= 1f;
+        if (Input.GetKey(KeyCode.D)) input += 1f;
 
-        Border[] borders = GetBorders();
-        if (borders == null || borders.Length == 0)
-        {
-            return false;
-        }
+        if (Mathf.Approximately(input, 0f)) return;
 
-        Border leftBorder = null;
-        Border rightBorder = null;
-        float leftCenterX = float.PositiveInfinity;
-        float rightCenterX = float.NegativeInfinity;
+        float currentZ = transform.eulerAngles.z;
+        if (currentZ > 180f) currentZ -= 360f;
 
-        for (int i = 0; i < borders.Length; i++)
-        {
-            Border border = borders[i];
-            if (border == null)
-            {
-                continue;
-            }
+        float delta = -input * rotateSpeed * Time.deltaTime;
+        float newAngle = Mathf.Clamp(currentZ + delta, -maxAngle, maxAngle);
 
-            //border.RefreshRect();
-            Rect rect = border.BorderRect;
-            if (rect.height < rect.width)
-            {
-                continue;
-            }
-
-            float centerX = rect.center.x;
-            if (centerX < leftCenterX)
-            {
-                leftCenterX = centerX;
-                leftBorder = border;
-            }
-
-            if (centerX > rightCenterX)
-            {
-                rightCenterX = centerX;
-                rightBorder = border;
-            }
-        }
-
-        if (leftBorder == null || rightBorder == null)
-        {
-            return false;
-        }
-
-        minX = leftBorder.BorderRect.xMax + Radius;
-        maxX = rightBorder.BorderRect.xMin - Radius;
-        return minX <= maxX;
+        transform.rotation = Quaternion.Euler(0f, 0f, newAngle);
     }
 
-    private void HandleHit()
+    private void HandleFire()
     {
-        IReadOnlyList<PinBallBase> balls = GetPinBalls();
-        for (int i = 0; i < balls.Count; i++)
-        {
-            PinBallBase ball = balls[i];
-            if (ball == null)
-            {
-                continue;
-            }
+        if (!Input.GetKeyDown(KeyCode.F)) return;
+        if (currentPinBallCount <= 0) return;
+        if (fireTimer > 0f) return;
 
-            float hitDistance = Radius + ball.Radius;
-            float distance = Vector2.Distance(transform.position, ball.transform.position);
-            if (distance > hitDistance)
-            {
-                continue;
-            }
-
-            Vector2 newSpeed = -ball.Speed * currentHitPower;
-
-            ball.PushBall(newSpeed);
-            Debug.Log($"[Player] Hit success. ball={ball.name}, power={currentHitPower:F2}, distance={distance:F3}, hitDistance={hitDistance:F3}");
-            break;
-        }
-
-        ResetHitPower();
-    }
-
-    private void HandleCharge()
-    {
-        bool isMoving = Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.D);
-        if (isMoving)
-        {
-            ResetHitPower();
-            return;
-        }
-
-        currentHitPower = Mathf.Min(currentHitPower + powerChargeSpeed * Time.deltaTime, maxHitPower);
-    }
-
-    private Border[] GetBorders()
-    {
-        GameLogicManager manager = GetGameLogicManager();
-        if (manager != null && manager.Borders != null)
-        {
-            return manager.Borders;
-        }
-
-        return Object.FindObjectsByType<Border>(FindObjectsSortMode.None);
-    }
-
-    private IReadOnlyList<PinBallBase> GetPinBalls()
-    {
-        GameLogicManager manager = GetGameLogicManager();
-        if (manager != null && manager.PinBalls != null)
-        {
-            return manager.PinBalls;
-        }
-
-        return Object.FindObjectsByType<PinBallBase>(FindObjectsSortMode.None);
-    }
-
-    private GameLogicManager GetGameLogicManager()
-    {
-        if (GameLogicManager.Instance != null)
-        {
-            return GameLogicManager.Instance;
-        }
-
-        return Object.FindFirstObjectByType<GameLogicManager>();
-    }
-
-    private void ResetHitPower()
-    {
-        currentHitPower = Mathf.Clamp(baseHitPower, 0f, maxHitPower);
+        GameLogicManager.Instance.SpawnPinBall(transform.position, Direction, firePinBallSpeed);
+        currentPinBallCount--;
+        fireTimer = fireInterval;
     }
 
     private void OnDrawGizmos()
     {
-        Gizmos.color = Color.white;
-        Vector3 center = transform.position;
-        Gizmos.DrawWireSphere(center, transform.localScale.x * 0.5f);
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, transform.localScale.x * 0.5f);
+
+        Gizmos.color = Color.yellow;
+        Vector3 dir = (Vector3)(Vector2)Direction;
+        Gizmos.DrawLine(transform.position, transform.position + dir * 2f);
     }
 }

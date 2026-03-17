@@ -1,137 +1,106 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PinBallBase : MonoBehaviour
 {
     [SerializeField]
-    private Vector2 speed = new Vector2(0f, -10f);
+    private float initialSpeed = 10f;
 
     [SerializeField]
-    private float borderBounceSpeedMultiplier = 0.9f;
+    private float minSpeed = 3f;
 
-    private Vector2 initialSpeed;
-    private float initialSpeedMagnitude;
+    [SerializeField]
+    private float bounceSpeedMultiplier = 0.95f;
 
-    public Vector2 Speed => speed;
+    private Vector2 velocity;
+
+    public Vector2 Velocity => velocity;
 
     public float Radius => transform.localScale.x * 0.5f;
 
-
-    private void Awake()
+    public void Init(Vector2 direction, float speed)
     {
-        initialSpeed = speed;
-        initialSpeedMagnitude = initialSpeed.magnitude;
+        velocity = direction.normalized * Mathf.Max(speed, minSpeed);
     }
 
-    private void OnEnable()
+    public virtual void Tick(Border[] borders, IReadOnlyList<UnitBase> activeUnits)
     {
-        RegisterToGameLogicManager();
-    }
-
-    private void OnDisable()
-    {
-        if (GameLogicManager.Instance != null)
-        {
-            GameLogicManager.Instance.UnregisterPinBall(this);
-        }
-
-        speed = initialSpeed;
-    }
-
-    public virtual void Tick(Border[] borders)
-    {
-        Vector2 currentPosition = transform.position;
-        Vector2 nextPosition = currentPosition + speed * Time.deltaTime;
+        float dt = Time.deltaTime;
+        Vector2 currentPos = transform.position;
         float radius = Radius;
+        bool bounced = false;
+
+        Vector2 nextPos = currentPos + velocity * dt;
 
         for (int i = 0; i < borders.Length; i++)
         {
             Border border = borders[i];
-            border.RefreshRect();
+            if (border == null) continue;
 
-            if (!IsCircleOverlappingRect(nextPosition, radius, border.BorderRect))
-            {
+            if (!IsCircleOverlappingRect(nextPos, radius, border.BorderRect))
                 continue;
+
+            if (border.IsBottomBorder)
+            {
+                GameLogicManager.Instance.RecyclePinBall(this);
+                return;
             }
 
-            Vector2 normal = GetBorderNormal(border.BounceDirection);
-            ApplyBorderBounce(normal);
+            Vector2 normal = border.GetNormal();
+            ApplyBounce(normal);
+            bounced = true;
             break;
         }
 
-        Vector2 finalPosition = currentPosition + speed * Time.deltaTime;
-        transform.position = finalPosition;
+        if (!bounced && activeUnits != null)
+        {
+            for (int i = 0; i < activeUnits.Count; i++)
+            {
+                UnitBase unit = activeUnits[i];
+                if (unit == null || !unit.gameObject.activeSelf) continue;
+
+                if (!IsCircleOverlappingRect(nextPos, radius, unit.UnitRect))
+                    continue;
+
+                Vector2 normal = unit.GetCollisionNormal(nextPos);
+                ApplyBounce(normal);
+
+                bool destroyed = unit.TakeDamage(1);
+                if (destroyed)
+                {
+                    GameLogicManager.Instance.RecycleUnit(unit);
+                }
+
+                break;
+            }
+        }
+
+        Vector2 finalPos = currentPos + velocity * dt;
+        transform.position = new Vector3(finalPos.x, finalPos.y, transform.position.z);
     }
 
-    public void PushBall(Vector2 newSpeed)
+    private void ApplyBounce(Vector2 normal)
     {
-        Vector2 direction = newSpeed.normalized;
-        
-        float magnitude = Mathf.Max(initialSpeedMagnitude, newSpeed.magnitude);
-        speed = direction * magnitude;
-    }
+        Vector2 reflected = Vector2.Reflect(velocity, normal);
+        if (reflected.sqrMagnitude <= Mathf.Epsilon) return;
 
-    private void ApplyBorderBounce(Vector2 normal)
-    {
-        Vector2 reflected = Vector2.Reflect(speed, normal);
-        if (reflected.sqrMagnitude <= Mathf.Epsilon)
-        {
-            return;
-        }
-
-        float currentSpeedMagnitude = reflected.magnitude;
-        float targetMagnitude = currentSpeedMagnitude;
-        if (currentSpeedMagnitude > initialSpeedMagnitude)
-        {
-            targetMagnitude = currentSpeedMagnitude * borderBounceSpeedMultiplier;
-        }
-
-        speed = reflected.normalized * targetMagnitude;
-    }
-
-    private void RegisterToGameLogicManager()
-    {
-        GameLogicManager manager = GameLogicManager.Instance;
-        if (manager == null)
-        {
-            manager = Object.FindFirstObjectByType<GameLogicManager>();
-        }
-
-        if (manager != null)
-        {
-            manager.RegisterPinBall(this);
-        }
+        float newMagnitude = reflected.magnitude * bounceSpeedMultiplier;
+        newMagnitude = Mathf.Max(newMagnitude, minSpeed);
+        velocity = reflected.normalized * newMagnitude;
     }
 
     private bool IsCircleOverlappingRect(Vector2 circleCenter, float radius, Rect rect)
     {
         float closestX = Mathf.Clamp(circleCenter.x, rect.xMin, rect.xMax);
         float closestY = Mathf.Clamp(circleCenter.y, rect.yMin, rect.yMax);
-        float distanceX = circleCenter.x - closestX;
-        float distanceY = circleCenter.y - closestY;
-        return distanceX * distanceX + distanceY * distanceY <= radius * radius;
-    }
-
-    private Vector2 GetBorderNormal(BounceDirection direction)
-    {
-        switch (direction)
-        {
-            case BounceDirection.Up:
-                return Vector2.up;
-            case BounceDirection.Down:
-                return Vector2.down;
-            case BounceDirection.Left:
-                return Vector2.left;
-            case BounceDirection.Right:
-                return Vector2.right;
-            default:
-                return Vector2.up;
-        }
+        float dx = circleCenter.x - closestX;
+        float dy = circleCenter.y - closestY;
+        return dx * dx + dy * dy <= radius * radius;
     }
 
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.white;
-        Vector3 center = transform.position;
-        Gizmos.DrawWireSphere(center, transform.localScale.x * 0.5f);
+        Gizmos.DrawWireSphere(transform.position, transform.localScale.x * 0.5f);
     }
 }

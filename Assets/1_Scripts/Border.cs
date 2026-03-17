@@ -5,7 +5,12 @@ public class Border : MonoBehaviour
     [SerializeField]
     private BounceDirection bounceDirection = BounceDirection.Up;
 
+    [SerializeField]
+    private bool isBottomBorder;
+
     public BounceDirection BounceDirection => bounceDirection;
+
+    public bool IsBottomBorder => isBottomBorder;
 
     public Rect BorderRect { get; private set; }
 
@@ -35,10 +40,22 @@ public class Border : MonoBehaviour
         );
     }
 
+    public Vector2 GetNormal()
+    {
+        switch (bounceDirection)
+        {
+            case BounceDirection.Up: return Vector2.up;
+            case BounceDirection.Down: return Vector2.down;
+            case BounceDirection.Left: return Vector2.left;
+            case BounceDirection.Right: return Vector2.right;
+            default: return Vector2.up;
+        }
+    }
+
     private void OnDrawGizmos()
     {
         RefreshRect();
-        Gizmos.color = Color.yellow;
+        Gizmos.color = isBottomBorder ? Color.red : Color.yellow;
         Vector3 center = new Vector3(BorderRect.center.x, BorderRect.center.y, transform.position.z);
         Vector3 size = new Vector3(BorderRect.width, BorderRect.height, 0f);
         Gizmos.DrawWireCube(center, size);
