@@ -2,17 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
 
-public class GameLogicManager : MonoBehaviour
+public class PoolManager : MonoBehaviour
 {
-    public static GameLogicManager Instance { get; private set; }
-
-    [Header("References")]
-    [SerializeField]
-    private Player player;
-
-    [SerializeField]
-    private PlayerRender playerRender;
-
     [Header("Prefabs")]
     [SerializeField]
     private PinBallBase pinBallPrefab;
@@ -20,63 +11,46 @@ public class GameLogicManager : MonoBehaviour
     [SerializeField]
     private UnitBase unitPrefab;
 
-    [Header("Pool Settings")]
+    [Header("Pool Roots")]
     [SerializeField]
     private Transform pinBallPoolRoot;
 
     [SerializeField]
     private Transform unitPoolRoot;
 
+    [Header("PinBall Pool")]
     [SerializeField]
     private int pinBallPoolDefaultCapacity = 20;
 
     [SerializeField]
     private int pinBallPoolMaxSize = 50;
 
+    [Header("Unit Pool")]
     [SerializeField]
     private int unitPoolDefaultCapacity = 20;
 
     [SerializeField]
     private int unitPoolMaxSize = 100;
 
-    private Border[] borders;
     private readonly List<PinBallBase> activePinBalls = new List<PinBallBase>();
     private readonly List<UnitBase> activeUnits = new List<UnitBase>();
 
     private ObjectPool<PinBallBase> pinBallPool;
     private ObjectPool<UnitBase> unitPool;
 
-    public Border[] Borders => borders;
-
     public IReadOnlyList<PinBallBase> ActivePinBalls => activePinBalls;
 
     public IReadOnlyList<UnitBase> ActiveUnits => activeUnits;
 
-    public Player Player => player;
-
     private void Awake()
     {
-        Instance = this;
         InitPools();
     }
 
     private void OnDestroy()
     {
-        if (Instance == this)
-            Instance = null;
-
         pinBallPool?.Dispose();
         unitPool?.Dispose();
-    }
-
-    private void Start()
-    {
-        StartGame();
-    }
-
-    private void Update()
-    {
-        UpdateGame();
     }
 
     private void InitPools()
@@ -138,61 +112,9 @@ public class GameLogicManager : MonoBehaviour
         );
     }
 
-    public void StartGame()
+    public void ClearActivePinBalls()
     {
-        borders = FindObjectsByType<Border>(FindObjectsSortMode.None);
-
-        if (player != null)
-            player.Init();
-
         activePinBalls.Clear();
-
-        activeUnits.Clear();
-        UnitBase[] existingUnits = FindObjectsByType<UnitBase>(FindObjectsSortMode.None);
-        for (int i = 0; i < existingUnits.Length; i++)
-        {
-            existingUnits[i].Init();
-            activeUnits.Add(existingUnits[i]);
-        }
-    }
-
-    public void UpdateGame()
-    {
-        if (borders == null) return;
-
-        for (int i = 0; i < borders.Length; i++)
-        {
-            if (borders[i] != null)
-                borders[i].RefreshRect();
-        }
-
-        for (int i = 0; i < activeUnits.Count; i++)
-        {
-            if (activeUnits[i] != null)
-                activeUnits[i].RefreshRect();
-        }
-
-        if (player != null)
-            player.Tick();
-
-        for (int i = activePinBalls.Count - 1; i >= 0; i--)
-        {
-            if (i >= activePinBalls.Count) continue;
-            PinBallBase pb = activePinBalls[i];
-            if (pb == null || !pb.gameObject.activeSelf) continue;
-            pb.Tick(borders, activeUnits);
-        }
-
-        for (int i = activeUnits.Count - 1; i >= 0; i--)
-        {
-            if (i >= activeUnits.Count) continue;
-            UnitBase unit = activeUnits[i];
-            if (unit == null || !unit.gameObject.activeSelf) continue;
-            unit.Tick();
-        }
-
-        if (playerRender != null)
-            playerRender.Tick();
     }
 
     public PinBallBase SpawnPinBall(Vector2 position, Vector2 direction, float speed)
@@ -208,9 +130,17 @@ public class GameLogicManager : MonoBehaviour
     {
         activePinBalls.Remove(pb);
         pinBallPool.Release(pb);
+    }
 
-        if (player != null)
-            player.AddPinBall();
+    public void ClearActiveUnits()
+    {
+        activeUnits.Clear();
+    }
+
+    public void RegisterExistingUnit(UnitBase unit)
+    {
+        if (unit != null && !activeUnits.Contains(unit))
+            activeUnits.Add(unit);
     }
 
     public UnitBase SpawnUnit(Vector2 position)

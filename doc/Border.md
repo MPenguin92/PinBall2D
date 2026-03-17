@@ -1,3 +1,0 @@
-目前有border.cs
-
-就是一个矩形的障碍物，当PinBall碰到border需要按照运动方向，和border的方向做镜面反射，修改方向后继续移动。唯一的特例是，当Pinball，遇到底边，则PinBall不再反射，而是立即隐藏并给Player补充PinBall容量。

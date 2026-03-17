@@ -2,9 +2,9 @@
 
 ## 1. 项目概述
 
-**PinBall2D** 是一款基于 Unity 的 2D 弹珠台（Pinball）游戏。玩家控制一个可左右移动的挡板（Player），通过蓄力击打弹珠（PinBall），弹珠在由边框（Border）围成的区域内运动并发生反弹。
+**PinBall2D** 是一款基于 Unity 的 2D 弹球游戏。玩家控制一个固定位置的发射器（Player），通过旋转瞄准方向并发射弹球（PinBall），弹球在由边框（Border）围成的区域内运动、反弹，撞击消灭场上的方块单位（Unit）。弹球触底后回收并自动补充弹药。
 
-- **引擎**：Unity（2D 项目）
+- **引擎**：Unity 2022.3（2D 项目）
 - **产品名**：PinBall2D（见 `ProjectSettings/ProjectSettings.asset`）
 - **主场景**：`Assets/Scenes/MainScene.unity`
 
@@ -15,196 +15,274 @@
 ```
 PinBall2D/
 ├── Assets/
-│   ├── 1_Scripts/           # 游戏逻辑脚本
-│   │   ├── Border.cs        # 边框/墙壁，定义反弹区域与反弹方向
-│   │   ├── GameEnum.cs      # 游戏枚举（如 BounceDirection）
-│   │   ├── GameLogicManager.cs  # 单例游戏逻辑管理器
-│   │   ├── PinBallBase.cs   # 弹珠基类（运动、碰撞、反弹）
-│   │   ├── Player.cs        # 玩家挡板（移动、蓄力、击球）
-│   │   └── PlayerRender.cs  # 玩家蓄力条 UI 显示
+│   ├── 1_Scripts/                  # 游戏逻辑脚本
+│   │   ├── Border.cs              # 边框（矩形障碍，反弹/底边回收）
+│   │   ├── Player.cs              # 玩家发射器（旋转、发射弹球）
+│   │   ├── PlayerRender.cs        # 玩家渲染（LineRenderer 方向预览线）
+│   │   ├── Mgr/
+│   │   │   ├── GameLogicManager.cs # 单例，统一调度 Tick
+│   │   │   └── PoolManager.cs     # PinBall/Unit 缓存池与活跃列表
+│   │   ├── PInBall/
+│   │   │   ├── PinBallBase.cs     # 弹球基类（运动、碰撞、反弹）
+│   │   │   └── PinBallRender.cs   # 弹球渲染（SpriteRenderer）
+│   │   └── Unit/
+│   │       ├── UnitBase.cs        # 游戏单位基类（HP、碰撞法线）
+│   │       └── UnitRender.cs      # 单位渲染（SpriteRenderer + HP 颜色）
 │   └── Scenes/
-│       └── MainScene.unity  # 主场景
+│       └── MainScene.unity        # 主场景
 ├── doc/
-│   └── PROJECT.md           # 本文档
-├── ProjectSettings/         # Unity 项目配置
-├── UserSettings/            # 编辑器布局等
-├── Library/                 # Unity 缓存与编译产物（不纳入版本控制）
-├── Logs/                    # 编辑器/编译日志
+│   ├── Design/
+│   │   ├── Design.md              # 设计概述与各模块文档索引
+│   │   └── PROJECT.md             # 本文档
+│   ├── Player.md, Border.md, Unit.md, PinBall.md, GamePlay.md
+├── ProjectSettings/
+├── UserSettings/
+├── Library/
+├── Logs/
 └── .gitignore
 ```
 
-### 2.1 资源与脚本对应关系
+说明：`Border` 使用的 `BounceDirection` 枚举可定义在单独 `GameEnum.cs`（若存在）或与 `Border` 同程序集。
 
-| 路径 | 说明 |
+### 2.1 脚本职责总览
+
+| 脚本 | 路径 | 职责 |
+|------|------|------|
+| `Border.cs` | 1_Scripts/ | 矩形边框，反弹法线与底边标识 |
+| `Player.cs` | 1_Scripts/ | 旋转瞄准、F 键发射弹球、弹药容量 |
+| `PlayerRender.cs` | 1_Scripts/ | LineRenderer 方向预览线（反射/阻挡） |
+| `GameLogicManager.cs` | 1_Scripts/Mgr/ | 单例，统一调度 Tick，委托 PoolManager 管理池 |
+| `PoolManager.cs` | 1_Scripts/Mgr/ | PinBall/Unit 对象池与活跃列表 |
+| `PinBallBase.cs` | 1_Scripts/PInBall/ | 弹球运动、碰撞与反弹、底边回收 |
+| `PinBallRender.cs` | 1_Scripts/PInBall/ | 弹球外观渲染（预留扩展） |
+| `UnitBase.cs` | 1_Scripts/Unit/ | 方块单位基类，HP、碰撞法线 |
+| `UnitRender.cs` | 1_Scripts/Unit/ | 单位外观，按 HP 比例变色 |
+
+---
+
+## 3. 核心架构原则
+
+### 3.1 统一 Tick 驱动
+
+所有游戏对象（Player、PinBall、Unit）**不持有独立的 `Update`**，由 **GameLogicManager.UpdateGame()** 统一调用各自的 `Tick`。处于缓存池内（已隐藏）的物体不参与 Tick。
+
+### 3.2 对象池（PoolManager）
+
+PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `UnityEngine.Pool.ObjectPool<T>`：
+
+- **入池**：`SetActive(false)` + `SetParent(poolRoot)`，移至专用缓存根节点下隐藏。
+- **出池**：`SetParent(null)` + `SetActive(true)`，离开缓存节点并加入活跃列表，参与 Tick。
+- 池根节点若未在 Inspector 指定，PoolManager 在 `Awake` 时自动创建为自身子节点。
+- GameLogicManager 通过引用 PoolManager 调用 `SpawnPinBall` / `RecyclePinBall` / `SpawnUnit` / `RecycleUnit`；弹球回收后由 GameLogicManager 调用 `player.AddPinBall()` 补充弹药。
+
+---
+
+## 4. 核心脚本详解
+
+### 4.1 BounceDirection 与 Border
+
+- **BounceDirection**：枚举（Up / Down / Left / Right），供 Border 指定反弹法线，可由 `GameEnum.cs` 或与 Border 同程序集定义。
+- **Border.cs**：矩形障碍，弹球碰触后镜面反射；底边（`isBottomBorder`）时弹球不反射，回收并补充 Player 弹药。提供 `BorderRect`、`GetNormal()`、`RefreshRect()` 等。
+
+---
+
+### 4.2 GameLogicManager.cs — 游戏逻辑管理器（单例）
+
+- **职责**：整局调度入口，统一驱动所有 Tick；**不直接持有对象池**，池相关操作委托给 PoolManager。
+- **单例**：`Instance` 在 `Awake` 赋值，`OnDestroy` 时置空。
+
+#### Inspector 配置
+
+| 分组 | 字段 | 说明 |
+|------|------|------|
+| References | `player` | 场景中的 Player |
+| References | `playerRender` | 场景中的 PlayerRender |
+| References | `poolManager` | 场景中的 PoolManager（负责池与活跃列表） |
+
+#### 核心数据
+
+- `borders`：`Border[]`，在 `StartGame()` 时通过 `FindObjectsByType<Border>` 收集。
+- `ActivePinBalls` / `ActiveUnits`：转发自 `poolManager.ActivePinBalls` / `poolManager.ActiveUnits`。
+- `Player`：只读属性。
+
+#### 主要方法
+
+| 方法 | 说明 |
 |------|------|
-| `Assets/1_Scripts/` | 所有 C# 游戏逻辑脚本及 `.meta` |
-| `Assets/Scenes/` | 场景文件，当前仅 `MainScene.unity` |
+| `StartGame()` | 收集 Border；初始化 Player；清空池活跃列表并注册场景中已有 Unit（`poolManager.ClearActivePinBalls` / `ClearActiveUnits` / `RegisterExistingUnit`） |
+| `UpdateGame()` | 每帧：刷新所有 Rect → Player.Tick → 逆向遍历活跃 PinBall/Unit 调用 Tick → PlayerRender.Tick |
+| `SpawnPinBall(pos, dir, speed)` | 委托 `poolManager.SpawnPinBall` |
+| `RecyclePinBall(pb)` | 委托 `poolManager.RecyclePinBall`，并调用 `player.AddPinBall()` |
+| `SpawnUnit(pos)` | 委托 `poolManager.SpawnUnit` |
+| `RecycleUnit(unit)` | 委托 `poolManager.RecycleUnit` |
+
+**生命周期**：`Awake`（单例）→ `Start` → `StartGame()` → 每帧 `Update` → `UpdateGame()`。
 
 ---
 
-## 3. 核心脚本与功能逻辑
+### 4.3 PoolManager.cs — 缓存池管理器
 
-### 3.1 GameEnum.cs — 游戏枚举
+- **职责**：PinBall 与 Unit 的对象池创建、出池/入池、活跃列表维护；不处理游戏规则（如补弹由 GameLogicManager 负责）。
 
-定义边框反弹方向，供 `Border` 与 `PinBallBase` 使用：
+#### Inspector 配置
 
-```csharp
-public enum BounceDirection
-{
-    Up, Down, Left, Right
-}
+| 分组 | 字段 | 说明 |
+|------|------|------|
+| Prefabs | `pinBallPrefab` | PinBall 预制体 |
+| Prefabs | `unitPrefab` | Unit 预制体 |
+| Pool Roots | `pinBallPoolRoot` | PinBall 缓存根（可选，不设则自动创建） |
+| Pool Roots | `unitPoolRoot` | Unit 缓存根（可选，不设则自动创建） |
+| PinBall Pool | `pinBallPoolDefaultCapacity` / `pinBallPoolMaxSize` | 默认 20 / 50 |
+| Unit Pool | `unitPoolDefaultCapacity` / `unitPoolMaxSize` | 默认 20 / 100 |
+
+#### 核心数据
+
+- `activePinBalls` / `activeUnits`：当前活跃实例列表。
+- 对外只读：`ActivePinBalls`、`ActiveUnits`（`IReadOnlyList`）。
+
+#### 主要方法
+
+| 方法 | 说明 |
+|------|------|
+| `ClearActivePinBalls()` | 清空活跃弹球列表（StartGame 时由 GameLogicManager 调用） |
+| `ClearActiveUnits()` | 清空活跃单位列表 |
+| `RegisterExistingUnit(unit)` | 将场景中已有的 Unit 加入活跃列表 |
+| `SpawnPinBall(pos, dir, speed)` | 从池取出、设置位置并 Init、加入 activePinBalls |
+| `RecyclePinBall(pb)` | 从 activePinBalls 移除并 Release 回池 |
+| `SpawnUnit(pos)` | 从池取出、设置位置并 Init、加入 activeUnits |
+| `RecycleUnit(unit)` | 从 activeUnits 移除并 Release 回池 |
+
+**生命周期**：`Awake` → `InitPools()`；`OnDestroy` → 两个池 `Dispose()`。
+
+---
+
+### 4.4 Border.cs — 边框
+
+- **职责**：矩形障碍，弹球镜面反射；底边时弹球回收（由 PinBallBase 调用 GameLogicManager.RecyclePinBall）。
+- **可配置**：`bounceDirection`、`isBottomBorder`。
+- **核心**：`BorderRect`、`GetNormal()`、`RefreshRect()`；Gizmos 底边红色、其余黄色。
+
+---
+
+### 4.5 PinBallBase.cs — 弹球基类
+
+- **职责**：运动、与 Border/Unit 碰撞与镜面反弹、底边回收。
+- **可配置**：`initialSpeed`、`minSpeed`、`bounceSpeedMultiplier`。
+- **核心**：`Init(direction, speed)`、`Tick(borders, activeUnits)`（virtual）、`Velocity`、`Radius`。
+- **Tick**：先检测 Border（底边则回收并 return），再检测 Unit（反射 + 扣血，HP 归零则 RecycleUnit），最后更新位置。
+
+---
+
+### 4.6 PinBallRender.cs — 弹球渲染
+
+- **职责**：弹球外观，预留 `Tick()` 扩展（轨迹、变色等）。与 PinBallBase 同 Prefab，可绑定 `pinBall`、`spriteRenderer`。
+
+---
+
+### 4.7 Player.cs — 玩家发射器
+
+- **职责**：固定位置，A/D 旋转（±80°），F 发射弹球，管理弹药容量。
+- **可配置**：`rotateSpeed`、`maxAngle`、`maxPinBallCount`、`fireInterval`、`firePinBallSpeed`。
+- **核心**：`Init()`、`Tick()`（旋转 + 发射 + 冷却）、`Direction`、`AddPinBall(count)`。
+
+---
+
+### 4.8 PlayerRender.cs — 玩家渲染（方向预览线）
+
+- **职责**：LineRenderer 从 Player 位置沿 `Direction` 绘制预览线，遇 Border 反射、遇 Unit 或底边停止。
+- **可配置**：`player`、`lineRenderer`、`maxLineLength`、`maxBounces`。
+- **实现**：Ray-AABB Slab 求交，循环反射直至长度或次数用尽。
+
+---
+
+### 4.9 UnitBase.cs — 游戏单位基类
+
+- **职责**：方块单位，HP，被弹球撞击扣血，HP 归零回收入池；基类可继承扩展。
+- **可配置**：`maxHp`。
+- **核心**：`Init()`、`RefreshRect()`、`Tick()`（virtual）、`TakeDamage(damage)`、`GetCollisionNormal(circleCenter)`、`UnitRect`。
+
+---
+
+### 4.10 UnitRender.cs — 单位渲染
+
+- **职责**：按当前 HP 比例在灰色与原始颜色间 Lerp。与 UnitBase 同 Prefab，绑定 `unit`、`spriteRenderer`。
+
+---
+
+## 5. 游戏流程与数据流
+
+### 5.1 初始化
+
+1. **GameLogicManager.Awake**：设置单例。
+2. **PoolManager.Awake**：`InitPools()`，创建两个 ObjectPool 及池根节点（若未指定）。
+3. **GameLogicManager.Start** → **StartGame()**：收集 `borders`；`player.Init()`；`poolManager.ClearActivePinBalls()` / `ClearActiveUnits()`；场景中已有 Unit 逐一 `Init()` 并 `poolManager.RegisterExistingUnit()`。
+
+### 5.2 每帧更新顺序
+
+`GameLogicManager.Update()` → `UpdateGame()`：
+
+| 步骤 | 操作 |
+|------|------|
+| 1 | 刷新所有 Border / Unit Rect |
+| 2 | `player.Tick()` |
+| 3 | 逆向遍历 `poolManager.ActivePinBalls`，每项 `Tick(borders, activeUnits)` |
+| 4 | 逆向遍历 `poolManager.ActiveUnits`，每项 `Tick()` |
+| 5 | `playerRender.Tick()` |
+
+### 5.3 碰撞与交互
+
+（同前：弹球↔Border 反射/底边回收、弹球↔Unit 反射+扣血、F 发射、预览线 Border 反射/Unit 与底边停止。）
+
+### 5.4 弹药循环
+
+Player 发射 → PinBall 出池、弹药 -1 → 弹球运动与反弹 → 触底回收入池、弹药 +1。
+
+### 5.5 依赖关系简图
+
+```
+BounceDirection ← Border
+                      ↑
+GameLogicManager（borders，统一 Tick）──→ PoolManager（池 + 活跃列表）
+    │                    │                        ↑
+    │                    ├── ActivePinBalls → PinBallBase / PinBallRender
+    │                    ├── ActiveUnits     → UnitBase / UnitRender
+    │                    ├── Player（Tick，发射）
+    │                    └── PlayerRender（预览线，依赖 Borders + ActiveUnits）
+    └── RecyclePinBall 时调用 player.AddPinBall()
 ```
 
 ---
 
-### 3.2 Border.cs — 边框
+## 6. 场景与配置建议
 
-- **职责**：表示一块矩形边框区域，用于限制弹珠运动范围并指定反弹方向。
-- **主要成员**：
-  - `BounceDirection`：反弹法线方向（上/下/左/右）。
-  - `BorderRect`：世界坐标系下的矩形（由 `RefreshRect()` 根据 `transform.position` 与 `transform.localScale` 计算）。
-  - `Width` / `Height`：取自 `transform.localScale`。
-- **逻辑要点**：
-  - `RefreshRect()` 在 `Awake`、`OnValidate` 以及每帧由 `PinBallBase.Tick` 调用，保证矩形与 Transform 同步。
-  - Gizmos 中绘制黄色线框矩形，便于在编辑器中查看边界。
+### 6.1 场景中需存在
 
----
+- **GameLogicManager**：挂在一个 GameObject 上，Inspector 中绑定 `player`、`playerRender`、`poolManager`。
+- **PoolManager**：可挂在同一 GameObject 或单独节点，配置 PinBall/Unit 预制体与池参数。
+- **四面 Border**：底边勾选 `isBottomBorder`。
+- **一个 Player**、**一个 PlayerRender**（含 LineRenderer）。
+- **若干 UnitBase**：场景中预先摆放，StartGame 时自动收集并注册到 PoolManager。
 
-### 3.3 GameLogicManager.cs — 游戏逻辑管理器（单例）
+### 6.2 预制体
 
-- **职责**：集中管理边框引用与弹珠列表，驱动每帧游戏更新。
-- **单例**：`Instance` 在 `Awake` 中赋值，`OnDestroy` 时若为自身则置空。
-- **核心数据**：
-  - `borders`：场景中所有 `Border` 的缓存数组（在 `StartGame()` 时通过 `FindObjectsByType<Border>` 获取）。
-  - `pinBalls`：当前参与逻辑的 `PinBallBase` 列表。
-- **主要方法**：
-  - `StartGame()`：重新收集所有 `Border` 和现有 `PinBallBase`，清空并填充 `pinBalls`。
-  - `UpdateGame()`：每帧对 `pinBalls` 中每个弹珠调用 `Tick(borders)`，实现移动与边框碰撞。
-  - `RegisterPinBall` / `UnregisterPinBall`：供弹珠在 `OnEnable` / `OnDisable` 时注册/注销。
+- PinBall：`PinBallBase` + `PinBallRender` + SpriteRenderer。
+- Unit：`UnitBase` + `UnitRender` + SpriteRenderer。
 
-**流程**：`Start()` → `StartGame()`；`Update()` → `UpdateGame()`。
+### 6.3 LineRenderer
+
+World Space，线宽与材质按需设置；`maxLineLength`、`maxBounces` 依场地调整。
 
 ---
 
-### 3.4 PinBallBase.cs — 弹珠基类
+## 7. 扩展与维护
 
-- **职责**：弹珠的物理运动、与边框的碰撞检测与反弹、被玩家击打后的速度变化。
-- **可配置**：
-  - `speed`：当前速度向量（默认 `(0, -10)`）。
-  - `borderBounceSpeedMultiplier`：碰到边框后若速度大于初始速度，则按该系数衰减（默认 0.9）。
-- **生命周期**：
-  - `Awake`：记录 `initialSpeed`、`initialSpeedMagnitude`。
-  - `OnEnable`：向 `GameLogicManager` 注册。
-  - `OnDisable`：从 `GameLogicManager` 注销，并恢复 `speed = initialSpeed`。
-- **核心方法**：
-  - **Tick(borders)**：  
-    - 根据当前 `speed` 计算下一帧位置。  
-    - 遍历 `borders`，用 `IsCircleOverlappingRect` 做圆与矩形重叠检测；若重叠则取该边框的 `BounceDirection` 得到法线，调用 `ApplyBorderBounce(normal)` 反射速度并应用衰减，然后只处理第一个重叠的边框并 `break`。  
-    - 最后用更新后的 `speed` 移动 `transform.position`。
-  - **PushBall(newSpeed)**：被玩家击打时调用。将速度设为 `newSpeed` 的方向，大小取 `max(initialSpeedMagnitude, newSpeed.magnitude)`，保证击打后至少保持初始速度大小。
-- **辅助**：
-  - `IsCircleOverlappingRect`：圆心到矩形最近点的距离与半径比较。
-  - `GetBorderNormal`：将 `BounceDirection` 转为 `Vector2` 法线。
-- Gizmos：白色线框球体，半径 `transform.localScale.x * 0.5f`（即 `Radius`）。
+- 新弹球/单位类型：继承 PinBallBase/UnitBase，重写 Tick；可复用同一池或新池。
+- 新边框：复用 Border，调整 `BounceDirection`、`isBottomBorder`。
+- 关卡：不同场景或运行时 `SpawnUnit`；UI 可读 `player.CurrentPinBallCount` 等。
 
 ---
 
-### 3.5 Player.cs — 玩家挡板
+## 8. 文档与版本
 
-- **职责**：左右移动、蓄力、与弹珠的碰撞检测与击打。
-- **可配置**：
-  - `moveSpeed`：横向移动速度（默认 8）。
-  - `baseHitPower`：未蓄力时的基础击打力度（默认 0.5）。
-  - `maxHitPower`：最大蓄力（默认 2）。
-  - `powerChargeSpeed`：蓄力增长速度（默认 1）。
-- **属性**：
-  - `Radius`：`transform.localScale.x * 0.5f`，用于与边框、弹珠的距离判断。
-  - `CurrentHitPower` / `MaxHitPower` / `BaseHitPower`：供 `PlayerRender` 与击球逻辑使用。
-- **每帧逻辑（Update）**：
-  1. **HandleMove()**：A/D 键左右移动，`ClampXWithBorders` 将 x 限制在左右边框内侧（通过 `TryGetHorizontalLimits` 识别“竖长”的左右边框，得到 `minX`/`maxX`），避免挡板穿出边界。
-  2. **HandleCharge()**：未按 A/D 时蓄力，`currentHitPower` 随时间增加至 `maxHitPower`；若正在移动则 `ResetHitPower()` 回到 `baseHitPower`。
-  3. **HandleHit()**：遍历 `GameLogicManager` 提供的弹珠（或 `FindObjectsByType<PinBallBase>`），若与某弹珠距离 ≤ `Radius + ball.Radius`，则对该弹珠调用 `PushBall(-ball.Speed * currentHitPower)`，然后 `ResetHitPower()` 并只处理一颗弹珠（`break`）。
-- **辅助**：
-  - `GetBorders()` / `GetPinBalls()`：优先从 `GameLogicManager.Instance` 取，否则用 `FindObjectsByType`。
-  - `TryGetHorizontalLimits`：在所有 Border 中找“竖长”（height ≥ width）的左右两块，用其 `BorderRect` 的 x 边界加上 `Radius` 得到可移动 x 范围。
-- Gizmos：白色线框球体表示挡板碰撞体。
-
----
-
-### 3.6 PlayerRender.cs — 蓄力条显示
-
-- **职责**：根据玩家当前蓄力值更新 UI 蓄力条（Image 的 fillAmount）。
-- **依赖**：需在 Inspector 中指定 `power`（Image，建议使用 Image 的 Filled 类型）和 `player`（Player）。
-- **逻辑**：每帧将 `(CurrentHitPower - BaseHitPower) / (MaxHitPower - BaseHitPower)` 钳制到 [0,1] 并赋给 `power.fillAmount`，即蓄力条从“基础力度”到“满蓄力”的比例。
-
----
-
-## 4. 游戏流程与数据流
-
-### 4.1 初始化
-
-1. 场景加载后，`GameLogicManager.Awake` 设置单例，`Border.Awake` / `PinBallBase.Awake` 等执行。
-2. `GameLogicManager.Start` 调用 `StartGame()`，收集所有 `Border` 与 `PinBallBase`，填充 `borders` 与 `pinBalls`。
-3. 之后动态生成的弹珠在 `OnEnable` 时通过 `RegisterPinBall` 加入 `pinBalls`。
-
-### 4.2 每帧更新顺序（概念上）
-
-1. **GameLogicManager.Update**  
-   - 调用 `UpdateGame()`，对每个已注册的 `PinBallBase` 执行 `Tick(borders)`，完成弹珠移动与边框反弹。
-
-2. **Player.Update**  
-   - `HandleMove()`：根据输入和边框限制更新挡板 x。  
-   - `HandleCharge()`：不移动时增加 `currentHitPower`。  
-   - `HandleHit()`：若与某弹珠相交，则 `PushBall(-ball.Speed * currentHitPower)` 并重置蓄力。
-
-3. **PlayerRender.Update**  
-   - 根据 `player.CurrentHitPower` 等更新蓄力条 `power.fillAmount`。
-
-（实际执行顺序由 Unity 的脚本执行顺序和物体顺序决定，上述为逻辑顺序。）
-
-### 4.3 碰撞与击打
-
-- **弹珠–边框**：在 `PinBallBase.Tick` 中用圆与矩形重叠检测，重叠则按 `Border.BounceDirection` 反射速度，并可能应用 `borderBounceSpeedMultiplier`。
-- **挡板–弹珠**：在 `Player.HandleHit` 中用圆心距离与 `Radius + ball.Radius` 比较，满足则调用 `ball.PushBall(...)`，弹珠速度由 `PinBallBase.PushBall` 按方向和最小速度处理。
-
-### 4.4 依赖关系简图
-
-```
-GameEnum (BounceDirection)
-    ↑
-Border ←—— GameLogicManager（持有 borders，每帧传参）
-    ↑              ↑
-    |              +—— PinBallBase（注册/注销，每帧 Tick）
-    |                        ↑
-    +———————————— Player（获取 borders 做 x 限制；获取 pinBalls 做击球）
-                        ↑
-                  PlayerRender（仅依赖 Player 的蓄力数值）
-```
-
----
-
-## 5. 场景与配置建议
-
-- **MainScene** 中需存在：
-  - 至少一个 `GameLogicManager`（建议单例）。
-  - 若干 `Border`：围成弹珠活动区域，左右两侧建议为“竖长”矩形以便 `Player` 正确计算水平范围。
-  - 至少一个 `PinBallBase`（弹珠）。
-  - 一个 `Player`（挡板）。
-  - 若使用蓄力条：一个挂有 `PlayerRender` 的 GameObject，并绑定 `power`（Filled Image）和 `player`。
-
-- **Player** 的移动范围由“竖长”的左右 `Border` 自动计算，无需在 Player 上再写死边界。
-
----
-
-## 6. 扩展与维护说明
-
-- **新增弹珠类型**：继承 `PinBallBase`，可重写 `Tick` 或增加行为，在 `OnEnable` 中仍会通过基类注册到 `GameLogicManager`。
-- **新增边框类型**：可继承 `Border` 或复用现有 `Border`，保证 `RefreshRect` 与 `BounceDirection` 正确即可。
-- **关卡/多场景**：每个场景若有独立玩法，需保证该场景内有 `GameLogicManager` 且会调用 `StartGame()`；跨场景单例若需保留，需在场景切换时自行处理 `Instance`。
-
----
-
-## 7. 文档与版本
-
-- 本文档路径：`doc/PROJECT.md`。
-- 基于当前仓库脚本与目录结构整理，若后续增加场景、预制体或脚本，建议同步更新本文档的目录结构与依赖说明。
+- 本文档：`doc/Design/PROJECT.md`。
+- 基于当前脚本目录（`Assets/1_Scripts/` 及子目录 Mgr、PInBall、Unit）与逻辑整理，后续若增删脚本或目录请同步更新本文档。
