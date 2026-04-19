@@ -30,39 +30,9 @@ MonoBehaviour:
     referenceMode: 2
     serializationDepthLimit: 64
     assemblyNames:
-    - AdService
-    - Aot
     - Assembly-CSharp
-    - Coffee.UIEffect
-    - Coffee.UIParticle
-    - CW.Common
-    - DOTween.Module
-    - DOTween.Pro
+    - Assembly-CSharp-firstpass
     - EasySave3
-    - EchoLink
-    - HsCore
-    - HybridCLR.Runtime
-    - LeanCommon
-    - LeanTouch
-    - MahjongGame
-    - MCPForUnity.Runtime
-    - MemoryPack
-    - spine-csharp
-    - spine-unity
-    - SROptions
-    - StompyRobot.SRDebugger
-    - StompyRobot.SRF
-    - SuperScrollView
-    - UniTask
-    - UniTask.Addressables
-    - UniTask.DOTween
-    - UniTask.Linq
-    - UniTask.TextMeshPro
-    - Unity.Serialization
-    - Unity.Serialization.Tests
-    - Unity.TextMeshPro
-    - Unity.TextMeshPro.Tests
-    - YooAsset
     showAdvancedSettings: 0
   addMgrToSceneAutomatically: 0
   autoUpdateReferences: 1

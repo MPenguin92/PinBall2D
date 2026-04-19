@@ -59,12 +59,12 @@ public class UnitBase : MonoBehaviour
         return dy >= 0f ? Vector2.up : Vector2.down;
     }
 
-    private void OnDrawGizmos()
+    /*private void OnDrawGizmos()
     {
         RefreshRect();
         Gizmos.color = Color.green;
         Vector3 center = new Vector3(UnitRect.center.x, UnitRect.center.y, transform.position.z);
         Vector3 size = new Vector3(UnitRect.width, UnitRect.height, 0f);
         Gizmos.DrawWireCube(center, size);
-    }
+    }*/
 }

@@ -135,6 +135,10 @@ public class GameLogicManager : MonoBehaviour
 
     public void RecyclePinBall(PinBallBase pb)
     {
+        Debug.Log(pb != null
+            ? $"RecyclePinBall: {pb.name} @ {pb.transform.position}"
+            : "RecyclePinBall: null");
+
         if (poolManager != null)
             poolManager.RecyclePinBall(pb);
 

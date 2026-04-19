@@ -82,7 +82,7 @@ public class Player : MonoBehaviour
         fireTimer = fireInterval;
     }
 
-    private void OnDrawGizmos()
+    /*private void OnDrawGizmos()
     {
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, transform.localScale.x * 0.5f);
@@ -90,5 +90,5 @@ public class Player : MonoBehaviour
         Gizmos.color = Color.yellow;
         Vector3 dir = (Vector3)(Vector2)Direction;
         Gizmos.DrawLine(transform.position, transform.position + dir * 2f);
-    }
+    }*/
 }
