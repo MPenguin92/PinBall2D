@@ -1,6 +1,6 @@
 # 角色（Player）
 
-玩家主控单位：固定位置的发射器，负责旋转瞄准与发射弹球。逻辑在 `Player.cs`，渲染在 `PlayerRender.cs`。
+玩家主控单位：固定位置的发射器，负责旋转瞄准、发射弹球，并承受来自 Unit 的伤害。逻辑在 `Player.cs`，渲染在 `PlayerRender.cs`。
 
 ---
 
@@ -8,7 +8,7 @@
 
 | 脚本 | 职责 |
 |------|------|
-| **Player.cs** | 旋转、发射、弹药容量、冷却间隔等全部逻辑 |
+| **Player.cs** | 旋转、发射、弹药容量、冷却间隔、**生命值与受伤** |
 | **PlayerRender.cs** | 形象渲染 + 方向预览线（LineRenderer） |
 
 ---
@@ -25,9 +25,16 @@
 ### 发射弹球
 
 - **按键**：按 **F** 从 Player 位置、沿当前朝向发射 PinBall。
-- **容量**：Player 拥有的 PinBall 数量有上限（如 5），发射会消耗数量。
+- **容量**：Player 拥有的 PinBall 数量有上限（默认 5），发射会消耗数量。
 - **间隔**：两次发射之间有冷却时间，避免连发。
-- **补充**：弹球触底回收后，由游戏逻辑自动给 Player 补充数量；数量为 0 时无法发射，直到被补充。
+- **补充**：弹球触底回收后，由 `GameLogicManager.RecyclePinBall` 调用 `player.AddPinBall()` 补充数量；数量为 0 时无法发射，直到被补充。
+
+### 生命值与受伤
+
+- **属性**：`maxHp`（Inspector 可配，默认 5）、`currentHp`、`IsDead`。
+- **初始化**：`Init()` 时 `currentHp = maxHp`（开始/重开游戏时触发）。
+- **受伤来源**：Unit 触底 → `GameLogicManager.OnUnitReachBottom(unit)` → `player.TakeDamage(unit.Attack)`。
+- **死亡判定**：`TakeDamage` 返回 `IsDead`；死亡时 `GameLogicManager.EndGame()` 会被触发，游戏进入 `Ended`、弹出 GameOver UI。
 
 ---
 
@@ -45,4 +52,4 @@
 ## 与项目文档的对应
 
 - 脚本路径：`Assets/1_Scripts/Player.cs`、`Assets/1_Scripts/PlayerRender.cs`
-- 详细接口与配置见 **doc/Design/PROJECT.md** 中「4.7 Player」「4.8 PlayerRender」。
+- 详细接口与配置见 **doc/Design/PROJECT.md** 中「4.9 Player」「4.10 PlayerRender」。
