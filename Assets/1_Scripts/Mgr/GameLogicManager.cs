@@ -15,6 +15,8 @@ public class GameLogicManager : MonoBehaviour
     [SerializeField]
     private PoolManager poolManager;
 
+    private IUnitCreator unitCreator;
+
     private Border[] borders;
 
     public Border[] Borders => borders;
@@ -39,10 +41,15 @@ public class GameLogicManager : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        unitCreator = new UnitCreator();
     }
 
     private void OnDestroy()
     {
+        if (unitCreator is System.IDisposable disposable)
+            disposable.Dispose();
+        unitCreator = null;
+
         if (Instance == this)
             Instance = null;
     }
@@ -57,6 +64,11 @@ public class GameLogicManager : MonoBehaviour
     public void StartGame()
     {
         gameState = GameState.Preparing;
+
+        if (gameOverUI != null)
+            gameOverUI.SetActive(false);
+        if (startScreenUI != null)
+            startScreenUI.SetActive(false);
 
         borders = FindObjectsByType<Border>(FindObjectsSortMode.None);
 
@@ -77,6 +89,23 @@ public class GameLogicManager : MonoBehaviour
         }
 
         gameState = GameState.Running;
+        GameEvents.RaiseGameStart();
+    }
+
+    /// <summary>暂停游戏：主循环停推，并通知所有订阅方。</summary>
+    public void PauseGame()
+    {
+        if (gameState != GameState.Running) return;
+        gameState = GameState.Paused;
+        GameEvents.RaiseGamePause();
+    }
+
+    /// <summary>从暂停恢复游戏。</summary>
+    public void ResumeGame()
+    {
+        if (gameState != GameState.Paused) return;
+        gameState = GameState.Running;
+        GameEvents.RaiseGameResume();
     }
 
     public void UpdateGame()
@@ -102,6 +131,9 @@ public class GameLogicManager : MonoBehaviour
 
         if (player != null)
             player.Tick();
+
+        if (unitCreator != null)
+            unitCreator.Tick();
 
         if (poolManager != null)
         {
@@ -135,10 +167,6 @@ public class GameLogicManager : MonoBehaviour
 
     public void RecyclePinBall(PinBallBase pb)
     {
-        Debug.Log(pb != null
-            ? $"RecyclePinBall: {pb.name} @ {pb.transform.position}"
-            : "RecyclePinBall: null");
-
         if (poolManager != null)
             poolManager.RecyclePinBall(pb);
 
@@ -156,5 +184,61 @@ public class GameLogicManager : MonoBehaviour
     {
         if (poolManager != null)
             poolManager.RecycleUnit(unit);
+    }
+
+    /// <summary>
+    /// Unit 触碰到底部 Border 时回调：对 Player 造成伤害并回收 Unit；
+    /// 如果 Player 死亡，则进入游戏结束流程。
+    /// </summary>
+    public void OnUnitReachBottom(UnitBase unit)
+    {
+        if (unit == null) return;
+
+        if (player != null && !player.IsDead)
+        {
+            bool dead = player.TakeDamage(unit.Attack);
+            RecycleUnit(unit);
+
+            if (dead)
+                EndGame();
+        }
+        else
+        {
+            RecycleUnit(unit);
+        }
+    }
+
+    /// <summary>结束当前游戏：停止主循环，清空场上对象，通知订阅方。</summary>
+    public void EndGame()
+    {
+        gameState = GameState.Ended;
+
+        if (poolManager != null)
+        {
+            poolManager.ClearActivePinBalls();
+            poolManager.ClearActiveUnits();
+        }
+
+        GameEvents.RaiseGameEnd();
+    }
+
+    /// <summary>由游戏结束界面「重新开始」按钮调用。</summary>
+    public void RestartGame()
+    {
+        StartGame();
+    }
+
+    /// <summary>由游戏结束界面「回到主页」按钮调用：回到准备状态，通知订阅方。</summary>
+    public void BackToHome()
+    {
+        gameState = GameState.Preparing;
+
+        if (poolManager != null)
+        {
+            poolManager.ClearActivePinBalls();
+            poolManager.ClearActiveUnits();
+        }
+
+        GameEvents.RaiseReturnToHome();
     }
 }

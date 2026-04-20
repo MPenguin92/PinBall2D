@@ -17,12 +17,23 @@ public class Player : MonoBehaviour
     [SerializeField]
     private float firePinBallSpeed = 10f;
 
+    [SerializeField]
+    [Tooltip("Player 最大生命值")]
+    private int maxHp = 5;
+
     private int currentPinBallCount;
     private float fireTimer;
+    private int currentHp;
 
     public int CurrentPinBallCount => currentPinBallCount;
 
     public int MaxPinBallCount => maxPinBallCount;
+
+    public int CurrentHp => currentHp;
+
+    public int MaxHp => maxHp;
+
+    public bool IsDead => currentHp <= 0;
 
     public Vector2 Direction
     {
@@ -37,7 +48,19 @@ public class Player : MonoBehaviour
     {
         currentPinBallCount = maxPinBallCount;
         fireTimer = 0f;
+        currentHp = maxHp;
         transform.rotation = Quaternion.identity;
+    }
+
+    /// <summary>
+    /// 扣除生命值，返回是否死亡。
+    /// </summary>
+    public bool TakeDamage(int damage)
+    {
+        if (damage <= 0 || IsDead) return IsDead;
+
+        currentHp = Mathf.Max(0, currentHp - damage);
+        return IsDead;
     }
 
     public void Tick()

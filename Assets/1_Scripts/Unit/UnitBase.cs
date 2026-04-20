@@ -5,11 +5,17 @@ public class UnitBase : MonoBehaviour
     [SerializeField]
     private int maxHp = 3;
 
+    [SerializeField]
+    [Tooltip("Unit 触碰到下边框时对 Player 造成的伤害")]
+    private int attack = 1;
+
     private int currentHp;
 
     public int CurrentHp => currentHp;
 
     public int MaxHp => maxHp;
+
+    public int Attack => attack;
 
     public float Width => transform.localScale.x;
 
