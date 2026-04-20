@@ -19,6 +19,13 @@ public class GameLogicManager : MonoBehaviour
 
     private Border[] borders;
 
+    private Difficulty difficulty;
+
+    // Step 节拍计时：Running 中按 Difficulty 当前阶段的 StepInterval 触发 GameEvents.OnStep。
+    private float stepTimer;
+
+    public Difficulty Difficulty => difficulty;
+
     public Border[] Borders => borders;
 
     public IReadOnlyList<PinBallBase> ActivePinBalls => poolManager != null ? poolManager.ActivePinBalls : null;
@@ -41,6 +48,11 @@ public class GameLogicManager : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+
+        // 难度表：运行时走 AssetLoader（目前 Editor 下 AssetDatabase；将来接 Addressables）。
+        DifficultyTable table = AssetLoader.Load<DifficultyTable>("8_Data/DifficultyTable.asset");
+        difficulty = new Difficulty(table);
+
         unitCreator = new UnitCreator();
     }
 
@@ -65,11 +77,6 @@ public class GameLogicManager : MonoBehaviour
     {
         gameState = GameState.Preparing;
 
-        if (gameOverUI != null)
-            gameOverUI.SetActive(false);
-        if (startScreenUI != null)
-            startScreenUI.SetActive(false);
-
         borders = FindObjectsByType<Border>(FindObjectsSortMode.None);
 
         if (player != null)
@@ -87,6 +94,9 @@ public class GameLogicManager : MonoBehaviour
                 poolManager.RegisterExistingUnit(existingUnits[i]);
             }
         }
+
+        stepTimer = 0f;
+        difficulty?.Reset();
 
         gameState = GameState.Running;
         GameEvents.RaiseGameStart();
@@ -132,8 +142,17 @@ public class GameLogicManager : MonoBehaviour
         if (player != null)
             player.Tick();
 
-        if (unitCreator != null)
-            unitCreator.Tick();
+        // 推进难度时间轴与 Step 心跳：Running 下每 Difficulty.GetStepInterval() 秒触发一次，
+        // 供 UnitCreator 生成新一批、所有 Unit 开启本轮移动动画。
+        difficulty?.Tick(Time.deltaTime);
+        stepTimer += Time.deltaTime;
+        float interval = difficulty != null ? difficulty.GetStepInterval() : Defines.StepInterval;
+        while (stepTimer >= interval)
+        {
+            stepTimer -= interval;
+            GameEvents.RaiseStep();
+            interval = difficulty != null ? difficulty.GetStepInterval() : Defines.StepInterval;
+        }
 
         if (poolManager != null)
         {

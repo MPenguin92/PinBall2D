@@ -22,9 +22,14 @@ public static class GameEvents
     /// <summary>回到主页（从 Ended 回到 Preparing，等待重新开始）。</summary>
     public static event Action OnReturnToHome;
 
+    /// <summary>节奏心跳：Running 状态下 GameLogicManager 每 <see cref="Defines.StepInterval"/> 秒触发一次。
+    /// Unit 用它推进移动、UnitCreator 用它生成新一批。</summary>
+    public static event Action OnStep;
+
     public static void RaiseGameStart() => OnGameStart?.Invoke();
     public static void RaiseGamePause() => OnGamePause?.Invoke();
     public static void RaiseGameResume() => OnGameResume?.Invoke();
     public static void RaiseGameEnd() => OnGameEnd?.Invoke();
     public static void RaiseReturnToHome() => OnReturnToHome?.Invoke();
+    public static void RaiseStep() => OnStep?.Invoke();
 }
