@@ -21,6 +21,9 @@ public class Player : MonoBehaviour
     [Tooltip("Player 最大生命值")]
     private int maxHp = 5;
 
+    [SerializeField]
+    private PlayerRender playerRender;
+
     private int currentPinBallCount;
     private float fireTimer;
     private int currentHp;
@@ -32,6 +35,8 @@ public class Player : MonoBehaviour
     public int CurrentHp => currentHp;
 
     public int MaxHp => maxHp;
+
+    public float FireInterval => fireInterval;
 
     public bool IsDead => currentHp <= 0;
 
@@ -60,6 +65,15 @@ public class Player : MonoBehaviour
         if (damage <= 0 || IsDead) return IsDead;
 
         currentHp = Mathf.Max(0, currentHp - damage);
+        if (playerRender != null)
+            playerRender.PlayHitAnimation();
+
+        if (IsDead)
+        {
+            if (playerRender != null)
+                playerRender.PlayDeathAnimation();
+        }
+
         return IsDead;
     }
 
@@ -67,6 +81,10 @@ public class Player : MonoBehaviour
     {
         HandleRotation();
         HandleFire();
+        
+
+        if (playerRender != null)
+            playerRender.Tick();
 
         if (fireTimer > 0f)
             fireTimer -= Time.deltaTime;
@@ -103,6 +121,9 @@ public class Player : MonoBehaviour
         GameLogicManager.Instance.SpawnPinBall(transform.position, Direction, firePinBallSpeed);
         currentPinBallCount--;
         fireTimer = fireInterval;
+
+        if (playerRender != null)
+            playerRender.PlayAttackAnimation();
     }
 
     /*private void OnDrawGizmos()

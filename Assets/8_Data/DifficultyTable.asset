@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c3d9b2f8e4a5d6cb3e5d8f9a012c654, type: 3}
+  m_Name: DifficultyTable
+  m_EditorClassIdentifier: 
+  stages:
+  - startTime: 0
+    spawnMin: 1
+    spawnMax: 2
+    unitHp: 1
+    unitAttack: 1
+    stepInterval: 1
+  - startTime: 30
+    spawnMin: 1
+    spawnMax: 3
+    unitHp: 1
+    unitAttack: 1
+    stepInterval: 1
+  - startTime: 60
+    spawnMin: 2
+    spawnMax: 4
+    unitHp: 2
+    unitAttack: 1
+    stepInterval: 1
+  - startTime: 90
+    spawnMin: 3
+    spawnMax: 5
+    unitHp: 2
+    unitAttack: 2
+    stepInterval: 0.8
+  - startTime: 110
+    spawnMin: 4
+    spawnMax: 6
+    unitHp: 3
+    unitAttack: 3
+    stepInterval: 0.6

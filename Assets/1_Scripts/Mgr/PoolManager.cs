@@ -18,6 +18,13 @@ public class PoolManager : MonoBehaviour
     [SerializeField]
     private Transform unitPoolRoot;
 
+    [Header("Active Roots")]
+    [SerializeField]
+    private Transform pinBallSpawnRoot;
+
+    [SerializeField]
+    private Transform unitSpawnRoot;
+
     [Header("PinBall Pool")]
     [SerializeField]
     private int pinBallPoolDefaultCapacity = 20;
@@ -67,6 +74,18 @@ public class PoolManager : MonoBehaviour
             unitPoolRoot.SetParent(transform);
         }
 
+        if (pinBallSpawnRoot == null)
+        {
+            pinBallSpawnRoot = new GameObject("PinBallSpawnRoot").transform;
+            pinBallSpawnRoot.SetParent(transform);
+        }
+
+        if (unitSpawnRoot == null)
+        {
+            unitSpawnRoot = new GameObject("UnitSpawnRoot").transform;
+            unitSpawnRoot.SetParent(transform);
+        }
+
         pinBallPool = new ObjectPool<PinBallBase>(
             createFunc: () =>
             {
@@ -76,7 +95,7 @@ public class PoolManager : MonoBehaviour
             },
             actionOnGet: pb =>
             {
-                pb.transform.SetParent(null);
+                pb.transform.SetParent(pinBallSpawnRoot);
                 pb.gameObject.SetActive(true);
             },
             actionOnRelease: pb =>
@@ -98,7 +117,7 @@ public class PoolManager : MonoBehaviour
             },
             actionOnGet: u =>
             {
-                u.transform.SetParent(null);
+                u.transform.SetParent(unitSpawnRoot);
                 u.gameObject.SetActive(true);
             },
             actionOnRelease: u =>
@@ -114,7 +133,14 @@ public class PoolManager : MonoBehaviour
 
     public void ClearActivePinBalls()
     {
-        activePinBalls.Clear();
+        for (int i = activePinBalls.Count - 1; i >= 0; i--)
+        {
+            PinBallBase pinBall = activePinBalls[i];
+            activePinBalls.RemoveAt(i);
+
+            if (pinBall != null)
+                pinBallPool.Release(pinBall);
+        }
     }
 
     public PinBallBase SpawnPinBall(Vector2 position, Vector2 direction, float speed)
@@ -134,7 +160,14 @@ public class PoolManager : MonoBehaviour
 
     public void ClearActiveUnits()
     {
-        activeUnits.Clear();
+        for (int i = activeUnits.Count - 1; i >= 0; i--)
+        {
+            UnitBase unit = activeUnits[i];
+            activeUnits.RemoveAt(i);
+
+            if (unit != null)
+                unitPool.Release(unit);
+        }
     }
 
     public void RegisterExistingUnit(UnitBase unit)

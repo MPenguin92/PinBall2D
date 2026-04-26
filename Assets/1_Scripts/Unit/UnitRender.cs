@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class UnitRender : MonoBehaviour
+public class UnitRender : MonoBehaviour, ICombatAnimation
 {
     [SerializeField]
     private UnitBase unit;
@@ -22,5 +22,21 @@ public class UnitRender : MonoBehaviour
 
         float hpRatio = unit.MaxHp > 0 ? (float)unit.CurrentHp / unit.MaxHp : 0f;
         spriteRenderer.color = Color.Lerp(Color.gray, originalColor, hpRatio);
+    }
+
+    public virtual void PlayAttackAnimation()
+    {
+    }
+
+    public virtual void PlayHitAnimation()
+    {
+    }
+
+    public virtual void PlayDeathAnimation()
+    {
+    }
+
+    public virtual void PlayReachBottomAnimation()
+    {
     }
 }

@@ -1,7 +1,7 @@
 // 黑底贴图赛博朋克呼吸 Shader
 // 核心逻辑：亮度转 Alpha（黑→透明，白→不透明）
 // 扩展效果：对 alpha<1 的羽化区域做颜色/亮度呼吸，核心白边保持不变，呈现赛博朋克霓虹辉光感
-Shader "HsApp/CyberpunkPolygon"
+Shader "My/CyberpunkPolygon"
 {
     Properties
     {
@@ -87,7 +87,7 @@ Shader "HsApp/CyberpunkPolygon"
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
-                o.color = v.color * _Color;
+                o.color = v.color;
                 return o;
             }
 
@@ -95,8 +95,8 @@ Shader "HsApp/CyberpunkPolygon"
             {
                 fixed4 col = tex2D(_MainTex, i.uv);
 
-                // 亮度转 Alpha：RGB 最大分量作为蒙版
-                float alpha = max(col.r, max(col.g, col.b));
+               
+                float alpha = col.a;
 
                 // 区分"核心白边"和"羽化辉光区"：
                 // core=1 表示原始白（保持不变），core=0 表示完全属于 halo（吃呼吸与染色）
@@ -117,14 +117,15 @@ Shader "HsApp/CyberpunkPolygon"
                 // 颜色在 A/B 之间循环插值
                 fixed3 neon = lerp(_NeonColorA.rgb, _NeonColorB.rgb, colorWave);
 
-                // 合成：halo 区用霓虹色 + 呼吸亮度，core 区保留原 RGB
+                // 合成：halo 区用霓虹色 + 呼吸亮度，core 区保留原 RGB 并吃 _Color
                 fixed3 haloRgb = neon * brightness * _HaloBoost;
-                fixed3 rgb = lerp(haloRgb, col.rgb, core);
+                fixed3 coreRgb = col.rgb * _Color.rgb;
+                fixed3 rgb = lerp(haloRgb, coreRgb, core) * i.color.rgb;
 
                 // halo 区的 alpha 也做轻微呼吸，core 区保持稳定
-                float alphaOut = alpha * lerp(brightness, 1.0, core);
+                float alphaOut = alpha * lerp(brightness, 1.0, core) * _Color.a * i.color.a;
 
-                fixed4 result = fixed4(rgb, alphaOut) * i.color;
+                fixed4 result = fixed4(rgb, alphaOut);
                 // 预乘 Alpha（与 Sprites/Default 渲染管线一致）
                 result.rgb *= result.a;
                 return result;

@@ -10,9 +10,6 @@ public class GameLogicManager : MonoBehaviour
     private Player player;
 
     [SerializeField]
-    private PlayerRender playerRender;
-
-    [SerializeField]
     private PoolManager poolManager;
 
     private IUnitCreator unitCreator;
@@ -173,9 +170,6 @@ public class GameLogicManager : MonoBehaviour
                 unit.Tick();
             }
         }
-
-        if (playerRender != null)
-            playerRender.Tick();
     }
 
     public PinBallBase SpawnPinBall(Vector2 position, Vector2 direction, float speed)
@@ -215,6 +209,7 @@ public class GameLogicManager : MonoBehaviour
 
         if (player != null && !player.IsDead)
         {
+            unit.PlayReachBottomAnimation();
             bool dead = player.TakeDamage(unit.Attack);
             RecycleUnit(unit);
 

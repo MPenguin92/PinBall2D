@@ -9,6 +9,9 @@ public class UnitBase : MonoBehaviour
     [Tooltip("Unit 触碰到下边框时对 Player 造成的伤害")]
     private int attack = 1;
 
+    [SerializeField]
+    private UnitRender unitRender;
+
     private int currentHp;
 
     public int CurrentHp => currentHp;
@@ -65,8 +68,26 @@ public class UnitBase : MonoBehaviour
 
     public bool TakeDamage(int damage)
     {
+        if (damage <= 0 || currentHp <= 0)
+            return currentHp <= 0;
+
         currentHp = Mathf.Max(0, currentHp - damage);
+        if (unitRender != null)
+            unitRender.PlayHitAnimation();
+
+        if (currentHp <= 0)
+        {
+            if (unitRender != null)
+                unitRender.PlayDeathAnimation();
+        }
+
         return currentHp <= 0;
+    }
+
+    public void PlayReachBottomAnimation()
+    {
+        if (unitRender != null)
+            unitRender.PlayReachBottomAnimation();
     }
 
     public Vector2 GetCollisionNormal(Vector2 circleCenter)
@@ -98,5 +119,11 @@ public class UnitBase : MonoBehaviour
     /// <summary>收到 Step 心跳时调用。基类空实现，子类（如 SimpleUnit）重写以响应节奏。</summary>
     protected virtual void HandleStep()
     {
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.white;
+        Gizmos.DrawCube(transform.position, new Vector3(Width, Height, 0f));
     }
 }

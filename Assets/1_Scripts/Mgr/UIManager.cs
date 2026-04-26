@@ -17,6 +17,10 @@ public class UIManager : MonoBehaviour
     [Tooltip("游戏结束界面 UI 根节点（Player 死亡时显示）")]
     private GameObject gameOverUI;
 
+    [SerializeField]
+    [Tooltip("游戏中 HUD 根节点（显示生命值与弹珠数量）")]
+    private GameObject inGameUI;
+
     private void Awake()
     {
         Instance = this;
@@ -40,15 +44,18 @@ public class UIManager : MonoBehaviour
     {
         if (startScreenUI != null) startScreenUI.SetActive(false);
         if (gameOverUI != null) gameOverUI.SetActive(false);
+        if (inGameUI != null) inGameUI.SetActive(true);
     }
 
     private void HandleGameEnd()
     {
+        if (inGameUI != null) inGameUI.SetActive(false);
         if (gameOverUI != null) gameOverUI.SetActive(true);
     }
 
     private void HandleReturnToHome()
     {
+        if (inGameUI != null) inGameUI.SetActive(false);
         if (gameOverUI != null) gameOverUI.SetActive(false);
         if (startScreenUI != null) startScreenUI.SetActive(true);
     }

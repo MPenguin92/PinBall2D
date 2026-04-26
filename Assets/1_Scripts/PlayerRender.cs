@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerRender : MonoBehaviour
+public class PlayerRender : MonoBehaviour, ICombatAnimation
 {
+    private const string DashedLineMaterialPath = "7_Res/dashed_line.mat";
+
     [SerializeField]
     private Player player;
 
@@ -10,16 +12,58 @@ public class PlayerRender : MonoBehaviour
     private LineRenderer lineRenderer;
 
     [SerializeField]
+    [Tooltip("瞄准线起点沿发射方向前移的距离，避免线段插到 Player 内侧。")]
+    private float lineForwardOffset = 0.45f;
+
+    [SerializeField]
     private float maxLineLength = 20f;
 
     [SerializeField]
     private int maxBounces = 10;
 
+    [SerializeField, HideInInspector]
+    private Material dashedLineMaterial;
+
     private readonly List<Vector3> linePoints = new List<Vector3>();
+    private float attackAnimationTimer;
+    private float attackAnimationDuration;
+    private bool isPlayingAttackAnimation;
 
     public void Tick()
     {
+        UpdateAttackAnimation();
         UpdateDirectionLine();
+    }
+
+    public virtual void PlayAttackAnimation()
+    {
+        attackAnimationTimer = 0f;
+        attackAnimationDuration = player != null ? Mathf.Max(0.01f, player.FireInterval) : 0.3f;
+        isPlayingAttackAnimation = true;
+    }
+
+    public virtual void PlayHitAnimation()
+    {
+    }
+
+    public virtual void PlayDeathAnimation()
+    {
+    }
+
+    private void UpdateAttackAnimation()
+    {
+        if (!isPlayingAttackAnimation)
+            return;
+
+        attackAnimationTimer += Time.deltaTime;
+        float t = Mathf.Clamp01(attackAnimationTimer / attackAnimationDuration);
+        transform.localRotation = Quaternion.Euler(0f, 0f, 360f * t);
+
+        if (t >= 1f)
+        {
+            isPlayingAttackAnimation = false;
+            transform.localRotation = Quaternion.identity;
+        }
     }
 
     private void UpdateDirectionLine()
@@ -28,8 +72,16 @@ public class PlayerRender : MonoBehaviour
 
         linePoints.Clear();
 
-        Vector2 origin = player.transform.position;
         Vector2 direction = player.Direction;
+        if (direction.sqrMagnitude <= Mathf.Epsilon)
+        {
+            lineRenderer.positionCount = 0;
+            return;
+        }
+
+        direction.Normalize();
+
+        Vector2 origin = (Vector2)player.transform.position + direction * lineForwardOffset;
         float remainingLength = maxLineLength;
 
         linePoints.Add(origin);
