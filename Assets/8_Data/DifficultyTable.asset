@@ -16,13 +16,13 @@ MonoBehaviour:
   - startTime: 0
     spawnMin: 1
     spawnMax: 2
-    unitHp: 1
+    unitHp: 2
     unitAttack: 1
     stepInterval: 1
   - startTime: 30
     spawnMin: 1
     spawnMax: 3
-    unitHp: 1
+    unitHp: 2
     unitAttack: 1
     stepInterval: 1
   - startTime: 60
