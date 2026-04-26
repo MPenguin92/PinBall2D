@@ -39,7 +39,7 @@ Material:
     - _GapLength: 0.04
     - _ScrollSpeed: -0.16
     m_Colors:
-    - _Color: {r: 1, g: 1, b: 1, a: 0.09019608}
+    - _Color: {r: 1, g: 1, b: 1, a: 0.14901961}
     - _Flip: {r: 1, g: 1, b: 1, a: 1}
     - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

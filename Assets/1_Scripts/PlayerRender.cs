@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 
 public class PlayerRender : MonoBehaviour, ICombatAnimation
@@ -25,21 +26,22 @@ public class PlayerRender : MonoBehaviour, ICombatAnimation
     private Material dashedLineMaterial;
 
     private readonly List<Vector3> linePoints = new List<Vector3>();
-    private float attackAnimationTimer;
-    private float attackAnimationDuration;
-    private bool isPlayingAttackAnimation;
+    private Tween attackTween;
 
     public void Tick()
     {
-        UpdateAttackAnimation();
         UpdateDirectionLine();
     }
 
     public virtual void PlayAttackAnimation()
     {
-        attackAnimationTimer = 0f;
-        attackAnimationDuration = player != null ? Mathf.Max(0.01f, player.FireInterval) : 0.3f;
-        isPlayingAttackAnimation = true;
+        float duration = player != null ? Mathf.Max(0.01f, player.FireInterval) : 0.3f;
+        attackTween?.Kill();
+        transform.localRotation = Quaternion.identity;
+        attackTween = transform
+            .DOLocalRotate(new Vector3(0f, 0f, 360f), duration, RotateMode.FastBeyond360)
+            .SetEase(Ease.Linear)
+            .OnComplete(() => transform.localRotation = Quaternion.identity);
     }
 
     public virtual void PlayHitAnimation()
@@ -48,22 +50,6 @@ public class PlayerRender : MonoBehaviour, ICombatAnimation
 
     public virtual void PlayDeathAnimation()
     {
-    }
-
-    private void UpdateAttackAnimation()
-    {
-        if (!isPlayingAttackAnimation)
-            return;
-
-        attackAnimationTimer += Time.deltaTime;
-        float t = Mathf.Clamp01(attackAnimationTimer / attackAnimationDuration);
-        transform.localRotation = Quaternion.Euler(0f, 0f, 360f * t);
-
-        if (t >= 1f)
-        {
-            isPlayingAttackAnimation = false;
-            transform.localRotation = Quaternion.identity;
-        }
     }
 
     private void UpdateDirectionLine()
