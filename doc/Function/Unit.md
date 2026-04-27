@@ -8,8 +8,8 @@
 
 | 脚本 | 职责 |
 |------|------|
-| **UnitBase.cs** | 基类：生命值（`maxHp`）、攻击力（`attack`）、统一尺寸（`Defines.UnitSize`）、碰撞矩形、受击扣血、碰撞法线、订阅 `OnStep` |
-| **UnitRender.cs** | 渲染单位形象（Image / SpriteRenderer），按 HP 比例变色 |
+| **UnitBase.cs** | 基类：生命值（`maxHp`）、攻击力（`attack`）、统一尺寸（`Defines.UnitSize`）、碰撞矩形、受击扣血、碰撞法线、订阅 `OnStep`；将受击 / 死亡 / 触底动画转发到 `UnitRender` |
+| **UnitRender.cs** | 渲染单位形象（Image / SpriteRenderer），按 HP 比例变色；实现 `ICombatAnimation` + 额外 `PlayReachBottomAnimation` 钩子 |
 | **SimpleUnit.cs** | 默认单位实现：`OnStep` 触发 0.2s 下移 1 米 + 到达后触底回调 |
 | **IUnitCreator.cs** | 生成器接口（空标记，继承 `IDisposable`） |
 | **UnitCreator.cs** | 默认生成器：订阅 `OnStep` 批量生成 1..N 个 Unit（不重叠且不越界） |
@@ -36,10 +36,11 @@ Unit 不再连续平移，而是完全跟着 Step 心跳节奏走：
   - 过渡：`Vector2.Lerp(start, target, t)`，`t = moveTimer / StepMoveDuration`
 - **推进**：由 `UnitBase.Tick()`（`SimpleUnit.Tick` 重写）每帧推进位移插值并 `RefreshRect`。
 - **触底**：到达目标位置那一帧再检查与底边 Border 是否重叠，若重叠则调用 `GameLogicManager.OnUnitReachBottom(this)`：
-  1. `player.TakeDamage(Attack)`
-  2. `RecycleUnit(this)` 回收入池
-  3. 如果 Player 死亡 → `EndGame()`
-- **被击毁**：被 PinBall 撞击 `TakeDamage(1)`；若 HP 归零，`PinBallBase` 直接 `RecycleUnit`。
+  1. `unit.PlayReachBottomAnimation()`（转发到 `UnitRender` 的钩子，预留特效）
+  2. `player.TakeDamage(Attack)`
+  3. `RecycleUnit(this)` 回收入池
+  4. 如果 Player 死亡 → `EndGame()`
+- **被击毁**：被 PinBall 撞击 `TakeDamage(1)`，扣血时触发 `UnitRender.PlayHitAnimation`；若 HP 归零，先触发 `PlayDeathAnimation`，再由 `PinBallBase` 调用 `RecycleUnit`。
 
 ---
 
@@ -66,10 +67,19 @@ Unit 不再连续平移，而是完全跟着 Step 心跳节奏走：
 
 ---
 
+## 战斗动画（ICombatAnimation）
+
+- `UnitRender` 实现接口，提供四个空钩子：`PlayAttackAnimation / PlayHitAnimation / PlayDeathAnimation / PlayReachBottomAnimation`。
+- `UnitBase.TakeDamage` 在扣血与归零时分别调用 `PlayHitAnimation` / `PlayDeathAnimation`；`GameLogicManager.OnUnitReachBottom` 会先调用 `PlayReachBottomAnimation`。
+- 表现层可在 `UnitRender` 子类中用 DOTween / 粒子 / 抖动等填充，无需触碰逻辑层。
+
+---
+
 ## 扩展
 
 - **新的 Unit 行为**：继承 `UnitBase` 或 `SimpleUnit`，重写 `HandleStep`（处理节奏）与 `Tick`（每帧推进）；PoolManager 支持替换 `unitPrefab` 或新开池。
 - **新的生成策略**：实现 `IUnitCreator`（例如按波次、仅在活跃 Unit < N 时生成、或监听自定义事件），在 `GameLogicManager.Awake` 里替换 `new UnitCreator()` 即可；订阅 `GameEvents` 自管生命周期。
+- **新的战斗表现**：派生 `UnitRender` 重写四个 `Play*Animation`，在补间 / 粒子 / 震屏中实现具体效果，逻辑层零改动。
 - **修改节奏/尺寸**：只改 `Mgr/Defines.cs` 中的常量，整个节奏系统（Step 间隔、移动距离、移动时长、Unit 尺寸）会整体联动。
 
 ---
@@ -81,4 +91,6 @@ Unit 不再连续平移，而是完全跟着 Step 心跳节奏走：
   - `Assets/1_Scripts/Unit/IUnitCreator.cs` / `UnitCreator.cs`
   - `Assets/1_Scripts/Unit/SimpleUnit.cs`
   - `Assets/1_Scripts/Mgr/Defines.cs`
-- 详细接口与池化见 **doc/Design/PROJECT.md** 中「4.11 UnitBase」「4.12 UnitRender」「4.13 IUnitCreator」「4.14 UnitCreator」「4.15 SimpleUnit」。
+  - `Assets/1_Scripts/ICombatAnimation.cs`
+- 预制体：`Assets/2_Prefab/SimpleUnit.prefab`
+- 详细接口与池化见 **doc/Design/PROJECT.md** 中「4.11 UnitBase」「4.12 UnitRender」「4.13 IUnitCreator」「4.14 UnitCreator」「4.15 SimpleUnit」「4.19 ICombatAnimation」。
