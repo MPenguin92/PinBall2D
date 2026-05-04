@@ -4,13 +4,6 @@ using UnityEngine.Pool;
 
 public class PoolManager : MonoBehaviour
 {
-    [Header("Prefabs")]
-    [SerializeField]
-    private PinBallBase pinBallPrefab;
-
-    [SerializeField]
-    private UnitBase unitPrefab;
-
     [Header("Pool Roots")]
     [SerializeField]
     private Transform pinBallPoolRoot;
@@ -42,8 +35,10 @@ public class PoolManager : MonoBehaviour
     private readonly List<PinBallBase> activePinBalls = new List<PinBallBase>();
     private readonly List<UnitBase> activeUnits = new List<UnitBase>();
 
-    private ObjectPool<PinBallBase> pinBallPool;
-    private ObjectPool<UnitBase> unitPool;
+    private readonly Dictionary<string, ObjectPool<PinBallBase>> pinBallPools = new Dictionary<string, ObjectPool<PinBallBase>>();
+    private readonly Dictionary<string, ObjectPool<UnitBase>> unitPools = new Dictionary<string, ObjectPool<UnitBase>>();
+    private readonly Dictionary<PinBallBase, ObjectPool<PinBallBase>> pinBallPoolByInstance = new Dictionary<PinBallBase, ObjectPool<PinBallBase>>();
+    private readonly Dictionary<UnitBase, ObjectPool<UnitBase>> unitPoolByInstance = new Dictionary<UnitBase, ObjectPool<UnitBase>>();
 
     public IReadOnlyList<PinBallBase> ActivePinBalls => activePinBalls;
 
@@ -56,8 +51,10 @@ public class PoolManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        pinBallPool?.Dispose();
-        unitPool?.Dispose();
+        foreach (ObjectPool<PinBallBase> pool in pinBallPools.Values)
+            pool.Dispose();
+        foreach (ObjectPool<UnitBase> pool in unitPools.Values)
+            pool.Dispose();
     }
 
     private void InitPools()
@@ -86,10 +83,27 @@ public class PoolManager : MonoBehaviour
             unitSpawnRoot.SetParent(transform);
         }
 
-        pinBallPool = new ObjectPool<PinBallBase>(
+    }
+
+    private ObjectPool<PinBallBase> GetOrCreatePinBallPool(string address)
+    {
+        if (string.IsNullOrEmpty(address))
+        {
+            Debug.LogError("[PoolManager] PinBall address is null or empty.");
+            return null;
+        }
+
+        if (pinBallPools.TryGetValue(address, out ObjectPool<PinBallBase> pool))
+            return pool;
+
+        PinBallBase prefab = LoadPrefabComponent<PinBallBase>(address);
+        if (prefab == null)
+            return null;
+
+        pool = new ObjectPool<PinBallBase>(
             createFunc: () =>
             {
-                PinBallBase pb = Instantiate(pinBallPrefab, pinBallPoolRoot);
+                PinBallBase pb = Instantiate(prefab, pinBallPoolRoot);
                 pb.gameObject.SetActive(false);
                 return pb;
             },
@@ -108,10 +122,29 @@ public class PoolManager : MonoBehaviour
             maxSize: pinBallPoolMaxSize
         );
 
-        unitPool = new ObjectPool<UnitBase>(
+        pinBallPools.Add(address, pool);
+        return pool;
+    }
+
+    private ObjectPool<UnitBase> GetOrCreateUnitPool(string address)
+    {
+        if (string.IsNullOrEmpty(address))
+        {
+            Debug.LogError("[PoolManager] Unit address is null or empty.");
+            return null;
+        }
+
+        if (unitPools.TryGetValue(address, out ObjectPool<UnitBase> pool))
+            return pool;
+
+        UnitBase prefab = LoadPrefabComponent<UnitBase>(address);
+        if (prefab == null)
+            return null;
+
+        pool = new ObjectPool<UnitBase>(
             createFunc: () =>
             {
-                UnitBase u = Instantiate(unitPrefab, unitPoolRoot);
+                UnitBase u = Instantiate(prefab, unitPoolRoot);
                 u.gameObject.SetActive(false);
                 return u;
             },
@@ -129,6 +162,22 @@ public class PoolManager : MonoBehaviour
             defaultCapacity: unitPoolDefaultCapacity,
             maxSize: unitPoolMaxSize
         );
+
+        unitPools.Add(address, pool);
+        return pool;
+    }
+
+    private static T LoadPrefabComponent<T>(string address) where T : Component
+    {
+        GameObject prefab = AssetLoader.Load<GameObject>(address);
+        if (prefab == null)
+            return null;
+
+        T component = prefab.GetComponent<T>();
+        if (component == null)
+            Debug.LogError($"[PoolManager] Addressable prefab '{address}' does not have component {typeof(T).Name}.");
+
+        return component;
     }
 
     public void ClearActivePinBalls()
@@ -139,23 +188,28 @@ public class PoolManager : MonoBehaviour
             activePinBalls.RemoveAt(i);
 
             if (pinBall != null)
-                pinBallPool.Release(pinBall);
+                ReleasePinBall(pinBall);
         }
     }
 
-    public PinBallBase SpawnPinBall(Vector2 position, Vector2 direction, float speed)
+    public PinBallBase SpawnPinBall(string address, Vector2 position, Vector2 direction, float speed)
     {
-        PinBallBase pb = pinBallPool.Get();
+        ObjectPool<PinBallBase> pool = GetOrCreatePinBallPool(address);
+        if (pool == null)
+            return null;
+
+        PinBallBase pb = pool.Get();
         pb.transform.position = new Vector3(position.x, position.y, 0f);
         pb.Init(direction, speed);
         activePinBalls.Add(pb);
+        pinBallPoolByInstance[pb] = pool;
         return pb;
     }
 
     public void RecyclePinBall(PinBallBase pb)
     {
         activePinBalls.Remove(pb);
-        pinBallPool.Release(pb);
+        ReleasePinBall(pb);
     }
 
     public void ClearActiveUnits()
@@ -166,7 +220,7 @@ public class PoolManager : MonoBehaviour
             activeUnits.RemoveAt(i);
 
             if (unit != null)
-                unitPool.Release(unit);
+                ReleaseUnit(unit);
         }
     }
 
@@ -176,18 +230,51 @@ public class PoolManager : MonoBehaviour
             activeUnits.Add(unit);
     }
 
-    public UnitBase SpawnUnit(Vector2 position)
+    public UnitBase SpawnUnit(string address, Vector2 position)
     {
-        UnitBase unit = unitPool.Get();
+        ObjectPool<UnitBase> pool = GetOrCreateUnitPool(address);
+        if (pool == null)
+            return null;
+
+        UnitBase unit = pool.Get();
         unit.transform.position = new Vector3(position.x, position.y, 0f);
         unit.Init();
         activeUnits.Add(unit);
+        unitPoolByInstance[unit] = pool;
         return unit;
     }
 
     public void RecycleUnit(UnitBase unit)
     {
         activeUnits.Remove(unit);
-        unitPool.Release(unit);
+        ReleaseUnit(unit);
+    }
+
+    private void ReleasePinBall(PinBallBase pinBall)
+    {
+        if (pinBallPoolByInstance.TryGetValue(pinBall, out ObjectPool<PinBallBase> pool))
+        {
+            pinBallPoolByInstance.Remove(pinBall);
+            pool.Release(pinBall);
+            return;
+        }
+
+        Debug.LogWarning($"[PoolManager] PinBall '{pinBall.name}' was not spawned from an addressable pool.");
+        pinBall.gameObject.SetActive(false);
+        pinBall.transform.SetParent(pinBallPoolRoot);
+    }
+
+    private void ReleaseUnit(UnitBase unit)
+    {
+        if (unitPoolByInstance.TryGetValue(unit, out ObjectPool<UnitBase> pool))
+        {
+            unitPoolByInstance.Remove(unit);
+            pool.Release(unit);
+            return;
+        }
+
+        Debug.LogWarning($"[PoolManager] Unit '{unit.name}' was not spawned from an addressable pool.");
+        unit.gameObject.SetActive(false);
+        unit.transform.SetParent(unitPoolRoot);
     }
 }

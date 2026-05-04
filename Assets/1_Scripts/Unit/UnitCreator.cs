@@ -8,6 +8,7 @@ using UnityEngine;
 /// </summary>
 public class UnitCreator : IUnitCreator
 {
+    private const string UnitAddress = "SimpleUnit";
     private const float HorizontalPadding = 0.5f;
     private const float TopOffset = 0f;
 
@@ -117,7 +118,7 @@ public class UnitCreator : IUnitCreator
             }
 
             float x = Random.Range(slotMin, slotMax);
-            mgr.SpawnUnit(new Vector2(x, y));
+            mgr.SpawnUnit(UnitAddress, new Vector2(x, y));
         }
     }
 }

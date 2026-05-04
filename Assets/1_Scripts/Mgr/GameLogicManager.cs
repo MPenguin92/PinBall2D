@@ -46,8 +46,8 @@ public class GameLogicManager : MonoBehaviour
     {
         Instance = this;
 
-        // 难度表：运行时走 AssetLoader（目前 Editor 下 AssetDatabase；将来接 Addressables）。
-        DifficultyTable table = AssetLoader.Load<DifficultyTable>("8_Data/DifficultyTable.asset");
+        // 难度表：通过 Addressables 短地址加载。
+        DifficultyTable table = AssetLoader.Load<DifficultyTable>("DifficultyTable");
         difficulty = new Difficulty(table);
 
         unitCreator = new UnitCreator();
@@ -172,10 +172,10 @@ public class GameLogicManager : MonoBehaviour
         }
     }
 
-    public PinBallBase SpawnPinBall(Vector2 position, Vector2 direction, float speed)
+    public PinBallBase SpawnPinBall(string address, Vector2 position, Vector2 direction, float speed)
     {
         if (poolManager == null) return null;
-        return poolManager.SpawnPinBall(position, direction, speed);
+        return poolManager.SpawnPinBall(address, position, direction, speed);
     }
 
     public void RecyclePinBall(PinBallBase pb)
@@ -187,10 +187,10 @@ public class GameLogicManager : MonoBehaviour
             player.AddPinBall();
     }
 
-    public UnitBase SpawnUnit(Vector2 position)
+    public UnitBase SpawnUnit(string address, Vector2 position)
     {
         if (poolManager == null) return null;
-        return poolManager.SpawnUnit(position);
+        return poolManager.SpawnUnit(address, position);
     }
 
     public void RecycleUnit(UnitBase unit)

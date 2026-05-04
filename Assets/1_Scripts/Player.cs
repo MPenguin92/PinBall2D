@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
+    private const string PinBallAddress = "BaseBall";
+
     [SerializeField]
     private float rotateSpeed = 120f;
 
@@ -118,7 +120,7 @@ public class Player : MonoBehaviour
         if (currentPinBallCount <= 0) return;
         if (fireTimer > 0f) return;
 
-        GameLogicManager.Instance.SpawnPinBall(transform.position, Direction, firePinBallSpeed);
+        GameLogicManager.Instance.SpawnPinBall(PinBallAddress, transform.position, Direction, firePinBallSpeed);
         currentPinBallCount--;
         fireTimer = fireInterval;
 
