@@ -503,7 +503,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 2079131615}
-  playerRender: {fileID: 0}
   poolManager: {fileID: 2061181183}
   gameState: 0
 --- !u!4 &830411046
@@ -1287,8 +1286,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cdb6cde0477d477991ee51002c2bcd3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pinBallPrefab: {fileID: 8681614911201508328, guid: 64468fe66bb6b734fa21a4c2ff95cfc2, type: 3}
-  unitPrefab: {fileID: 6814521989586311856, guid: 69bc70eadc701244499ed0b2fc692e0f, type: 3}
   pinBallPoolRoot: {fileID: 59786219}
   unitPoolRoot: {fileID: 1596499690}
   pinBallSpawnRoot: {fileID: 423378737}
@@ -1412,8 +1409,8 @@ LineRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2125584821}
   m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 0
@@ -1446,11 +1443,11 @@ LineRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Positions:
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 1}
+  - {x: 1000, y: 0, z: 0}
+  - {x: 1000, y: 0, z: 1}
   m_Parameters:
     serializedVersion: 3
-    widthMultiplier: 0.1
+    widthMultiplier: 0.12
     widthCurve:
       serializedVersion: 2
       m_Curve:
@@ -1461,8 +1458,17 @@ LineRenderer:
         outSlope: 0
         tangentMode: 0
         weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
@@ -1496,8 +1502,8 @@ LineRenderer:
       m_ColorSpace: -1
       m_NumColorKeys: 2
       m_NumAlphaKeys: 2
-    numCornerVertices: 0
-    numCapVertices: 0
+    numCornerVertices: 4
+    numCapVertices: 4
     alignment: 0
     textureMode: 0
     textureScale: {x: 1, y: 1}

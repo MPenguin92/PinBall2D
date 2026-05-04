@@ -36,10 +36,10 @@ Material:
     - PixelSnap: 0
     - _DashLength: 0.09
     - _EnableExternalAlpha: 0
-    - _GapLength: 0.04
-    - _ScrollSpeed: -0.16
+    - _GapLength: 0.14
+    - _ScrollSpeed: 0.94
     m_Colors:
-    - _Color: {r: 1, g: 1, b: 1, a: 0.14901961}
+    - _Color: {r: 1, g: 1, b: 1, a: 0.08627451}
     - _Flip: {r: 1, g: 1, b: 1, a: 1}
     - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

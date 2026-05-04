@@ -147,3 +147,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   unit: {fileID: 6814521989586311856}
   spriteRenderer: {fileID: 847533734118598025}
+  hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  hitFlashDuration: 0.12
+  hitPunchScale: 0.16
+  deathEffectDuration: 0.35
+  deathShardCount: 8
+  deathShardDistance: 0.8
+  deathShardScale: 0.18
