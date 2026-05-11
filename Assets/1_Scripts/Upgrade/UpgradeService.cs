@@ -1,0 +1,201 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// Roguelike 升级服务：唯一触发是「累计击杀达到里程碑」。
+/// 流程：监听 <see cref="GameEvents.OnUnitKilled"/> -> 累计 -> 阈值 ->
+///       按权重抽品质 -> 在该品质池中无放回抽 3 张 ->
+///       <see cref="GameEvents.RaiseUpgradeOffered"/>（UI 显示） ->
+///       玩家点选 <see cref="ApplySelected"/> -> Apply + Resume。
+/// 由 <see cref="GameLogicManager"/> 在 Awake 创建并持有，StartGame 时 Reset。
+/// </summary>
+public class UpgradeService
+{
+    private readonly KillMilestoneTable milestoneTable;
+    private readonly UpgradeCatalog catalog;
+    private readonly UpgradeContext context;
+
+    private readonly List<UpgradeBase> currentOffer = new List<UpgradeBase>(3);
+    private int killCount;
+    private int nextMilestoneIdx;
+    private bool isOffering;
+
+    public int KillCount => killCount;
+
+    public int NextMilestoneIdx => nextMilestoneIdx;
+
+    public bool IsOffering => isOffering;
+
+    public IReadOnlyList<UpgradeBase> CurrentOffer => currentOffer;
+
+    public UpgradeService(
+        KillMilestoneTable milestoneTable,
+        UpgradeCatalog catalog,
+        BallStats stats,
+        SpecialBallParams specialParams,
+        Player player)
+    {
+        this.milestoneTable = milestoneTable;
+        this.catalog = catalog;
+        this.context = new UpgradeContext
+        {
+            Stats = stats,
+            SpecialParams = specialParams,
+            Player = player,
+        };
+    }
+
+    public void RegisterEvents()
+    {
+        GameEvents.OnUnitKilled += HandleUnitKilled;
+    }
+
+    public void UnregisterEvents()
+    {
+        GameEvents.OnUnitKilled -= HandleUnitKilled;
+    }
+
+    /// <summary>StartGame 时调用：清零计数、堆叠状态与候选。</summary>
+    public void Reset()
+    {
+        killCount = 0;
+        nextMilestoneIdx = 0;
+        isOffering = false;
+        currentOffer.Clear();
+
+        if (catalog != null)
+        {
+            for (int i = 0; i < catalog.Entries.Count; i++)
+            {
+                if (catalog.Entries[i] != null)
+                    catalog.Entries[i].ResetRuntimeState();
+            }
+        }
+    }
+
+    /// <summary>玩家点击三选一面板上的某张卡：应用并恢复 Running。</summary>
+    public void ApplySelected(UpgradeBase chosen)
+    {
+        if (!isOffering || chosen == null) return;
+        if (!currentOffer.Contains(chosen)) return;
+
+        chosen.Apply(context);
+        chosen.IncrementStack();
+
+        currentOffer.Clear();
+        isOffering = false;
+
+        GameEvents.RaiseUpgradeApplied(chosen);
+
+        // 应用完之后从 SelectingUpgrade 回到 Running。
+        if (GameLogicManager.Instance != null)
+            GameLogicManager.Instance.ResumeFromUpgradeSelection();
+    }
+
+    private void HandleUnitKilled(UnitBase _)
+    {
+        killCount++;
+
+        if (milestoneTable == null || milestoneTable.Count == 0) return;
+
+        int threshold = milestoneTable.GetThresholdAt(nextMilestoneIdx);
+        if (killCount < threshold) return;
+
+        int reachedIdx = nextMilestoneIdx;
+        nextMilestoneIdx++;
+        GameEvents.RaiseKillMilestoneReached(reachedIdx);
+
+        RollAndOffer(reachedIdx);
+    }
+
+    private void RollAndOffer(int milestoneIdx)
+    {
+        if (catalog == null || catalog.Count == 0) return;
+
+        KillMilestoneData weights = milestoneTable.GetWeightsAt(milestoneIdx);
+        if (weights == null) return;
+
+        UpgradeRarity rolledRarity = RollRarity(weights);
+
+        // 按品质从高到低依次降级保底，直到凑够 3 张或全部品质为空。
+        List<UpgradeBase> picked = PickThree(rolledRarity);
+        if (picked.Count == 0) return;
+
+        currentOffer.Clear();
+        currentOffer.AddRange(picked);
+        isOffering = true;
+
+        // 暂停游戏（State -> SelectingUpgrade），UI 监听 OnUpgradeOffered 显面板。
+        if (GameLogicManager.Instance != null)
+            GameLogicManager.Instance.PauseForUpgradeSelection();
+
+        GameEvents.RaiseUpgradeOffered(currentOffer);
+    }
+
+    private static UpgradeRarity RollRarity(KillMilestoneData w)
+    {
+        int total = Mathf.Max(0, w.weightCommon)
+                  + Mathf.Max(0, w.weightUncommon)
+                  + Mathf.Max(0, w.weightRare)
+                  + Mathf.Max(0, w.weightLegendary);
+        if (total <= 0) return UpgradeRarity.Common;
+
+        int roll = Random.Range(0, total);
+        int acc = 0;
+        acc += Mathf.Max(0, w.weightCommon);
+        if (roll < acc) return UpgradeRarity.Common;
+        acc += Mathf.Max(0, w.weightUncommon);
+        if (roll < acc) return UpgradeRarity.Uncommon;
+        acc += Mathf.Max(0, w.weightRare);
+        if (roll < acc) return UpgradeRarity.Rare;
+        return UpgradeRarity.Legendary;
+    }
+
+    private List<UpgradeBase> PickThree(UpgradeRarity preferred)
+    {
+        List<UpgradeBase> result = new List<UpgradeBase>(3);
+        // 按品质降级保底顺序：先从抽到的品质往下找；若它已耗尽再往上一级（向 Common 方向）凑。
+        // 这里采用 [preferred, preferred-1, ..., Common, preferred+1, ...] 的顺序。
+        UpgradeRarity[] order = BuildFallbackOrder(preferred);
+        for (int i = 0; i < order.Length && result.Count < 3; i++)
+        {
+            DrawFromPool(order[i], result);
+        }
+
+        // 全空兜底：若仍不足 3 张，仅返回当前已有的（即使为空）。
+        return result;
+    }
+
+    private static UpgradeRarity[] BuildFallbackOrder(UpgradeRarity preferred)
+    {
+        // 例如 preferred=Rare(2): [Rare, Uncommon, Common, Legendary]
+        List<UpgradeRarity> order = new List<UpgradeRarity>(4);
+        for (int r = (int)preferred; r >= 0; r--) order.Add((UpgradeRarity)r);
+        for (int r = (int)preferred + 1; r <= (int)UpgradeRarity.Legendary; r++) order.Add((UpgradeRarity)r);
+        return order.ToArray();
+    }
+
+    private void DrawFromPool(UpgradeRarity rarity, List<UpgradeBase> result)
+    {
+        List<UpgradeBase> pool = new List<UpgradeBase>();
+        for (int i = 0; i < catalog.Entries.Count; i++)
+        {
+            UpgradeBase u = catalog.Entries[i];
+            if (u == null) continue;
+            if (u.Rarity != rarity) continue;
+            if (u.IsFull) continue;
+            if (result.Contains(u)) continue;
+            pool.Add(u);
+        }
+
+        // 无放回 Fisher–Yates：从 pool 中抽 (3 - result.Count) 张。
+        int need = 3 - result.Count;
+        for (int i = 0; i < need && pool.Count > 0; i++)
+        {
+            int idx = Random.Range(0, pool.Count);
+            result.Add(pool[idx]);
+            pool[idx] = pool[pool.Count - 1];
+            pool.RemoveAt(pool.Count - 1);
+        }
+    }
+}

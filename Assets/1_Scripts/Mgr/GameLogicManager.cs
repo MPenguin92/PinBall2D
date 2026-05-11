@@ -21,6 +21,11 @@ public class GameLogicManager : MonoBehaviour
     // Step 节拍计时：Running 中按 Difficulty 当前阶段的 StepInterval 触发 GameEvents.OnStep。
     private float stepTimer;
 
+    // Roguelike 升级体系：StartGame 时 Reset，PinBallBase / Player 通过这两个对象读取当前生效值。
+    private BallStats ballStats;
+    private SpecialBallParams specialBallParams;
+    private UpgradeService upgradeService;
+
     public Difficulty Difficulty => difficulty;
 
     public Border[] Borders => borders;
@@ -30,6 +35,12 @@ public class GameLogicManager : MonoBehaviour
     public IReadOnlyList<UnitBase> ActiveUnits => poolManager != null ? poolManager.ActiveUnits : null;
 
     public Player Player => player;
+
+    public BallStats BallStats => ballStats;
+
+    public SpecialBallParams SpecialBallParams => specialBallParams;
+
+    public UpgradeService UpgradeService => upgradeService;
 
     [Header("Game State")]
     [SerializeField]
@@ -47,14 +58,29 @@ public class GameLogicManager : MonoBehaviour
         Instance = this;
 
         // 难度表：通过 Addressables 短地址加载。
-        DifficultyTable table = AssetLoader.Load<DifficultyTable>("DifficultyTable");
-        difficulty = new Difficulty(table);
+        DifficultyTable difficultyTable = AssetLoader.Load<DifficultyTable>("DifficultyTable");
+        difficulty = new Difficulty(difficultyTable);
+
+        // Roguelike 升级体系初始化（数据默认值由 BallStats.Reset 提供；表/池数据通过 Addressables 加载）。
+        ballStats = new BallStats();
+        specialBallParams = new SpecialBallParams();
+
+        KillMilestoneTable milestoneTable = AssetLoader.Load<KillMilestoneTable>("KillMilestoneTable");
+        UpgradeCatalog catalog = AssetLoader.Load<UpgradeCatalog>("UpgradeCatalog");
+        upgradeService = new UpgradeService(milestoneTable, catalog, ballStats, specialBallParams, player);
+        upgradeService.RegisterEvents();
 
         unitCreator = new UnitCreator();
     }
 
     private void OnDestroy()
     {
+        if (upgradeService != null)
+        {
+            upgradeService.UnregisterEvents();
+            upgradeService = null;
+        }
+
         if (unitCreator is System.IDisposable disposable)
             disposable.Dispose();
         unitCreator = null;
@@ -75,6 +101,12 @@ public class GameLogicManager : MonoBehaviour
         gameState = GameState.Preparing;
 
         borders = FindObjectsByType<Border>(FindObjectsSortMode.None);
+
+        // 重置 Roguelike 体系：清空所有 modifier、特殊球参数、击杀计数与候选。
+        // 必须在 player.Init 之前完成，因为 player.Init 会读取 BallStats.BasePinBallSlots。
+        if (ballStats != null) ballStats.Reset();
+        if (specialBallParams != null) specialBallParams.Reset();
+        if (upgradeService != null) upgradeService.Reset();
 
         if (player != null)
             player.Init();
@@ -113,6 +145,20 @@ public class GameLogicManager : MonoBehaviour
         if (gameState != GameState.Paused) return;
         gameState = GameState.Running;
         GameEvents.RaiseGameResume();
+    }
+
+    /// <summary>升级抽卡触发：进入 SelectingUpgrade 状态，UI 监听 OnUpgradeOffered 显面板。</summary>
+    public void PauseForUpgradeSelection()
+    {
+        if (gameState != GameState.Running) return;
+        gameState = GameState.SelectingUpgrade;
+    }
+
+    /// <summary>UpgradeService.ApplySelected 完成后回到 Running。</summary>
+    public void ResumeFromUpgradeSelection()
+    {
+        if (gameState != GameState.SelectingUpgrade) return;
+        gameState = GameState.Running;
     }
 
     public void UpdateGame()
@@ -180,11 +226,13 @@ public class GameLogicManager : MonoBehaviour
 
     public void RecyclePinBall(PinBallBase pb)
     {
+        BallType type = pb != null ? pb.BallType : BallType.Base;
+
         if (poolManager != null)
             poolManager.RecyclePinBall(pb);
 
         if (player != null)
-            player.AddPinBall();
+            player.AddPinBall(type);
     }
 
     public UnitBase SpawnUnit(string address, Vector2 position)

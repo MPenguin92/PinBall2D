@@ -22,5 +22,8 @@ public enum GameState
     Paused,
 
     /// <summary>结束</summary>
-    Ended
+    Ended,
+
+    /// <summary>正在选择 Roguelike 升级（暂停推进，等同 Paused，但需 UI 区分）</summary>
+    SelectingUpgrade
 }

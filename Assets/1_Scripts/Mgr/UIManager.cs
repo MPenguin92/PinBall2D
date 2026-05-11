@@ -3,6 +3,9 @@ using UnityEngine;
 /// <summary>
 /// UI 管理器：持有场景中各 UI 根节点引用，监听游戏生命周期事件驱动 UI 显隐。
 /// 单例，挂到场景的一个独立 GameObject 上即可。
+///
+/// Roguelike 升级面板：UpgradeSelectionUI 自己监听 OnUpgradeOffered/OnUpgradeApplied 显隐，
+/// 这里只负责在 GameStart 时把可能残留的升级面板关掉，避免上一局的 UI 漏到新一局。
 /// </summary>
 public class UIManager : MonoBehaviour
 {
@@ -20,6 +23,10 @@ public class UIManager : MonoBehaviour
     [SerializeField]
     [Tooltip("游戏中 HUD 根节点（显示生命值与弹珠数量）")]
     private GameObject inGameUI;
+
+    [SerializeField]
+    [Tooltip("Roguelike 三选一升级面板根节点（默认隐藏，由 OnUpgradeOffered 显示）")]
+    private GameObject upgradeSelectionUI;
 
     private void Awake()
     {
@@ -45,12 +52,14 @@ public class UIManager : MonoBehaviour
         if (startScreenUI != null) startScreenUI.SetActive(false);
         if (gameOverUI != null) gameOverUI.SetActive(false);
         if (inGameUI != null) inGameUI.SetActive(true);
+        if (upgradeSelectionUI != null) upgradeSelectionUI.SetActive(false);
     }
 
     private void HandleGameEnd()
     {
         if (inGameUI != null) inGameUI.SetActive(false);
         if (gameOverUI != null) gameOverUI.SetActive(true);
+        if (upgradeSelectionUI != null) upgradeSelectionUI.SetActive(false);
     }
 
     private void HandleReturnToHome()
@@ -58,5 +67,6 @@ public class UIManager : MonoBehaviour
         if (inGameUI != null) inGameUI.SetActive(false);
         if (gameOverUI != null) gameOverUI.SetActive(false);
         if (startScreenUI != null) startScreenUI.SetActive(true);
+        if (upgradeSelectionUI != null) upgradeSelectionUI.SetActive(false);
     }
 }

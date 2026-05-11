@@ -6,6 +6,9 @@ using UnityEngine;
 ///   时长 <see cref="Defines.StepMoveDuration"/> 秒）；
 /// - 移动到达目标位置后，如果与底边 Border 重叠，则调用
 ///   <see cref="GameLogicManager.OnUnitReachBottom"/> 扣 Player 血并回收入池。
+///
+/// 减速 buff（IcePinBall 等）：通过 <see cref="UnitBase.ConsumeStepWithSlow"/> 在每次心跳时
+/// 按 slowFactor 概率推进，从而以个体粒度实现群体减速。
 /// </summary>
 public class SimpleUnit : UnitBase
 {
@@ -23,6 +26,8 @@ public class SimpleUnit : UnitBase
 
     protected override void HandleStep()
     {
+        if (!ConsumeStepWithSlow()) return;
+
         // 即使上一轮还没走完也会被新的一轮覆盖（正常配置下 StepInterval 远大于 MoveDuration，
         // 不会发生这种情况）。
         moveStart = transform.position;
@@ -33,6 +38,7 @@ public class SimpleUnit : UnitBase
 
     public override void Tick()
     {
+        base.Tick();
         if (!isMoving) return;
 
         moveTimer += Time.deltaTime;

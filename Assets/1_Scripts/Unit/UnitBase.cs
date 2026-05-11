@@ -14,6 +14,14 @@ public class UnitBase : MonoBehaviour
 
     private int currentHp;
 
+    // 减速 buff（由 IcePinBall 等通过 ApplySlow 写入）：每个 Unit 私有的 step 节奏缩放因子。
+    // 取值 (0, 1]。1 = 不减速；0.5 = 行为减半（Step 心跳每 2 次才执行一次个体移动）。
+    private float slowFactor = 1f;
+    private float slowRemaining;
+    // 用浮点累计避免硬编码 step 计数；个体每收到一次 Step 累加 slowFactor，
+    // 累计到 >= 1 才执行一次实际行为，并保留小数部分。
+    private float slowStepAcc;
+
     public int CurrentHp => currentHp;
 
     public int MaxHp => maxHp;
@@ -27,10 +35,20 @@ public class UnitBase : MonoBehaviour
 
     public Rect UnitRect { get; private set; }
 
+    /// <summary>Unit 的移动方向（命中方向解算用）。基类默认向下；移动行为子类可重写。</summary>
+    public virtual Vector2 MoveDirection => Vector2.down;
+
+    public bool IsSlowed => slowFactor < 1f && slowRemaining > 0f;
+
+    public float SlowFactor => slowFactor;
+
     public void Init()
     {
         ApplyDifficulty();
         currentHp = maxHp;
+        slowFactor = 1f;
+        slowRemaining = 0f;
+        slowStepAcc = 0f;
         // 强制统一尺寸，避免预制体 scale 不为 1 导致视觉/碰撞与逻辑不一致。
         transform.localScale = Vector3.one * Defines.UnitSize;
         RefreshRect();
@@ -61,9 +79,19 @@ public class UnitBase : MonoBehaviour
         );
     }
 
-    /// <summary>由 GameLogicManager 每帧统一调用。基类默认无行为，子类按需重写。</summary>
+    /// <summary>由 GameLogicManager 每帧统一调用。基类默认推进减速倒计时，子类按需重写并 base.Tick。</summary>
     public virtual void Tick()
     {
+        if (slowRemaining > 0f)
+        {
+            slowRemaining -= Time.deltaTime;
+            if (slowRemaining <= 0f)
+            {
+                slowFactor = 1f;
+                slowRemaining = 0f;
+                slowStepAcc = 0f;
+            }
+        }
     }
 
     public bool TakeDamage(int damage)
@@ -102,6 +130,37 @@ public class UnitBase : MonoBehaviour
             return dx >= 0f ? Vector2.right : Vector2.left;
 
         return dy >= 0f ? Vector2.up : Vector2.down;
+    }
+
+    /// <summary>
+    /// 应用减速 buff：factor 为相对原速度的缩放（0~1，越小越慢），duration 秒。
+    /// 多次叠加取「更慢的 factor + 更长的剩余时间」。
+    /// </summary>
+    public void ApplySlow(float factor, float duration)
+    {
+        if (duration <= 0f) return;
+        float clamped = Mathf.Clamp(factor, 0.05f, 1f);
+        if (clamped >= 1f) return;
+
+        if (clamped < slowFactor) slowFactor = clamped;
+        if (duration > slowRemaining) slowRemaining = duration;
+    }
+
+    /// <summary>
+    /// 子类（SimpleUnit）在每次收到 Step 心跳时调用，决定本次是否真的执行移动行为。
+    /// 当未减速时永远返回 true；减速时按 slowFactor 概率推进。
+    /// </summary>
+    protected bool ConsumeStepWithSlow()
+    {
+        if (slowFactor >= 1f) return true;
+
+        slowStepAcc += slowFactor;
+        if (slowStepAcc >= 1f)
+        {
+            slowStepAcc -= 1f;
+            return true;
+        }
+        return false;
     }
 
     // 订阅 Step 事件：出池（SetActive(true)）时自动订阅，入池（SetActive(false)）时自动取消。

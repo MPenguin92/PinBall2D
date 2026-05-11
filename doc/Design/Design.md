@@ -13,6 +13,7 @@ PinBall2D 各模块的设计说明分散在以下文档中，本文档作为索�
 | **doc/Function/Unit.md**     | 单位：1x1 标准尺寸、HP、攻击力、Step 节奏下移、SimpleUnit 触底扣血、UnitCreator 批量生成、战斗动画接口 |
 | **doc/Function/PinBall.md**  | 弹球：发射、运动、碰撞反射、速度与最小速度、池化                                                     |
 | **doc/Function/GamePlay.md** | 主逻辑：游戏状态、生命周期事件 + Step 节奏心跳（GameEvents）、GameLogicManager / PoolManager / UIManager（含 InGameUI HUD）、统一 Tick、ICombatAnimation 战斗动画 |
+| **doc/Function/Upgrade.md**  | Roguelike 升级系统：击杀里程碑触发、品质权重抽卡、三选一面板、BallStats 数值修饰、新球种解锁/扩槽（Fire/Ice/Lightning/Poison/Heavy/Boomerang） |
 | **doc/Design/PROJECT.md**    | 项目总览：目录结构、脚本说明、架构原则（含难度系统/数据流水线/资源加载/DOTween/星空背景）、流程与配置建议 |
 
 ---

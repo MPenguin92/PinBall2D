@@ -1,0 +1,12 @@
+id,name,desc,rarity,maxStack,ballType,slotsAdd,paramKeys,paramValues
+new_fire_basic,引燃,+1 火球槽 (爆炸半径1格 伤害1),Rare,3,Fire,1,explosionRadius|explosionDamage,1.0|1
+new_fire_bigger,烈焰扩散,火球爆炸半径+0.5,Rare,2,Fire,0,explosionRadiusAdd,0.5
+new_ice_basic,霜冻,+1 冰球槽 (减速50% 持续2s),Rare,3,Ice,1,slowPct|slowDuration|slowRadius,0.5|2|0.0
+new_ice_more,寒霜扩散,冰球减速持续+1s,Uncommon,2,Ice,0,slowDurationAdd,1
+new_ice_aoe,极寒领域,冰球减速范围+1.5格,Rare,2,Ice,0,slowRadiusAdd,1.5
+new_lightning_basic,链电,+1 雷球槽 (链跳3目标 衰减30%),Rare,3,Lightning,1,chainCount|chainDecay|chainRange,3|0.3|2.5
+new_lightning_more,电网扩张,雷球链跳目标+1,Rare,2,Lightning,0,chainCountAdd,1
+new_poison_basic,腐蚀,+1 毒球槽 (3秒 每秒1点伤害),Rare,3,Poison,1,poisonDuration|poisonDamagePerSec,3|1
+new_heavy_basic,重击,+1 重力球槽 (伤害+2 击退1格),Rare,3,Heavy,1,heavyBonusDamage|knockbackDistance,2|1
+new_boomerang_basic,回旋,+1 回旋球槽 (触底前自动反弹一次),Rare,3,Boomerang,1,,
+all_specials_plus,万象,所有已解锁特殊球槽位+1,Legendary,1,Base,0,allSpecialSlotsAdd,1

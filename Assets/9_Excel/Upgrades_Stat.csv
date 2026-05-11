@@ -1,0 +1,12 @@
+id,name,desc,rarity,maxStack,mod1Stat,mod1Flat,mod1Pct,mod2Stat,mod2Flat,mod2Pct,mod3Stat,mod3Flat,mod3Pct
+ball_dmg_basic,锋利,球基础伤害+1,Common,5,BaseDamage,1,0,,0,0,,0,0
+ball_slot_more,弹匣扩容,普通球库存上限+1,Common,5,BasePinBallSlots,1,0,,0,0,,0,0
+ball_speed_charge,弹射加速,每次反弹+1速度,Common,5,BounceAccel,1,0,,0,0,,0,0
+ball_fire_faster,连射,发射间隔-15%,Common,6,FireInterval,0,-0.15,,0,0,,0,0
+ball_side_swift,巧击,侧面命中伤害+30%,Common,4,SideHitMul,0,0.3,,0,0,,0,0
+ball_front_strike,当头一击,正面命中伤害+50%,Uncommon,4,FrontHitMul,0,0.5,,0,0,,0,0
+ball_speed_burst,高初速冷却,初始速度+30% 但命中后减速30%,Uncommon,3,InitialSpeed,0,0.3,HitSlowdown,0,0.3,,0,0
+ball_max_bounce,永动,反弹次数上限+10,Uncommon,3,MaxBounces,10,0,,0,0,,0,0
+ball_back_assassin,背刺,背面命中伤害+80%,Rare,3,BackHitMul,0,0.8,,0,0,,0,0
+ball_pierce_basic,穿透,击杀后50%概率穿透 保留70%速度,Rare,3,PiercingChance,0,0.5,PiercingKeepSpeed,0,0,,0,0
+ball_dmg_burst,爆发,基础伤害+1 且最大反弹次数+5,Rare,3,BaseDamage,1,0,MaxBounces,5,0,,0,0

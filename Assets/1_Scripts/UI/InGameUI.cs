@@ -1,10 +1,11 @@
 using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 游戏中 HUD：显示 Player 生命值和实时弹珠数量。
+/// 游戏中 HUD：显示 Player 生命值、各 BallType 库存（已解锁的特殊球与普通球）以及当前击杀计数。
 /// </summary>
 public class InGameUI : MonoBehaviour
 {
@@ -21,6 +22,10 @@ public class InGameUI : MonoBehaviour
     private TextMeshProUGUI pinBallCountText;
 
     [SerializeField]
+    [Tooltip("可选：显示累计击杀数与下一里程碑阈值。")]
+    private TextMeshProUGUI killCountText;
+
+    [SerializeField]
     private Vector2 heartSize = new Vector2(42f, 42f);
 
     [SerializeField]
@@ -33,11 +38,35 @@ public class InGameUI : MonoBehaviour
     [Range(0f, 1f)]
     private float emptyHeartAlpha = 0.25f;
 
+    /// <summary>HUD 显示的 BallType 顺序：普通球放最前，特殊球按 enum 顺序。</summary>
+    private static readonly BallType[] DisplayOrder =
+    {
+        BallType.Base,
+        BallType.Fire,
+        BallType.Ice,
+        BallType.Lightning,
+        BallType.Poison,
+        BallType.Heavy,
+        BallType.Boomerang,
+    };
+
+    private static readonly Dictionary<BallType, string> DisplayLabels = new Dictionary<BallType, string>
+    {
+        { BallType.Base, "Ball" },
+        { BallType.Fire, "Fire" },
+        { BallType.Ice, "Ice" },
+        { BallType.Lightning, "Lt" },
+        { BallType.Poison, "Poi" },
+        { BallType.Heavy, "Hvy" },
+        { BallType.Boomerang, "Bmr" },
+    };
+
     private readonly List<Image> heartImages = new List<Image>();
+    private readonly StringBuilder ballText = new StringBuilder(64);
     private int lastHp = -1;
     private int lastMaxHp = -1;
-    private int lastPinBallCount = -1;
-    private int lastMaxPinBallCount = -1;
+    private KillMilestoneTable cachedMilestoneTable;
+    private bool milestoneTableLoaded;
 
     private void OnEnable()
     {
@@ -61,13 +90,11 @@ public class InGameUI : MonoBehaviour
         if (force || target.CurrentHp != lastHp || target.MaxHp != lastMaxHp)
             RefreshHearts(target.CurrentHp, target.MaxHp);
 
-        if (force || target.CurrentPinBallCount != lastPinBallCount || target.MaxPinBallCount != lastMaxPinBallCount)
-            RefreshPinBallCount(target.CurrentPinBallCount, target.MaxPinBallCount);
+        RefreshBallCounts(target);
+        RefreshKillCount();
 
         lastHp = target.CurrentHp;
         lastMaxHp = target.MaxHp;
-        lastPinBallCount = target.CurrentPinBallCount;
-        lastMaxPinBallCount = target.MaxPinBallCount;
     }
 
     private Player ResolvePlayer()
@@ -131,11 +158,50 @@ public class InGameUI : MonoBehaviour
         }
     }
 
-    private void RefreshPinBallCount(int currentCount, int maxCount)
+    private void RefreshBallCounts(Player target)
     {
-        if (pinBallCountText == null)
-            return;
+        if (pinBallCountText == null) return;
 
-        pinBallCountText.text = $"{currentCount}/{maxCount}";
+        ballText.Length = 0;
+        bool first = true;
+        for (int i = 0; i < DisplayOrder.Length; i++)
+        {
+            BallType bt = DisplayOrder[i];
+            int max = target.GetMaxCount(bt);
+            if (max <= 0 && bt != BallType.Base) continue;
+
+            int cur = target.GetCurrentCount(bt);
+            if (!first) ballText.Append("  ");
+            first = false;
+            ballText.Append(DisplayLabels[bt]).Append(":").Append(cur).Append("/").Append(max);
+        }
+        pinBallCountText.text = ballText.ToString();
+    }
+
+    private void RefreshKillCount()
+    {
+        if (killCountText == null) return;
+        UpgradeService svc = GameLogicManager.Instance != null ? GameLogicManager.Instance.UpgradeService : null;
+        if (svc == null)
+        {
+            killCountText.text = string.Empty;
+            return;
+        }
+
+        if (!milestoneTableLoaded)
+        {
+            cachedMilestoneTable = AssetLoader.Load<KillMilestoneTable>("KillMilestoneTable");
+            milestoneTableLoaded = true;
+        }
+
+        int cur = svc.KillCount;
+        int next = 0;
+        if (cachedMilestoneTable != null && cachedMilestoneTable.Count > 0)
+            next = cachedMilestoneTable.GetThresholdAt(svc.NextMilestoneIdx);
+
+        if (next > 0)
+            killCountText.text = $"Kills {cur}/{next}";
+        else
+            killCountText.text = $"Kills {cur}";
     }
 }

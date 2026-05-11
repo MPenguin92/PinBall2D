@@ -32,14 +32,33 @@ PinBall2D/
 │   │   │   └── StarfieldController.cs # 程序化星空背景（闪烁/缩放）
 │   │   ├── DataSO/                    # 数据 ScriptableObject 定义
 │   │   │   ├── DifficultyStageData.cs # 单个阶段数据（与 Excel 列一一对应）
-│   │   │   └── DifficultyTable.cs     # 难度阶段表 SO
+│   │   │   ├── DifficultyTable.cs     # 难度阶段表 SO
+│   │   │   ├── KillMilestoneData.cs   # Roguelike：单个击杀里程碑（阈值 + 4 品质权重）
+│   │   │   ├── KillMilestoneTable.cs  # Roguelike：里程碑表 SO（表末按差值外推）
+│   │   │   ├── UpgradeCatalog.cs      # Roguelike：全局升级池（所有可抽词条）
+│   │   │   ├── BallStatUpgradeData.cs # Roguelike：数值类升级 SO（多 modifier）
+│   │   │   └── NewBallUpgradeData.cs  # Roguelike：新球类升级 SO（解锁/扩槽 + paramKeys）
+│   │   ├── Upgrade/                   # Roguelike 升级运行时
+│   │   │   ├── BallStatType.cs        # 弹珠机制参数枚举
+│   │   │   ├── BallStats.cs           # 全局弹珠属性容器（base + flat + percent）
+│   │   │   ├── BallType.cs            # 弹珠类型枚举（Base/Fire/Ice/Lightning/...）
+│   │   │   ├── SpecialBallParams.cs   # 各球种全局参数字典
+│   │   │   ├── UpgradeRarity.cs       # 品质枚举
+│   │   │   ├── UpgradeBase.cs         # 升级 SO 抽象基类 + UpgradeContext
+│   │   │   └── UpgradeService.cs      # 监听 OnUnitKilled、阈值触发、抽池、Apply、暂停/恢复
 │   │   ├── Utility/
 │   │   │   └── AssetLoader.cs         # 统一资源加载入口（Editor→AssetDatabase）
 │   │   ├── Editor/
 │   │   │   └── DataImporter.cs        # CSV → SO 导入菜单（Tools/Data/*）
 │   │   ├── PInBall/
-│   │   │   ├── PinBallBase.cs         # 弹球基类（运动、碰撞、反弹）
-│   │   │   └── PinBallRender.cs       # 弹球渲染（SpriteRenderer）
+│   │   │   ├── PinBallBase.cs         # 弹球基类（运动、碰撞、命中方向、反弹/穿透/最大反弹/命中减速）
+│   │   │   ├── PinBallRender.cs       # 弹球渲染（SpriteRenderer）
+│   │   │   ├── FirePinBall.cs         # 火球：命中 AOE 爆炸
+│   │   │   ├── IcePinBall.cs          # 冰球：命中后 ApplySlow buff
+│   │   │   ├── LightningPinBall.cs    # 闪电球：链式跳跃
+│   │   │   ├── PoisonPinBall.cs       # 毒球：DoT 持续伤害
+│   │   │   ├── HeavyPinBall.cs        # 重力球：击退 + 额外伤害
+│   │   │   └── BoomerangPinBall.cs    # 回旋球：触底前自动反弹一次
 │   │   ├── Unit/
 │   │   │   ├── UnitBase.cs            # 单位基类（HP、Attack、订阅 OnStep、统一尺寸、动画转发）
 │   │   │   ├── UnitRender.cs          # 单位渲染（HP 颜色 + 战斗/触底动画）
@@ -49,7 +68,8 @@ PinBall2D/
 │   │   └── UI/
 │   │       ├── StartScreenUI.cs       # 开始界面按钮脚本
 │   │       ├── GameOverUI.cs          # 游戏结束界面按钮脚本
-│   │       └── InGameUI.cs            # 游戏内 HUD：心形血条 + 弹珠数量
+│   │       ├── InGameUI.cs            # 游戏内 HUD：心形血条 + 多 BallType 库存 + 击杀计数
+│   │       └── UpgradeSelectionUI.cs  # Roguelike 三选一升级面板
 │   ├── 2_Prefab/
 │   │   ├── BaseBall.prefab            # 弹球预制体
 │   │   ├── SimpleUnit.prefab          # 默认单位预制体
@@ -65,9 +85,15 @@ PinBall2D/
 │   │   ├── dashed_line.mat            # 瞄准虚线材质（用 DashedLine.shader）
 │   │   └── GeneratedShapes/           # 程序生成的形状贴图（heart/circle/square/star/triangle）
 │   ├── 8_Data/                         # 运行时数据 Asset（由 DataImporter 生成）
-│   │   └── DifficultyTable.asset
+│   │   ├── DifficultyTable.asset
+│   │   ├── KillMilestoneTable.asset    # Roguelike 击杀里程碑（导入后生成）
+│   │   ├── UpgradeCatalog.asset        # Roguelike 升级池（导入后生成）
+│   │   └── Upgrades/                   # 各词条 SO（Stat_*.asset / NewBall_*.asset）
 │   ├── 9_Excel/                        # 原始配置表（CSV/XLSX）
-│   │   └── Difficulty.csv
+│   │   ├── Difficulty.csv
+│   │   ├── KillMilestones.csv
+│   │   ├── Upgrades_Stat.csv
+│   │   └── Upgrades_NewBall.csv
 │   ├── Plugins/
 │   │   └── DOTween/                   # DOTween 第三方补间插件
 │   ├── Resources/
@@ -129,7 +155,7 @@ PinBall2D/
 
 ### 3.2 游戏状态（GameState）
 
-- **GameState** 枚举：`Preparing`（准备中）、`Running`（运行中）、`Paused`（暂停）、`Ended`（结束）。
+- **GameState** 枚举：`Preparing`（准备中）、`Running`（运行中）、`Paused`（暂停）、`Ended`（结束）、`SelectingUpgrade`（Roguelike 选卡，等同 Paused）。
 - **主逻辑 Update**：仅当 `GameLogicManager.CurrentState == GameState.Running` 时执行 `UpdateGame()`；其他状态不驱动 Tick。
 - **切换入口**：`StartGame / PauseGame / ResumeGame / EndGame / BackToHome`，每个入口都会向 `GameEvents` 发送对应事件。
 
@@ -145,6 +171,10 @@ PinBall2D/
 | `OnGameEnd` | `EndGame()`（玩家死亡或主动结束） |
 | `OnReturnToHome` | `BackToHome()` |
 | `OnStep` | Running 下每 `Defines.StepInterval` 秒一次（节奏心跳） |
+| `OnUnitKilled(unit)` | `PinBallBase` 击杀 Unit 时（在 `RecycleUnit` 之前） |
+| `OnKillMilestoneReached(idx)` | `UpgradeService` 累计击杀达到一个里程碑时 |
+| `OnUpgradeOffered(options)` | 抽出三张升级候选，UI 显面板 |
+| `OnUpgradeApplied(upgrade)` | 玩家点选并应用了某个升级，UI 关面板 |
 
 **发送方**：只有 `GameLogicManager`。
 **典型订阅方**：`UIManager`（UI 显隐）、`UnitCreator`（`OnStep` 批量生成）、所有活跃 `UnitBase`（`OnStep` 启动一步位移）。未来音效、关卡、分数等系统都可以直接订阅事件，无需改动 `GameLogicManager`。
@@ -200,7 +230,7 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 
 - 路径：`Assets/1_Scripts/Mgr/GameEnum.cs`
 - `BounceDirection`：Up / Down / Left / Right，供 Border 指定反弹法线。
-- `GameState`：Preparing / Running / Paused / Ended。
+- `GameState`：Preparing / Running / Paused / Ended / SelectingUpgrade。
 
 ### 4.1.1 Defines.cs — 项目级常量
 
@@ -241,8 +271,9 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 ### 4.2 GameEvents.cs — 事件总线
 
 - 路径：`Assets/1_Scripts/Mgr/GameEvents.cs`
-- 6 个静态事件：`OnGameStart / OnGamePause / OnGameResume / OnGameEnd / OnReturnToHome / OnStep`。
-- 对应 `Raise*` 静态方法供 `GameLogicManager` 调用。
+- 静态事件：`OnGameStart / OnGamePause / OnGameResume / OnGameEnd / OnReturnToHome / OnStep`，
+  以及 Roguelike 升级体系新增的 `OnUnitKilled(UnitBase) / OnKillMilestoneReached(int) / OnUpgradeOffered(IList<UpgradeBase>) / OnUpgradeApplied(UpgradeBase)`。
+- 对应 `Raise*` 静态方法供 `GameLogicManager` 与 `UpgradeService` 调用。
 - `OnStep` 仅在 Running 下由 `UpdateGame` 按 `Defines.StepInterval` 推进广播；其它事件在对应状态切换时广播。
 
 ### 4.3 Border.cs — 边框
@@ -326,9 +357,12 @@ UI 引用已移至 `UIManager`；单位生成配置已移至 `UnitCreator` 内�
 
 ### 4.7 PinBallBase.cs — 弹球基类
 
-- **职责**：运动、与 Border / Unit 碰撞与镜面反弹、底边回收。
-- 可配置：`initialSpeed`、`minSpeed`、`bounceSpeedMultiplier`。
-- 核心：`Init(direction, speed)`、`Tick(borders, activeUnits)`、`Velocity`、`Radius`。
+- **职责**：运动、与 Border / Unit 碰撞与镜面反弹、底边回收。所有数值（速度、伤害、命中方向倍率、穿透、最大反弹）从全局 `BallStats` 实时读取。
+- 可配置：`ballType`（决定回收时归还到哪种库存槽）、`initialSpeedHint`（仅 Inspector 调试展示，不参与逻辑）。
+- 核心：`Init(direction, speed)`、`Tick(borders, activeUnits)`、`Velocity`、`Radius`、`BallType`。
+- 命中方向：以 Unit.MoveDirection 为基准。撞顶边 = `FrontHit`，撞底边 = `BackHit`，撞左右 = `SideHit`，伤害倍率分别从 `BallStats` 取 `FrontHitMul / BackHitMul / SideHitMul`。
+- 击杀流程：`unit.TakeDamage` → 子类钩子 `OnHitUnit` → `destroyed=true` 时 `RaiseUnitKilled` 再 `RecycleUnit`，然后按 `PiercingChance` 决定穿透或反弹。
+- 派生球扩展点：override `OnHitUnit` 即可（FirePinBall/IcePinBall/LightningPinBall/...）。
 
 ### 4.8 PinBallRender.cs — 弹球渲染
 
@@ -336,14 +370,15 @@ UI 引用已移至 `UIManager`；单位生成配置已移至 `UnitCreator` 内�
 
 ### 4.9 Player.cs — 玩家发射器
 
-- **职责**：固定位置，A/D 旋转（±80°），F 发射弹球，管理弹药容量与**生命值**；通过 `PlayerRender` 实现的 `ICombatAnimation` 触发攻击/受击/死亡动画。
-- 可配置：`rotateSpeed`、`maxAngle`、`maxPinBallCount`、`fireInterval`、`firePinBallSpeed`、`maxHp`、`playerRender`（动画/预览线渲染器）。
+- **职责**：固定位置，A/D 旋转（±80°），F 发射弹球，管理多 BallType 库存（`Dictionary<BallType, int>`）与**生命值**；通过 `PlayerRender` 实现的 `ICombatAnimation` 触发攻击/受击/死亡动画。
+- 可配置：`rotateSpeed`、`maxAngle`、`maxHp`、`playerRender`。弹珠相关的 **maxPinBallCount / fireInterval / firePinBallSpeed** 已迁移到 `BallStats.BasePinBallSlots / FireInterval / InitialSpeed`，由 Roguelike 升级修改。
 - 核心：
-  - `Init()`：重置角度/弹药/HP。
-  - `Tick()`：旋转 + 发射 + 冷却 + 内部调用 `playerRender.Tick()`（统一从 Player 驱动，Manager 不再持有 PlayerRender 引用）。
-  - 公开属性供 UI 取值：`Direction`、`CurrentHp / MaxHp`、`CurrentPinBallCount / MaxPinBallCount`、`FireInterval`、`IsDead`。
-  - `AddPinBall(count)`、`TakeDamage(damage)`：扣血时触发 `playerRender.PlayHitAnimation()`，归零时触发 `PlayDeathAnimation()`。
-  - `HandleFire`：发射成功后调用 `playerRender.PlayAttackAnimation()`。
+  - `Init()`：重置角度/HP；普通球库存上限初值从 `BallStats.Get(BasePinBallSlots)` 读取，特殊球类型 0/0 等待升级解锁。
+  - `Tick()`：先 `SyncBaseSlotsCap` 把上限同步到 `BallStats`；再处理旋转、发射、冷却 + 内部调用 `playerRender.Tick()`。
+  - 公开属性：`Direction`、`CurrentHp / MaxHp`、`CurrentCounts / MaxCounts`（多球种字典）、兼容旧 HUD 的 `CurrentPinBallCount / MaxPinBallCount`（=Base 槽）、`IsDead`。
+  - `AddPinBall(BallType, count = 1)`：把球归还到对应类型库存，受当前 `MaxCount(type)` 钳制。
+  - `AddBallSlot(BallType, slots)`：升级专用，同步增加 `maxCounts[type]` 与 `currentCounts[type]`。
+  - `HandleFire`：按 `FirePriority`（特殊球优先）选择第一个 `current > 0` 的 BallType，调用 `SpawnPinBall(BallAddress[type], ...)`，初速从 `BallStats.InitialSpeed`、冷却从 `BallStats.FireInterval` 读取。
 
 ### 4.10 PlayerRender.cs — 玩家渲染（方向预览线 + 战斗动画）
 
@@ -410,12 +445,13 @@ UI 引用已移至 `UIManager`；单位生成配置已移至 `UnitCreator` 内�
 ### 4.18 InGameUI.cs — 游戏内 HUD
 
 - 挂在 `GameHUD.prefab` 根节点上，由 `UIManager.inGameUI` 引用并在 `OnGameStart` 时显示、`OnGameEnd / OnReturnToHome` 时隐藏。
-- Inspector 配置：`player`（可空，自动从 `GameLogicManager.Instance.Player` 兜底）、`heartContainer`（心形布局根 `RectTransform`）、`heartSprite`（心形贴图）、`pinBallCountText`（TMP 文本）、`heartSize`、`heartSpacing`、`heartColor`、`emptyHeartAlpha`。
+- Inspector 配置：`player`（可空，自动从 `GameLogicManager.Instance.Player` 兜底）、`heartContainer`、`heartSprite`、`pinBallCountText`（多 BallType 库存）、`killCountText`（可选，显示 `Kills cur/next`）、`heartSize / heartSpacing / heartColor / emptyHeartAlpha`。
 - 工作机制：
-  - `OnEnable / Update` 调用 `Refresh`，与 `Player.MaxHp / CurrentHp / CurrentPinBallCount / MaxPinBallCount` 比对；变化时再刷新避免无谓 GC。
-  - `RebuildHearts(maxHp)`：根据上限动态生成 `Image` 心形，水平排布，`heartContainer.sizeDelta` 自动延展。
-  - `RefreshHearts(currentHp, maxHp)`：剩余血量内的心形为不透明，剩余则降为 `emptyHeartAlpha`。
-  - `RefreshPinBallCount`：把弹珠当前/上限写入 `pinBallCountText`（格式 `cur/max`）。
+  - `OnEnable / Update` 调用 `Refresh`，与 `Player.MaxHp / CurrentHp` 比对，避免无谓 GC。
+  - `RebuildHearts(maxHp)`：根据上限动态生成 `Image` 心形，水平排布。
+  - `RefreshHearts(currentHp, maxHp)`：剩余血量内不透明，其余降到 `emptyHeartAlpha`。
+  - `RefreshBallCounts`：以 `Ball:5/5  Fire:2/3 ...` 形式只显示 `MaxCount > 0` 的 BallType（普通球永远显示）。
+  - `RefreshKillCount`：从 `UpgradeService.KillCount / NextMilestoneIdx + KillMilestoneTable` 拼出 `Kills cur/next` 文本，里程碑表通过 `AssetLoader` 一次缓存。
 
 ### 4.19 ICombatAnimation.cs — 战斗动画接口
 
@@ -524,12 +560,16 @@ SimpleUnit    ──► GameLogicManager.OnUnitReachBottom
 
 | 模块 | 参数 | 位置 |
 |------|------|------|
-| 玩家 | `maxHp / maxPinBallCount / fireInterval / firePinBallSpeed / maxAngle / rotateSpeed` | Player Inspector |
+| 玩家 | `maxHp / maxAngle / rotateSpeed`（弹珠相关已迁移到 BallStats） | Player Inspector |
 | 单位（默认值，运行时被难度表覆盖） | `maxHp / attack` | SimpleUnit Prefab Inspector |
 | 节奏 / 尺寸（缺省） | `UnitSize / StepDistance / StepInterval / StepMoveDuration` | `Mgr/Defines.cs` 常量 |
 | **难度曲线**（主调参入口） | 每阶段 `startTime / spawnMin / spawnMax / unitHp / unitAttack / stepInterval` | `Assets/9_Excel/Difficulty.csv` → `Tools/Data/Import Difficulty` 导入 |
+| **Roguelike 升级**（主调参入口） | 击杀里程碑 + 各品质权重 | `Assets/9_Excel/KillMilestones.csv` → `Tools/Data/Import Kill Milestones` |
+| **Roguelike 数值词条** | `id / name / desc / rarity / maxStack / mod1~3` | `Assets/9_Excel/Upgrades_Stat.csv` → `Tools/Data/Import Upgrades` |
+| **Roguelike 新球词条** | `id / ... / ballType / slotsAdd / paramKeys|paramValues` | `Assets/9_Excel/Upgrades_NewBall.csv` → `Tools/Data/Import Upgrades` |
+| 弹珠基础值（缺省，全部受 BallStats 修饰） | `BaseDamage / InitialSpeed / MinSpeed / BounceSpeedMul / BasePinBallSlots / FireInterval` | `BallStats.Reset()` 默认值 |
 | 生成范围 | `HorizontalPadding / TopOffset` | `UnitCreator.cs` 常量 |
-| 弹球 | `initialSpeed / minSpeed / bounceSpeedMultiplier` | PinBall Prefab Inspector |
+| 弹球（仅渲染/调试展示） | `ballType / initialSpeedHint` | PinBall Prefab Inspector |
 | 边框 | `bounceDirection / isBottomBorder / autoAlignToCameraEdge / thickness` | 各 Border Inspector |
 | 瞄准线 | `lineForwardOffset / maxLineLength / maxBounces` + 虚线材质参数 | PlayerRender Inspector + `7_Res/dashed_line.mat`（`DashLength / GapLength / ScrollSpeed`） |
 | HUD | `heartSize / heartSpacing / heartColor / emptyHeartAlpha` | GameHUD prefab 上的 InGameUI Inspector |
