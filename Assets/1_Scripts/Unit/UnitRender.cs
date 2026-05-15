@@ -19,6 +19,11 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
     [SerializeField]
     private float hitPunchScale = 0.16f;
 
+    [Header("Slow")]
+    [SerializeField]
+    [Tooltip("被减速 buff 命中时整体染色到这个色;buff 结束后恢复原色。")]
+    private Color slowTintColor = new Color(0.55f, 0.85f, 1f, 1f);
+
     [Header("Death")]
     [SerializeField]
     private float deathEffectDuration = 0.35f;
@@ -36,6 +41,7 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
     private Vector3 originalScale;
     private Sequence hitSequence;
     private bool isPlayingHitAnimation;
+    private bool isSlowedVisual;
 
     private void Awake()
     {
@@ -47,6 +53,7 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
 
     private void OnEnable()
     {
+        isSlowedVisual = false;
         ResetRenderState();
     }
 
@@ -62,6 +69,17 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         if (isPlayingHitAnimation) return;
 
         //spriteRenderer.color = GetHpColor();
+    }
+
+    /// <summary>
+    /// 由 UnitBase.Tick 每帧调用,把 IsSlowed 状态映射到外观染色上。
+    /// 命中闪白动画期间不覆盖颜色,等动画结束后下一帧自然恢复。
+    /// </summary>
+    public void SetSlowVisual(bool on)
+    {
+        isSlowedVisual = on;
+        if (spriteRenderer == null || isPlayingHitAnimation) return;
+        spriteRenderer.color = on ? slowTintColor : originalColor;
     }
 
     public virtual void PlayAttackAnimation()

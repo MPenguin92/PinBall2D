@@ -191,7 +191,7 @@ experienceThreshold, weightCommon, weightUncommon, weightRare, weightLegendary
 子类只需在此叠加额外效果。例如：
 
 - `FirePinBall`：以命中点为中心，对所有距离 ≤ `explosionRadius` 的 Unit 各 `TakeDamage(explosionDamage)`。
-- `IcePinBall`：调 `unit.ApplySlow(1 - slowPct, slowDuration)`；`UnitBase` 用浮点累计实现「平均每 1/factor 次 Step 才执行一次实际下移」。
+- `IcePinBall`：调 `unit.ApplySlow(1 - slowPct, slowDuration)`；`UnitBase` 用浮点累计实现「平均每 1/factor 次 Step 才执行一次实际下移」。被减速 Unit 由 `UnitRender.SetSlowVisual` 染上冰色;同时 `SimpleUnit.HandleStep` 在每次准备下移前会检查目标格是否被其他 Unit 占用,占用则跳过本拍——减速天然形成"冰墙",后续 Unit 撞到也会排队停下;`UnitCreator.SpawnBatch` 同步检测顶部出生点是否被占,占用则放弃这一颗,避免压死场面。
 - `LightningPinBall`：从命中点出发链式找最近 N 个 Unit，每跳 `currentDmg *= (1 - chainDecay)`。
 
 新球种 prefab 制作：复制 `BaseBall.prefab` → 把脚本替换为对应派生类 → 在 `BallType` 字段填正确的枚举值 → 加入 Addressables 并使用与 `Player.BallAddress` 一致的地址（`FireBall`/`IceBall`/...）。

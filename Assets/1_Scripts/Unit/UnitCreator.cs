@@ -118,7 +118,30 @@ public class UnitCreator : IUnitCreator
             }
 
             float x = Random.Range(slotMin, slotMax);
-            mgr.SpawnUnit(UnitAddress, new Vector2(x, y));
+            Vector2 spawnPos = new Vector2(x, y);
+
+            // 顶部出生位与已有 Unit(常见原因:下方有冰墙堵着,整列堆到顶端)重叠时,直接放弃这一颗。
+            // 这是一个"压力释放阀":玩家把场面冻死时,新 Unit 不再继续压下来。
+            if (IsSpawnOccupied(mgr, spawnPos, unitW)) continue;
+
+            mgr.SpawnUnit(UnitAddress, spawnPos);
         }
+    }
+
+    private static bool IsSpawnOccupied(GameLogicManager mgr, Vector2 center, float unitSize)
+    {
+        var actives = mgr.ActiveUnits;
+        if (actives == null) return false;
+
+        float half = unitSize * 0.5f;
+        Rect spawnRect = new Rect(center.x - half, center.y - half, unitSize, unitSize);
+
+        for (int i = 0; i < actives.Count; i++)
+        {
+            UnitBase other = actives[i];
+            if (other == null || !other.gameObject.activeSelf) continue;
+            if (spawnRect.Overlaps(other.UnitRect)) return true;
+        }
+        return false;
     }
 }

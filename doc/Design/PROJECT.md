@@ -393,7 +393,7 @@ UI 引用已移至 `UIManager`；单位生成配置已移至 `UnitCreator` 内�
 
 ### 4.11 UnitBase.cs — 单位基类
 
-- **职责**：单位通用属性与行为。HP、**Attack**（触底对 Player 造成的伤害）、统一 1x1 正方形尺寸（`Defines.UnitSize`）、碰撞矩形 `UnitRect`、碰撞法线、订阅 `OnStep`；通过 `unitRender` 字段把战斗动画转发给实现 `ICombatAnimation` 的渲染层。
+- **职责**：单位通用属性与行为。HP、**Attack**（触底对 Player 造成的伤害）、Experience(被击杀给玩家的经验)、统一 1x1 正方形尺寸（`Defines.UnitSize`）、碰撞矩形 `UnitRect`、碰撞法线、订阅 `OnStep`(`HandleStep` 内统一处理减速判定 + 队列堵塞 + 启动一次 `MoveDirection` 方向上的 1m 位移)、`Tick` 推进 lerp + 到达后触底检测、把战斗动画转发到 `unitRender`。
 - 可配置：`maxHp`、`attack`（运行时会被 `Difficulty` 覆盖；尺寸固定由 `Defines.UnitSize` 决定）、`unitRender`。
 - 核心：
   - `Init()`：先 `ApplyDifficulty()` 读当前阶段的 hp/attack → 重置 HP → 强制 `transform.localScale = Vector3.one * Defines.UnitSize` → 刷新 `UnitRect`。
@@ -425,14 +425,13 @@ UI 引用已移至 `UIManager`；单位生成配置已移至 `UnitCreator` 内�
   - `maxCount = floor(availWidth / Defines.UnitSize)`；
   - 若 `Difficulty.HasTable`，从 `GetSpawnRange()` 取 `[spawnMin, spawnMax]` 并用 `maxCount` 夹紧；否则退回 `[1, maxCount]`；
   - 在该区间随机 count，把宽度均分为 count 个槽；
-  - 每个槽内再随机 X，保证相邻 Unit 既不重叠也不越出屏幕。
+  - 每个槽内再随机 X，保证相邻 Unit 既不重叠也不越出屏幕；
+  - 出生点若与已存在 Unit 重叠(常因下方有冰墙堵着,整列堆到顶部),`IsSpawnOccupied` 检测后直接放弃这一颗,自然限制场上最大堆积。
 
-### 4.15 SimpleUnit.cs — 简单下落单位
+### 4.15 SimpleUnit.cs — 默认 Unit 类型
 
-- 继承 `UnitBase`。
-- **节奏响应**：`HandleStep()` 记录起点与 `target = start + Vector2.down * Defines.StepDistance`，开启一次位移动画。
-- **动画推进**：`Tick()` 累加 `moveTimer`，`t = moveTimer / Defines.StepMoveDuration` 截断到 [0,1]，用 `Vector2.Lerp` 更新位置并 `RefreshRect`。
-- **触底**：到达目标（t == 1）那一帧检查是否与底边 Border 重叠，若是则调用 `GameLogicManager.OnUnitReachBottom(this)`（扣血 + 回收 + 死亡判定）。
+- 继承 `UnitBase`,**自身不写任何代码**。所有节奏响应、减速、堵塞、位移、触底逻辑都在 `UnitBase` 中实现,`SimpleUnit` 仅作为 `SimpleUnit.prefab` / Addressables 地址 `"SimpleUnit"` 的脚本绑定占位。
+- 后续如有需要不同移动方向 / 不同节奏行为的 Unit 类型,新建派生类并 override `MoveDirection` / `HandleStep` 即可。
 
 ### 4.16 StartScreenUI.cs — 开始界面
 

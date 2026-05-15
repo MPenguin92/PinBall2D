@@ -26,6 +26,12 @@ public class UnitBase : MonoBehaviour
     // 累计到 >= 1 才执行一次实际行为，并保留小数部分。
     private float slowStepAcc;
 
+    // Step 触发后的位移过程：moveStart→moveTarget 在 StepMoveDuration 内插值,期间 isMoving=true。
+    private Vector2 moveStart;
+    private Vector2 moveTarget;
+    private float moveTimer;
+    private bool isMoving;
+
     public int CurrentHp => currentHp;
 
     public int MaxHp => maxHp;
@@ -87,7 +93,14 @@ public class UnitBase : MonoBehaviour
         );
     }
 
-    /// <summary>由 GameLogicManager 每帧统一调用。基类默认推进减速倒计时，子类按需重写并 base.Tick。</summary>
+    /// <summary>
+    /// 由 GameLogicManager 每帧统一调用。基类负责:
+    ///   1) 减速 buff 倒计时
+    ///   2) 当前 Step 触发的位移插值(moveStart→moveTarget,持续 StepMoveDuration)
+    ///   3) 到达目标后做触底检测(覆盖底边 Border 时回调 OnUnitReachBottom)
+    ///   4) 同步外观染色到 IsSlowed 状态
+    /// 子类如需扩展位移逻辑,可重写本方法并 base.Tick()。
+    /// </summary>
     public virtual void Tick()
     {
         if (slowRemaining > 0f)
@@ -100,6 +113,24 @@ public class UnitBase : MonoBehaviour
                 slowStepAcc = 0f;
             }
         }
+
+        if (isMoving)
+        {
+            moveTimer += Time.deltaTime;
+            float t = Mathf.Clamp01(moveTimer / Defines.StepMoveDuration);
+            Vector2 pos = Vector2.Lerp(moveStart, moveTarget, t);
+            transform.position = new Vector3(pos.x, pos.y, transform.position.z);
+            RefreshRect();
+
+            if (t >= 1f)
+            {
+                isMoving = false;
+                CheckBottomCollision();
+            }
+        }
+
+        if (unitRender != null)
+            unitRender.SetSlowVisual(IsSlowed);
     }
 
     public bool TakeDamage(int damage)
@@ -176,6 +207,8 @@ public class UnitBase : MonoBehaviour
     protected virtual void OnEnable()
     {
         GameEvents.OnStep += HandleStep;
+        isMoving = false;
+        moveTimer = 0f;
     }
 
     protected virtual void OnDisable()
@@ -183,9 +216,68 @@ public class UnitBase : MonoBehaviour
         GameEvents.OnStep -= HandleStep;
     }
 
-    /// <summary>收到 Step 心跳时调用。基类空实现，子类（如 SimpleUnit）重写以响应节奏。</summary>
+    /// <summary>
+    /// 收到 Step 心跳时调用。基类实现:减速判定 → 堵塞判定 → 启动一次 MoveDirection 方向上 1 米的位移。
+    /// 子类如需自定义节奏行为,可重写并选择是否调用 base.HandleStep()。
+    /// </summary>
     protected virtual void HandleStep()
     {
+        if (!ConsumeStepWithSlow()) return;
+
+        Vector2 dir = MoveDirection;
+        if (dir.sqrMagnitude <= Mathf.Epsilon) return;
+
+        Vector2 nextPos = (Vector2)transform.position + dir * Defines.StepDistance;
+
+        // 队列堵塞:目标格被其他 Unit(冻住的、或前面被堵住的)占用,本拍跳过。
+        // 减速天然形成"冰墙",后面 Unit 撞到也会排队停下,避免穿模和判定混乱。
+        if (IsTargetOccupied(nextPos)) return;
+
+        moveStart = transform.position;
+        moveTarget = moveStart + dir * Defines.StepDistance;
+        moveTimer = 0f;
+        isMoving = true;
+    }
+
+    private bool IsTargetOccupied(Vector2 targetCenter)
+    {
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr == null) return false;
+        var actives = mgr.ActiveUnits;
+        if (actives == null) return false;
+
+        float half = Defines.UnitSize * 0.5f;
+        Rect targetRect = new Rect(targetCenter.x - half, targetCenter.y - half, Defines.UnitSize, Defines.UnitSize);
+
+        for (int i = 0; i < actives.Count; i++)
+        {
+            UnitBase other = actives[i];
+            if (other == null || other == this) continue;
+            if (!other.gameObject.activeSelf) continue;
+            if (targetRect.Overlaps(other.UnitRect)) return true;
+        }
+        return false;
+    }
+
+    private void CheckBottomCollision()
+    {
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr == null) return;
+
+        Border[] borders = mgr.Borders;
+        if (borders == null) return;
+
+        for (int i = 0; i < borders.Length; i++)
+        {
+            Border b = borders[i];
+            if (b == null || !b.IsBottomBorder) continue;
+
+            if (UnitRect.Overlaps(b.BorderRect))
+            {
+                mgr.OnUnitReachBottom(this);
+                return;
+            }
+        }
     }
 
     private void OnDrawGizmos()
