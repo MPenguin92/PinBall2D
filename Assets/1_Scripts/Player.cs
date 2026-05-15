@@ -2,14 +2,12 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 玩家：发射弹珠 + 旋转控制 + 生命值。
+/// 玩家:发射弹珠 + 旋转控制 + 生命值。
 ///
-/// 弹珠数值（最大库存 / 发射间隔 / 初速）统一从 <see cref="BallStats"/> 读取，
-/// 不再保留独立 SerializeField；Inspector 中只剩输入控制与渲染相关字段。
-///
-/// 弹珠库存按 <see cref="BallType"/> 分槽：普通球初始库存上限 = BallStats.BasePinBallSlots，
-/// 其余特殊球（火/冰/雷/...）默认 0/0，由升级解锁与扩容。
-/// HandleFire 按 BallType 顺序找到第一个 current>0 的发射，特殊球优先。
+/// 弹珠库存为一个**全局 FIFO 队列**:发射 = 队首出队,球碰底回收 = 入队尾。
+/// 默认 <see cref="initialBallCount"/> 个普通球(Base)入队;获得特殊球升级时,
+/// 立即把对应数量的该 BallType 入队尾,容量随之增长。
+/// 谁在队首就发谁——后发先回的球会"插队"到下一次发射位置。
 /// </summary>
 public class Player : MonoBehaviour
 {
@@ -24,9 +22,13 @@ public class Player : MonoBehaviour
     private int maxHp = 5;
 
     [SerializeField]
+    [Tooltip("StartGame 时入队的初始普通球数量。")]
+    private int initialBallCount = 5;
+
+    [SerializeField]
     private PlayerRender playerRender;
 
-    /// <summary>各 BallType 的 Addressables 地址；默认填普通球的 BaseBall。</summary>
+    /// <summary>各 BallType 的 Addressables 地址;默认填普通球的 BaseBall。</summary>
     private static readonly Dictionary<BallType, string> BallAddress = new Dictionary<BallType, string>
     {
         { BallType.Base, "BaseBall" },
@@ -38,20 +40,14 @@ public class Player : MonoBehaviour
         { BallType.Boomerang, "BoomerangBall" },
     };
 
-    /// <summary>发射优先级（数组前面的优先消耗）：特殊球优先，最后才是普通球。</summary>
-    private static readonly BallType[] FirePriority =
-    {
-        BallType.Fire,
-        BallType.Ice,
-        BallType.Lightning,
-        BallType.Poison,
-        BallType.Heavy,
-        BallType.Boomerang,
-        BallType.Base,
-    };
+    // FIFO 队列:队首=下一发,队尾=最新入队。Enqueue/Dequeue 是 O(1)。
+    private readonly Queue<BallType> ballQueue = new Queue<BallType>();
 
-    private readonly Dictionary<BallType, int> currentCounts = new Dictionary<BallType, int>();
-    private readonly Dictionary<BallType, int> maxCounts = new Dictionary<BallType, int>();
+    // 历史累计入队总数(含已发射在外的球)。等于"容量",用于 HUD 显示与 BallsInFlight 推导。
+    private int totalBalls;
+
+    // 已解锁过的特殊 BallType 集合(仅记录非 Base):用于"全部已解锁特殊球各 +N"类升级。
+    private readonly HashSet<BallType> unlockedSpecials = new HashSet<BallType>();
 
     private float fireTimer;
     private int currentHp;
@@ -62,18 +58,17 @@ public class Player : MonoBehaviour
 
     public bool IsDead => currentHp <= 0;
 
-    /// <summary>
-    /// 普通球当前数（兼容老 HUD）。
-    /// </summary>
-    public int CurrentPinBallCount => GetCurrentCount(BallType.Base);
+    /// <summary>当前队列内可发射的球数(不含飞行中的)。</summary>
+    public int QueueCount => ballQueue.Count;
 
-    /// <summary>普通球库存上限（兼容老 HUD）。</summary>
-    public int MaxPinBallCount => GetMaxCount(BallType.Base);
+    /// <summary>历史入队总数,等价于"容量":队列内 + 飞行中 = TotalBalls。</summary>
+    public int TotalBalls => totalBalls;
 
-    /// <summary>所有 BallType 的当前/最大库存（HUD 多球种显示用）。</summary>
-    public IReadOnlyDictionary<BallType, int> CurrentCounts => currentCounts;
+    /// <summary>当前飞行在外的球数。</summary>
+    public int BallsInFlight => totalBalls - ballQueue.Count;
 
-    public IReadOnlyDictionary<BallType, int> MaxCounts => maxCounts;
+    /// <summary>HUD 用:按队列顺序(队首→队尾)只读暴露当前队列内容。</summary>
+    public IReadOnlyCollection<BallType> BallQueue => ballQueue;
 
     public Vector2 Direction
     {
@@ -86,13 +81,14 @@ public class Player : MonoBehaviour
 
     public void Init()
     {
-        currentCounts.Clear();
-        maxCounts.Clear();
+        ballQueue.Clear();
+        unlockedSpecials.Clear();
+        totalBalls = 0;
 
-        // 普通球初始上限来自 BallStats（StartGame 已 Reset 为基础值）。
-        int baseSlots = ResolveBaseSlots();
-        maxCounts[BallType.Base] = baseSlots;
-        currentCounts[BallType.Base] = baseSlots;
+        int initial = Mathf.Max(0, initialBallCount);
+        for (int i = 0; i < initial; i++)
+            ballQueue.Enqueue(BallType.Base);
+        totalBalls = initial;
 
         fireTimer = 0f;
         currentHp = maxHp;
@@ -118,9 +114,6 @@ public class Player : MonoBehaviour
 
     public void Tick()
     {
-        // 普通球库存上限可能因升级动态变化，这里每帧同步上限到 BallStats。
-        SyncBaseSlotsCap();
-
         HandleRotation();
         HandleFire();
 
@@ -131,36 +124,38 @@ public class Player : MonoBehaviour
             fireTimer -= Time.deltaTime;
     }
 
-    /// <summary>由 PoolManager 在弹珠回收时调用，把球归还到对应类型的库存。</summary>
-    public void AddPinBall(BallType type, int count = 1)
+    /// <summary>
+    /// 球回收时调用(GameLogicManager.RecyclePinBall):按其类型入队尾,**不改变 totalBalls**。
+    /// </summary>
+    public void AddPinBall(BallType type)
     {
-        int max = GetMaxCount(type);
-        if (max <= 0) return;
-        int cur = GetCurrentCount(type);
-        currentCounts[type] = Mathf.Clamp(cur + count, 0, max);
+        ballQueue.Enqueue(type);
     }
 
-    /// <summary>给某 BallType 增加 N 个槽位（同步增加上限与当前库存）。</summary>
-    public void AddBallSlot(BallType type, int slots)
+    /// <summary>
+    /// 升级解锁/扩容:在队尾追加 <paramref name="count"/> 个 <paramref name="type"/>,
+    /// 同步增加 totalBalls。第一次添加非 Base 类型时会被记入"已解锁特殊球"集合。
+    /// </summary>
+    public void AddBalls(BallType type, int count)
     {
-        if (slots <= 0) return;
-        int max = GetMaxCount(type) + slots;
-        int cur = GetCurrentCount(type) + slots;
-        maxCounts[type] = max;
-        currentCounts[type] = Mathf.Clamp(cur, 0, max);
+        if (count <= 0) return;
+        for (int i = 0; i < count; i++)
+            ballQueue.Enqueue(type);
+        totalBalls += count;
+
+        if (type != BallType.Base)
+            unlockedSpecials.Add(type);
     }
 
-    public int GetCurrentCount(BallType type)
+    /// <summary>查询某种特殊球是否已被解锁(历史上有过入队)。Base 永远视为已解锁。</summary>
+    public bool IsUnlocked(BallType type)
     {
-        currentCounts.TryGetValue(type, out int v);
-        return v;
+        if (type == BallType.Base) return true;
+        return unlockedSpecials.Contains(type);
     }
 
-    public int GetMaxCount(BallType type)
-    {
-        maxCounts.TryGetValue(type, out int v);
-        return v;
-    }
+    /// <summary>已解锁的特殊球集合(只读),供升级"全部已解锁特殊球 +N"等场景使用。</summary>
+    public IReadOnlyCollection<BallType> UnlockedSpecials => unlockedSpecials;
 
     private void HandleRotation()
     {
@@ -183,14 +178,9 @@ public class Player : MonoBehaviour
     {
         if (!Input.GetKeyDown(KeyCode.F)) return;
         if (fireTimer > 0f) return;
+        if (ballQueue.Count == 0) return;
 
-        BallType chosen = PickFireCandidate();
-        if (chosen == BallType.Base && GetCurrentCount(BallType.Base) <= 0)
-        {
-            // 无任何弹珠可用。
-            return;
-        }
-        if (GetCurrentCount(chosen) <= 0) return;
+        BallType chosen = ballQueue.Dequeue();
 
         BallStats stats = GetStats();
         float speed = stats != null ? stats.Get(BallStatType.InitialSpeed) : 10f;
@@ -198,24 +188,11 @@ public class Player : MonoBehaviour
 
         GameLogicManager.Instance.SpawnPinBall(address, transform.position, Direction, speed);
 
-        currentCounts[chosen] = GetCurrentCount(chosen) - 1;
-
         float fireInterval = stats != null ? stats.Get(BallStatType.FireInterval) : 0.3f;
         fireTimer = fireInterval;
 
         if (playerRender != null)
             playerRender.PlayAttackAnimation();
-    }
-
-    private BallType PickFireCandidate()
-    {
-        for (int i = 0; i < FirePriority.Length; i++)
-        {
-            BallType bt = FirePriority[i];
-            if (GetMaxCount(bt) <= 0) continue;
-            if (GetCurrentCount(bt) > 0) return bt;
-        }
-        return BallType.Base;
     }
 
     private string ResolveAddress(BallType type)
@@ -227,31 +204,5 @@ public class Player : MonoBehaviour
     {
         GameLogicManager mgr = GameLogicManager.Instance;
         return mgr != null ? mgr.BallStats : null;
-    }
-
-    private int ResolveBaseSlots()
-    {
-        BallStats stats = GetStats();
-        return stats != null ? Mathf.Max(1, stats.GetInt(BallStatType.BasePinBallSlots)) : 5;
-    }
-
-    private void SyncBaseSlotsCap()
-    {
-        int newMax = ResolveBaseSlots();
-        int oldMax = GetMaxCount(BallType.Base);
-        if (newMax == oldMax) return;
-
-        maxCounts[BallType.Base] = newMax;
-        if (newMax > oldMax)
-        {
-            // 上限提升时，未发射的部分（差值）自动补到当前库存（手感更好）。
-            int cur = GetCurrentCount(BallType.Base);
-            currentCounts[BallType.Base] = Mathf.Min(newMax, cur + (newMax - oldMax));
-        }
-        else
-        {
-            int cur = GetCurrentCount(BallType.Base);
-            currentCounts[BallType.Base] = Mathf.Min(newMax, cur);
-        }
     }
 }

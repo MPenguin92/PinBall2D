@@ -1,6 +1,6 @@
 /// <summary>
-/// 弹珠类型（库存槽位的 key）。
-/// 普通球库存上限由 BallStats.BasePinBallSlots 决定；其他类型默认 0/0，由升级解锁。
+/// 弹珠类型。Player 的弹珠库存是一个全局 FIFO 队列，每个元素都带类型标签；
+/// Base 在 StartGame 时入队 N 个（Player.initialBallCount），其他类型默认 0，由升级入队解锁。
 /// </summary>
 public enum BallType
 {

@@ -224,7 +224,7 @@ public static class DataImporter
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] t = line.Split(',');
-            if (t.Length < 9)
+            if (t.Length < 8)
             {
                 Debug.LogWarning($"[DataImporter] NewBall upgrade line {i + 1} has too few columns, skipped: {line}");
                 continue;
@@ -250,14 +250,35 @@ public static class DataImporter
             );
 
             BallType type = ParseBallType(t[5]);
-            int slots = ParseInt(t[6]);
-            List<string> keys = SplitPipe(t[7]);
-            List<float> vals = SplitPipeFloat(t[8]);
-            asset.SetData(type, slots, keys, vals);
+            List<string> keys = SplitPipe(t[6]);
+            List<BallLevelValues> levels = ParseLevelValues(t[7]);
+            asset.SetData(type, keys, levels);
 
             EditorUtility.SetDirty(asset);
             entries.Add(asset);
         }
+    }
+
+    /// <summary>解析 levelValues 列：";" 分隔多个等级，每个等级用 "|" 分隔多个 float。</summary>
+    private static List<BallLevelValues> ParseLevelValues(string raw)
+    {
+        List<BallLevelValues> result = new List<BallLevelValues>();
+        if (string.IsNullOrWhiteSpace(raw)) return result;
+
+        string[] levelChunks = raw.Split(';');
+        for (int i = 0; i < levelChunks.Length; i++)
+        {
+            BallLevelValues lv = new BallLevelValues();
+            string chunk = levelChunks[i];
+            if (!string.IsNullOrWhiteSpace(chunk))
+            {
+                string[] nums = chunk.Split('|');
+                for (int j = 0; j < nums.Length; j++)
+                    lv.values.Add(ParseFloat(nums[j]));
+            }
+            result.Add(lv);
+        }
+        return result;
     }
 
     private static void TryAddModifier(List<BallStatModifier> mods, string statRaw, string flatRaw, string pctRaw)

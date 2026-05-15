@@ -43,9 +43,6 @@ public enum BallStatType
     /// <summary>反弹次数上限：0 = 无限；&gt;0 表示反弹达到该次数后自动回收。</summary>
     MaxBounces,
 
-    /// <summary>普通球库存上限（取代 Player.maxPinBallCount）。</summary>
-    BasePinBallSlots,
-
     /// <summary>发射间隔（秒，下限 0.05）。</summary>
     FireInterval,
 }

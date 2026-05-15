@@ -52,7 +52,7 @@ PinBall2D 的局内 Roguelike 增强机制：仅以「累计击杀里程碑」�
 |------|------|
 | `Assets/9_Excel/KillMilestones.csv` | 击杀里程碑表（阈值 + 各品质权重） |
 | `Assets/9_Excel/Upgrades_Stat.csv` | 数值升级配表（id, name, desc, rarity, maxStack, mod1~3） |
-| `Assets/9_Excel/Upgrades_NewBall.csv` | 新球升级配表（id, name, desc, rarity, maxStack, ballType, slotsAdd, paramKeys, paramValues） |
+| `Assets/9_Excel/Upgrades_NewBall.csv` | 新球升级配表（id, name, desc, rarity, maxStack, ballType, paramKeys, levelValues）— 每种特殊球一行 × 多级 |
 | `Assets/8_Data/KillMilestoneTable.asset` | 由 DataImporter 生成 |
 | `Assets/8_Data/UpgradeCatalog.asset` | 由 DataImporter 生成（同时引用所有 `Assets/8_Data/Upgrades/*.asset`） |
 | `Assets/1_Scripts/Editor/DataImporter.cs` | 菜单 `Tools/Data/Import All` 一键导入全部 |
@@ -69,7 +69,7 @@ flowchart LR
     Svc -->|killCount==threshold| Roll[按权重抽品质 + 抽 3 张同品质]
     Roll --> Pause[GameState=SelectingUpgrade]
     Pause --> UI[UpgradeSelectionUI]
-    UI -->|玩家点选| Apply[BallStats / Player.AddBallSlot / SpecialBallParams]
+    UI -->|玩家点选| Apply[BallStats / Player.AddBalls / SpecialBallParams]
     Apply --> Resume[GameState=Running]
 ```
 
@@ -93,7 +93,7 @@ public enum BallStatType {
     InitialSpeed, MinSpeed, MaxSpeed,
     BounceAccel, BounceSpeedMul, HitSlowdown,
     PiercingChance, PiercingKeepSpeed,
-    MaxBounces, Radius, BasePinBallSlots, FireInterval
+    MaxBounces, FireInterval
 }
 ```
 
@@ -121,26 +121,29 @@ ball_speed_burst, 高初速冷却, 初始速度+30% 但命中后减速30%, Uncom
 `mod1Stat` 留空表示「不使用此修饰器」，导入时跳过。同 id 的词条堆叠时再次 Apply（再叠加一次），
 直到 `currentStack >= maxStack` 后从抽卡池剔除。
 
-### 3.3 新球词条 CSV
+### 3.3 新球词条 CSV（单实例 + 多级）
 
-`Upgrades_NewBall.csv` 列：
+每种特殊球**全程至多 1 颗**（队列内 + 飞行中合计），因此 `Upgrades_NewBall.csv` 给每种特殊球**仅一行**，靠抽到的次数升级。`Upgrades_NewBall.csv` 列：
 
 ```
-id, name, desc, rarity, maxStack, ballType, slotsAdd, paramKeys, paramValues
+id, name, desc, rarity, maxStack, ballType, paramKeys, levelValues
 ```
 
-- `paramKeys` / `paramValues` 用 `|` 分隔多个键值；末尾为 `Add` 的 key 走 `SpecialBallParams.Add` 累加，
-  其他 key 走 `Set`（覆盖式，再次 Set 同值无副作用）。
-- 当 `ballType` 列为有效特殊球时：`slotsAdd > 0` 会调用 `Player.AddBallSlot(type, slotsAdd)`，同步增加最大与当前库存。
-- 特殊全局 key `allSpecialSlotsAdd`：让所有当前 `Player.GetMaxCount(bt) > 0` 的特殊球各 +N 槽位（金色"万象"用）。
+- `maxStack` 同时也是该球的**满级**：例如 `5` 表示 Lv1~Lv5。
+- `paramKeys`：`|` 分隔的参数键名，与各级 values 一一对应。
+- `levelValues`：`;` 分隔多个等级，每个等级用 `|` 分隔的若干 float（与 paramKeys 等长）。**绝对值**——升级时 `SpecialBallParams.Set(type, key, lvN_value)` 直接覆盖上一级。
+- 首次抽到（`currentStack==0`）= 解锁 + 写入 Lv1 参数 + `Player.AddBalls(ballType, 1)` 入队 1 颗；之后每次再抽到 = 仅升级 + 写入新等级参数，**不再入队**。`currentStack` 升满 `maxStack` 后从抽卡池剔除。
+- `ballType=Base` 是退化形态：每次 Apply 都 `Player.AddBalls(Base, 1)` 入队尾，可堆叠到 `maxStack` 次；`paramKeys`/`levelValues` 留空。
 
 样例：
 
 ```
-new_fire_basic, 引燃, +1 火球槽 (爆炸半径1格 伤害1), Rare, 3, Fire, 1, explosionRadius|explosionDamage, 1.0|1
-new_fire_bigger, 烈焰扩散, 火球爆炸半径+0.5, Rare, 2, Fire, 0, explosionRadiusAdd, 0.5
-all_specials_plus, 万象, 所有已解锁特殊球槽位+1, Legendary, 1, Base, 0, allSpecialSlotsAdd, 1
+new_fire,    引燃,   火球：命中点AOE爆炸（满级 Lv5）, Rare, 5, Fire,  explosionRadius|explosionDamage, 1.0|1;1.5|1;2.0|2;2.5|2;3.0|3
+new_lightning,链电,雷球：命中后链跳目标（满级 Lv5）, Rare, 5, Lightning, chainCount|chainDecay|chainRange, 3|0.3|2.5;4|0.28|3.0;5|0.25|3.5;6|0.22|4.0;7|0.2|4.5
+new_base_more, 弹匣扩容, 普通球+1 入队尾, Common, 5, Base,  ,
 ```
+
+> 历史 `slotsAdd` 与 `allSpecialSlotsAdd` / `xxxAdd` 累加 key 已废弃。如需再做 Legendary 类「全员升级」效果，可在代码里另行实现（遍历 `Player.UnlockedSpecials` 找对应 SO 调 Apply）。
 
 ### 3.4 里程碑表 CSV
 
@@ -163,15 +166,16 @@ killThreshold, weightCommon, weightUncommon, weightRare, weightLegendary
 
 ## 4. 弹珠与发射
 
-### 4.1 库存模型
+### 4.1 库存模型(全局 FIFO 队列)
 
-`Player` 弃用 `maxPinBallCount/fireInterval/firePinBallSpeed` 三个独立字段，全部改读 `BallStats`：
+`Player` 弃用 `maxPinBallCount/fireInterval/firePinBallSpeed` 三个独立字段;弹珠库存重构为**单一 `Queue<BallType> ballQueue`**——发射 = 队首出队,球碰底回收 = 队尾入队,谁先回来谁先飞。
 
-- 普通球库存上限 = `BallStats.Get(BasePinBallSlots)`，初始 5。`SyncBaseSlotsCap` 每帧把上限同步到 `maxCounts[Base]`。
-- 特殊球默认 0/0；`AddBallSlot(type, slots)` 同时增加 `maxCounts[type]` 与 `currentCounts[type]`。
-- 发射优先级：`Player.FirePriority`（Fire > Ice > Lightning > Poison > Heavy > Boomerang > Base），
-  按 F 时检索第一个 `currentCounts[type] > 0` 的类型，再 `SpawnPinBall`。
-- 回收：`PoolManager.RecyclePinBall` 调到 `GameLogicManager.RecyclePinBall`，根据 `pb.BallType` 调 `player.AddPinBall(type)`。
+- **初始化**：`Init()` 时把 `Player.initialBallCount`(Inspector 字段，默认 5)个 `BallType.Base` 入队，`totalBalls = 初始值`。
+- **容量**：`TotalBalls = ballQueue.Count + BallsInFlight`。`AddBalls` 增加 totalBalls，`AddPinBall` 不增加。
+- **特殊球解锁**：默认 0；任何 `AddBalls(BallType.NotBase, N)` 调用都会同时把该类型加入 `unlockedSpecials` 集合，并在队尾追加 N 颗。
+- **发射**：F 键 → `ballQueue.Dequeue()` → `SpawnPinBall(BallAddress[type], ...)`；初速从 `BallStats.InitialSpeed`、冷却从 `BallStats.FireInterval` 读取。**没有优先级——队首是什么发什么**。
+- **回收**：`PoolManager.RecyclePinBall` 调到 `GameLogicManager.RecyclePinBall`，根据 `pb.BallType` 调 `player.AddPinBall(type)` 入队尾，**不改变 totalBalls**。
+- **HUD**：`InGameUI` 直接遍历 `Player.BallQueue` 按队首→队尾渲染单字符 + TMP 颜色 tag，末尾追加 `(BallsInFlight/TotalBalls)` 汇总。
 
 ### 4.2 派生球扩展点
 
@@ -208,5 +212,5 @@ killThreshold, weightCommon, weightUncommon, weightRare, weightLegendary
 ## 7. 扩展指引
 
 - **新增数值参数**：在 `BallStatType` 加枚举 → `BallStats.Reset()` 设默认 → `BallStats.Clamp()` 加钳制 → 在 `PinBallBase` 的命中/反弹分支里 `stats.Get(...)` 使用。
-- **新增特殊球**：派生 `PinBallBase` → override `OnHitUnit`（或 `Tick` 用于改边框检测） → 制作 prefab 加入 Addressables → 在 `Player.BallAddress` / `FirePriority` 加上对应条目 → CSV 增加 `new_xxx_basic` 行 → 重新 Import。
+- **新增特殊球**：派生 `PinBallBase` → override `OnHitUnit`（或 `Tick` 用于改边框检测） → 制作 prefab 加入 Addressables → 在 `Player.BallAddress` 字典加上 `BallType → 地址` 映射 → CSV 增加 `new_xxx_basic` 行（`ballType=该枚举`，`slotsAdd≥1`） → 重新 Import。同时建议在 `InGameUI.QueueLabels`/`QueueColors` 加上 HUD 显示的字母与颜色。
 - **新增稀有度**：在 `UpgradeRarity` 加枚举 → `UpgradeService.PickThree` 的 `BuildFallbackOrder` 自动覆盖 → CSV 里程碑表增加一列权重 → `KillMilestoneData` / `DataImporter.ImportKillMilestones` 同步。

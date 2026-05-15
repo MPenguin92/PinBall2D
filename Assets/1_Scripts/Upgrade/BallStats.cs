@@ -38,7 +38,6 @@ public class BallStats
         baseValues[BallStatType.PiercingChance] = 0f;
         baseValues[BallStatType.PiercingKeepSpeed] = 0.7f;
         baseValues[BallStatType.MaxBounces] = 0f;
-        baseValues[BallStatType.BasePinBallSlots] = 5f;
         baseValues[BallStatType.FireInterval] = 0.3f;
     }
 
@@ -105,8 +104,6 @@ public class BallStats
                 return Mathf.Clamp(v, 0.1f, 1.5f);
             case BallStatType.MaxBounces:
                 return Mathf.Max(0f, v);
-            case BallStatType.BasePinBallSlots:
-                return Mathf.Max(1f, v);
             case BallStatType.FireInterval:
                 return Mathf.Max(0.05f, v);
             default:

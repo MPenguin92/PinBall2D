@@ -164,9 +164,9 @@
 ## 游戏内 HUD（InGameUI）
 
 - 由 `UIManager` 在 `OnGameStart` 时显示，`OnGameEnd / OnReturnToHome` 时隐藏。
-- 数据来源：`Player.MaxHp / CurrentHp / MaxPinBallCount / CurrentPinBallCount`，每帧 `Update` 比对差值，仅在变化时刷新。
+- 数据来源：`Player.MaxHp / CurrentHp / BallQueue / BallsInFlight / TotalBalls`，每帧 `Update` 比对差值，仅在变化时刷新。
 - 心形血条：根据 `Player.MaxHp` 动态生成 `Image` 心形（贴图来自 `7_Res/GeneratedShapes/heart_red_64.png`），按当前血量切换不透明 / 半透明。
-- 弹珠数量：通过 TextMeshPro 文本以 `cur/max` 形式显示。
+- 弹珠队列：通过单个 TextMeshPro 文本渲染，按队首→队尾遍历 `BallQueue`，每颗球用 `InGameUI.QueueLabels` 单字母 + `QueueColors` TMP `<color>` tag 输出（例：`B B F B I B`），末尾用小号文字附 `(BallsInFlight/TotalBalls)` 汇总。空队列显示 `(empty)`。
 
 ---
 

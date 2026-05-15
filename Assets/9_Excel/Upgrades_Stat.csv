@@ -1,6 +1,5 @@
 id,name,desc,rarity,maxStack,mod1Stat,mod1Flat,mod1Pct,mod2Stat,mod2Flat,mod2Pct,mod3Stat,mod3Flat,mod3Pct
 ball_dmg_basic,锋利,球基础伤害+1,Common,5,BaseDamage,1,0,,0,0,,0,0
-ball_slot_more,弹匣扩容,普通球库存上限+1,Common,5,BasePinBallSlots,1,0,,0,0,,0,0
 ball_speed_charge,弹射加速,每次反弹+1速度,Common,5,BounceAccel,1,0,,0,0,,0,0
 ball_fire_faster,连射,发射间隔-15%,Common,6,FireInterval,0,-0.15,,0,0,,0,0
 ball_side_swift,巧击,侧面命中伤害+30%,Common,4,SideHitMul,0,0.3,,0,0,,0,0

@@ -370,15 +370,15 @@ UI 引用已移至 `UIManager`；单位生成配置已移至 `UnitCreator` 内�
 
 ### 4.9 Player.cs — 玩家发射器
 
-- **职责**：固定位置，A/D 旋转（±80°），F 发射弹球，管理多 BallType 库存（`Dictionary<BallType, int>`）与**生命值**；通过 `PlayerRender` 实现的 `ICombatAnimation` 触发攻击/受击/死亡动画。
-- 可配置：`rotateSpeed`、`maxAngle`、`maxHp`、`playerRender`。弹珠相关的 **maxPinBallCount / fireInterval / firePinBallSpeed** 已迁移到 `BallStats.BasePinBallSlots / FireInterval / InitialSpeed`，由 Roguelike 升级修改。
+- **职责**：固定位置，A/D 旋转（±80°），F 发射弹球，**管理一个全局 FIFO 弹珠队列 `Queue<BallType>`** 与**生命值**；通过 `PlayerRender` 实现的 `ICombatAnimation` 触发攻击/受击/死亡动画。
+- 可配置：`rotateSpeed`、`maxAngle`、`maxHp`、`initialBallCount`（开局入队的普通球数量，默认 5）、`playerRender`。`fireInterval / firePinBallSpeed` 已迁移到 `BallStats.FireInterval / InitialSpeed`，由 Roguelike 升级修改。
 - 核心：
-  - `Init()`：重置角度/HP；普通球库存上限初值从 `BallStats.Get(BasePinBallSlots)` 读取，特殊球类型 0/0 等待升级解锁。
-  - `Tick()`：先 `SyncBaseSlotsCap` 把上限同步到 `BallStats`；再处理旋转、发射、冷却 + 内部调用 `playerRender.Tick()`。
-  - 公开属性：`Direction`、`CurrentHp / MaxHp`、`CurrentCounts / MaxCounts`（多球种字典）、兼容旧 HUD 的 `CurrentPinBallCount / MaxPinBallCount`（=Base 槽）、`IsDead`。
-  - `AddPinBall(BallType, count = 1)`：把球归还到对应类型库存，受当前 `MaxCount(type)` 钳制。
-  - `AddBallSlot(BallType, slots)`：升级专用，同步增加 `maxCounts[type]` 与 `currentCounts[type]`。
-  - `HandleFire`：按 `FirePriority`（特殊球优先）选择第一个 `current > 0` 的 BallType，调用 `SpawnPinBall(BallAddress[type], ...)`，初速从 `BallStats.InitialSpeed`、冷却从 `BallStats.FireInterval` 读取。
+  - `Init()`：重置角度/HP，清空队列；按 `initialBallCount` 把 N 个 `BallType.Base` 入队，`totalBalls = N`。
+  - `Tick()`：处理旋转、发射、冷却 + 调用 `playerRender.Tick()`（无需任何同步逻辑，队列即真相）。
+  - 公开属性：`Direction`、`CurrentHp / MaxHp`、`BallQueue`（按队首→队尾的只读视图，HUD 用）、`QueueCount / TotalBalls / BallsInFlight`、`UnlockedSpecials`、`IsDead`。
+  - `AddPinBall(BallType type)`：球碰底回收时调用，**入队尾，不改 totalBalls**。
+  - `AddBalls(BallType type, int count)`：**升级专用**，入队尾 N 颗 + `totalBalls += N`；非 Base 类型同时记入 `unlockedSpecials`。
+  - `HandleFire`：F 键直接 `ballQueue.Dequeue()`，根据出队的 BallType 调 `SpawnPinBall(BallAddress[type], ...)`；**没有类型优先级**——后回来的球若插到队首就会先发出去。
 
 ### 4.10 PlayerRender.cs — 玩家渲染（方向预览线 + 战斗动画）
 
@@ -560,14 +560,14 @@ SimpleUnit    ──► GameLogicManager.OnUnitReachBottom
 
 | 模块 | 参数 | 位置 |
 |------|------|------|
-| 玩家 | `maxHp / maxAngle / rotateSpeed`（弹珠相关已迁移到 BallStats） | Player Inspector |
+| 玩家 | `maxHp / maxAngle / rotateSpeed / initialBallCount`（其余弹珠数值已迁移到 BallStats） | Player Inspector |
 | 单位（默认值，运行时被难度表覆盖） | `maxHp / attack` | SimpleUnit Prefab Inspector |
 | 节奏 / 尺寸（缺省） | `UnitSize / StepDistance / StepInterval / StepMoveDuration` | `Mgr/Defines.cs` 常量 |
 | **难度曲线**（主调参入口） | 每阶段 `startTime / spawnMin / spawnMax / unitHp / unitAttack / stepInterval` | `Assets/9_Excel/Difficulty.csv` → `Tools/Data/Import Difficulty` 导入 |
 | **Roguelike 升级**（主调参入口） | 击杀里程碑 + 各品质权重 | `Assets/9_Excel/KillMilestones.csv` → `Tools/Data/Import Kill Milestones` |
 | **Roguelike 数值词条** | `id / name / desc / rarity / maxStack / mod1~3` | `Assets/9_Excel/Upgrades_Stat.csv` → `Tools/Data/Import Upgrades` |
-| **Roguelike 新球词条** | `id / ... / ballType / slotsAdd / paramKeys|paramValues` | `Assets/9_Excel/Upgrades_NewBall.csv` → `Tools/Data/Import Upgrades` |
-| 弹珠基础值（缺省，全部受 BallStats 修饰） | `BaseDamage / InitialSpeed / MinSpeed / BounceSpeedMul / BasePinBallSlots / FireInterval` | `BallStats.Reset()` 默认值 |
+| **Roguelike 新球词条**（单实例 + 多级） | `id / ... / maxStack / ballType / paramKeys / levelValues`（`;` 分隔等级，`|` 分隔参数） | `Assets/9_Excel/Upgrades_NewBall.csv` → `Tools/Data/Import Upgrades` |
+| 弹珠基础值（缺省，全部受 BallStats 修饰） | `BaseDamage / InitialSpeed / MinSpeed / BounceSpeedMul / FireInterval` | `BallStats.Reset()` 默认值 |
 | 生成范围 | `HorizontalPadding / TopOffset` | `UnitCreator.cs` 常量 |
 | 弹球（仅渲染/调试展示） | `ballType / initialSpeedHint` | PinBall Prefab Inspector |
 | 边框 | `bounceDirection / isBottomBorder / autoAlignToCameraEdge / thickness` | 各 Border Inspector |

@@ -38,27 +38,28 @@ public class InGameUI : MonoBehaviour
     [Range(0f, 1f)]
     private float emptyHeartAlpha = 0.25f;
 
-    /// <summary>HUD 显示的 BallType 顺序：普通球放最前，特殊球按 enum 顺序。</summary>
-    private static readonly BallType[] DisplayOrder =
+    /// <summary>HUD 队列中每种球的单字符标签（按队首到队尾顺序串接）。</summary>
+    private static readonly Dictionary<BallType, string> QueueLabels = new Dictionary<BallType, string>
     {
-        BallType.Base,
-        BallType.Fire,
-        BallType.Ice,
-        BallType.Lightning,
-        BallType.Poison,
-        BallType.Heavy,
-        BallType.Boomerang,
+        { BallType.Base, "B" },
+        { BallType.Fire, "F" },
+        { BallType.Ice, "I" },
+        { BallType.Lightning, "L" },
+        { BallType.Poison, "P" },
+        { BallType.Heavy, "H" },
+        { BallType.Boomerang, "R" },
     };
 
-    private static readonly Dictionary<BallType, string> DisplayLabels = new Dictionary<BallType, string>
+    /// <summary>HUD 各 BallType 的 TMP 颜色 hex（不含 #）。</summary>
+    private static readonly Dictionary<BallType, string> QueueColors = new Dictionary<BallType, string>
     {
-        { BallType.Base, "Ball" },
-        { BallType.Fire, "Fire" },
-        { BallType.Ice, "Ice" },
-        { BallType.Lightning, "Lt" },
-        { BallType.Poison, "Poi" },
-        { BallType.Heavy, "Hvy" },
-        { BallType.Boomerang, "Bmr" },
+        { BallType.Base, "FFFFFF" },
+        { BallType.Fire, "FF6633" },
+        { BallType.Ice, "66CCFF" },
+        { BallType.Lightning, "FFE066" },
+        { BallType.Poison, "99CC33" },
+        { BallType.Heavy, "AAAAAA" },
+        { BallType.Boomerang, "FF99CC" },
     };
 
     private readonly List<Image> heartImages = new List<Image>();
@@ -163,18 +164,23 @@ public class InGameUI : MonoBehaviour
         if (pinBallCountText == null) return;
 
         ballText.Length = 0;
-        bool first = true;
-        for (int i = 0; i < DisplayOrder.Length; i++)
-        {
-            BallType bt = DisplayOrder[i];
-            int max = target.GetMaxCount(bt);
-            if (max <= 0 && bt != BallType.Base) continue;
 
-            int cur = target.GetCurrentCount(bt);
-            if (!first) ballText.Append("  ");
+        // 队首 → 队尾，每颗球渲染为带颜色的单字符。空队列也明确显示 "(empty)"。
+        bool first = true;
+        foreach (BallType bt in target.BallQueue)
+        {
+            if (!first) ballText.Append(' ');
             first = false;
-            ballText.Append(DisplayLabels[bt]).Append(":").Append(cur).Append("/").Append(max);
+
+            string label = QueueLabels.TryGetValue(bt, out string l) ? l : "?";
+            string color = QueueColors.TryGetValue(bt, out string c) ? c : "FFFFFF";
+            ballText.Append("<color=#").Append(color).Append('>').Append(label).Append("</color>");
         }
+        if (first) ballText.Append("(empty)");
+
+        // 末尾追加一行汇总：飞行中 / 容量。
+        ballText.Append("  <size=70%>(").Append(target.BallsInFlight).Append('/').Append(target.TotalBalls).Append(")</size>");
+
         pinBallCountText.text = ballText.ToString();
     }
 

@@ -103,7 +103,7 @@ public class GameLogicManager : MonoBehaviour
         borders = FindObjectsByType<Border>(FindObjectsSortMode.None);
 
         // 重置 Roguelike 体系：清空所有 modifier、特殊球参数、击杀计数与候选。
-        // 必须在 player.Init 之前完成，因为 player.Init 会读取 BallStats.BasePinBallSlots。
+        // 在 player.Init 之前完成，确保新一局所有数值都从基础值开始。
         if (ballStats != null) ballStats.Reset();
         if (specialBallParams != null) specialBallParams.Reset();
         if (upgradeService != null) upgradeService.Reset();

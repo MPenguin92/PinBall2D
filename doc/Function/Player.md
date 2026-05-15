@@ -25,13 +25,14 @@
 ### 发射弹球
 
 - **按键**：按 **F** 从 Player 位置、沿当前朝向发射 PinBall。
-- **容量**：Player 拥有的 PinBall 数量有上限（默认 5），发射会消耗数量。
-- **间隔**：两次发射之间有冷却时间，避免连发。
-- **补充**：弹球触底回收后，由 `GameLogicManager.RecyclePinBall` 调用 `player.AddPinBall()` 补充数量；数量为 0 时无法发射，直到被补充。
+- **容量**：Player 维护一个全局 FIFO 弹珠队列，开局入队 `initialBallCount`（默认 5）个普通球；每次发射 = 队首出队。
+- **间隔**：两次发射之间有冷却时间（`BallStats.FireInterval`），避免连发。
+- **补充**：弹球触底回收后，由 `GameLogicManager.RecyclePinBall` 根据 `pb.BallType` 调 `player.AddPinBall(type)` 入**队尾**；队列为空时无法发射，直到有球归队。后回的球会插到队首先发出去（"插队"）。
+- **升级扩容**：`AddBalls(BallType, count)` 由升级系统调用，把 N 颗指定类型球追加到队尾，容量同步 +N。
 
 ### 生命值与受伤
 
-- **属性**：`maxHp`（Inspector 可配，默认 5）、`currentHp`、`IsDead`；同时对外暴露 `MaxHp / CurrentHp`、`MaxPinBallCount / CurrentPinBallCount`、`FireInterval` 供 `InGameUI` 取值刷新 HUD。
+- **属性**：`maxHp`（Inspector 可配，默认 5）、`currentHp`、`IsDead`；同时对外暴露 `MaxHp / CurrentHp`、`BallQueue / TotalBalls / BallsInFlight` 供 `InGameUI` 取值刷新 HUD（HUD 直接遍历 `BallQueue` 渲染队首→队尾每颗球）。
 - **初始化**：`Init()` 时 `currentHp = maxHp`（开始/重开游戏时触发）。
 - **受伤来源**：Unit 触底 → `GameLogicManager.OnUnitReachBottom(unit)` → `player.TakeDamage(unit.Attack)`。
 - **动画联动**：`TakeDamage` 扣血时调用 `playerRender.PlayHitAnimation()`；归零时再调用 `PlayDeathAnimation()`（默认空实现，预留补间/特效）。
