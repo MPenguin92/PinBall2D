@@ -23,6 +23,7 @@ public static class DataImporter
         EnsureDataFolder();
         ImportDifficulty();
         ImportKillMilestones();
+        ImportBallStatDefaults();
         ImportUpgrades();
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -47,9 +48,9 @@ public static class DataImporter
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] tokens = line.Split(',');
-            if (tokens.Length < 6)
+            if (tokens.Length < 7)
             {
-                Debug.LogWarning($"[DataImporter] Difficulty line {i + 1} has too few columns, skipped: {line}");
+                Debug.LogError($"[DataImporter] Difficulty line {i + 1} has too few columns (expected 7: startTime,spawnMin,spawnMax,unitHp,unitAttack,stepInterval,unitExperience), skipped: {line}");
                 continue;
             }
 
@@ -61,6 +62,7 @@ public static class DataImporter
                 unitHp = ParseInt(tokens[3]),
                 unitAttack = ParseInt(tokens[4]),
                 stepInterval = ParseFloat(tokens[5]),
+                unitExperience = ParseInt(tokens[6]),
             });
         }
 
@@ -106,7 +108,7 @@ public static class DataImporter
 
             milestones.Add(new KillMilestoneData
             {
-                killThreshold = ParseInt(tokens[0]),
+                experienceThreshold = ParseInt(tokens[0]),
                 weightCommon = ParseInt(tokens[1]),
                 weightUncommon = ParseInt(tokens[2]),
                 weightRare = ParseInt(tokens[3]),
@@ -128,6 +130,62 @@ public static class DataImporter
         AssetDatabase.SaveAssets();
 
         Debug.Log($"[DataImporter] KillMilestones imported: {milestones.Count} rows -> {assetPath}");
+    }
+
+    [MenuItem("Tools/Data/Import Ball Stat Defaults")]
+    public static void ImportBallStatDefaults()
+    {
+        string csvPath = ExcelFolder + "/BallStatDefaults.csv";
+        if (!File.Exists(csvPath))
+        {
+            Debug.LogError($"[DataImporter] CSV not found: {csvPath}");
+            return;
+        }
+
+        List<BallStatDefault> defaults = new List<BallStatDefault>();
+        string[] lines = File.ReadAllLines(csvPath);
+        for (int i = 1; i < lines.Length; i++)
+        {
+            string line = lines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] tokens = line.Split(',');
+            if (tokens.Length < 2)
+            {
+                Debug.LogWarning($"[DataImporter] BallStatDefaults line {i + 1} has too few columns, skipped: {line}");
+                continue;
+            }
+
+            string statRaw = tokens[0].Trim();
+            if (string.IsNullOrEmpty(statRaw)) continue;
+
+            if (!Enum.TryParse<BallStatType>(statRaw, true, out BallStatType type))
+            {
+                Debug.LogWarning($"[DataImporter] BallStatDefaults line {i + 1}: unknown BallStatType '{statRaw}', skipped.");
+                continue;
+            }
+
+            defaults.Add(new BallStatDefault
+            {
+                statType = type,
+                baseValue = ParseFloat(tokens[1]),
+            });
+        }
+
+        EnsureDataFolder();
+        string assetPath = DataFolder + "/BallStatDefaultsTable.asset";
+        BallStatDefaultsTable table = AssetDatabase.LoadAssetAtPath<BallStatDefaultsTable>(assetPath);
+        if (table == null)
+        {
+            table = ScriptableObject.CreateInstance<BallStatDefaultsTable>();
+            AssetDatabase.CreateAsset(table, assetPath);
+        }
+
+        table.SetDefaults(defaults);
+        EditorUtility.SetDirty(table);
+        AssetDatabase.SaveAssets();
+
+        Debug.Log($"[DataImporter] BallStatDefaults imported: {defaults.Count} entries -> {assetPath}");
     }
 
     [MenuItem("Tools/Data/Import Upgrades")]

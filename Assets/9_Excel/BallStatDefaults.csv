@@ -1,0 +1,15 @@
+statType,baseValue
+BaseDamage,1
+FrontHitMul,1
+SideHitMul,1
+BackHitMul,1
+InitialSpeed,10
+MinSpeed,3
+MaxSpeed,0
+BounceAccel,0
+BounceSpeedMul,1
+HitSlowdown,0
+PiercingChance,0
+PiercingKeepSpeed,0.7
+MaxBounces,0
+FireInterval,0.3

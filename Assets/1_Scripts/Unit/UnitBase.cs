@@ -10,6 +10,10 @@ public class UnitBase : MonoBehaviour
     private int attack = 1;
 
     [SerializeField]
+    [Tooltip("被击杀时给玩家累加的经验值（运行时由 Difficulty 当前阶段覆盖）")]
+    private int experience = 1;
+
+    [SerializeField]
     private UnitRender unitRender;
 
     private int currentHp;
@@ -27,6 +31,9 @@ public class UnitBase : MonoBehaviour
     public int MaxHp => maxHp;
 
     public int Attack => attack;
+
+    /// <summary>本 Unit 被击杀时给玩家累加的经验值。由 Difficulty 当前阶段在 Init 时写入。</summary>
+    public int Experience => experience;
 
     /// <summary>标准 Unit 为 1x1 正方形，尺寸统一来自 <see cref="Defines.UnitSize"/>。</summary>
     public float Width => Defines.UnitSize;
@@ -65,6 +72,7 @@ public class UnitBase : MonoBehaviour
 
         maxHp = mgr.Difficulty.GetUnitHp();
         attack = mgr.Difficulty.GetUnitAttack();
+        experience = mgr.Difficulty.GetUnitExperience();
     }
 
     public void RefreshRect()

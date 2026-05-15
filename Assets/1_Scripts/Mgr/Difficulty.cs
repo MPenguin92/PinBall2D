@@ -63,4 +63,24 @@ public class Difficulty
         if (s == null || s.stepInterval <= 0f) return Defines.StepInterval;
         return s.stepInterval;
     }
+
+    /// <summary>
+    /// 当前阶段单个 Unit 击杀给玩家累加的经验值。Roguelike 升级里程碑依赖此值,
+    /// 若 Difficulty 表缺失或当前阶段未配置(<=0)会输出 LogError 并回退为 1,避免静默错误。
+    /// </summary>
+    public int GetUnitExperience()
+    {
+        DifficultyStageData s = CurrentStage;
+        if (s == null)
+        {
+            Debug.LogError("[Difficulty] DifficultyTable missing or empty when querying unit experience; falling back to 1.");
+            return 1;
+        }
+        if (s.unitExperience <= 0)
+        {
+            Debug.LogError($"[Difficulty] Stage at startTime={s.startTime} has unitExperience<=0; falling back to 1. Check Difficulty.csv.");
+            return 1;
+        }
+        return s.unitExperience;
+    }
 }

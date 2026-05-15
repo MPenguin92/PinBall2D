@@ -24,4 +24,7 @@ public class DifficultyStageData
 
     /// <summary>本阶段的 Step 间隔（秒），<= 0 表示沿用 <see cref="Defines.StepInterval"/>。</summary>
     public float stepInterval;
+
+    /// <summary>本阶段每个 Unit 被击杀时给玩家累加的经验值（用于 Roguelike 升级里程碑）。</summary>
+    public int unitExperience;
 }

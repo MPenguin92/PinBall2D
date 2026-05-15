@@ -2,15 +2,15 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 击杀里程碑表 ScriptableObject：由 DataImporter 从 9_Excel/KillMilestones.csv 生成，
-/// 运行时由 UpgradeService 用 killCount 索引下一个里程碑。
+/// 升级里程碑表 ScriptableObject：由 DataImporter 从 9_Excel/KillMilestones.csv 生成，
+/// 运行时由 UpgradeService 用累计经验值索引下一个里程碑。
 /// 表末之后使用最后一行的权重并以前两行差值无限循环（避免后期玩家无升级）。
 /// </summary>
 [CreateAssetMenu(fileName = "KillMilestoneTable", menuName = "PinBall2D/Data/KillMilestoneTable", order = 1)]
 public class KillMilestoneTable : ScriptableObject
 {
     [SerializeField]
-    [Tooltip("按 killThreshold 升序排列；运行时 killCount 达到任一阈值则触发一次升级。")]
+    [Tooltip("按 experienceThreshold 升序排列；运行时累计经验达到任一阈值则触发一次升级。")]
     private List<KillMilestoneData> milestones = new List<KillMilestoneData>();
 
     public IReadOnlyList<KillMilestoneData> Milestones => milestones;
@@ -30,11 +30,11 @@ public class KillMilestoneTable : ScriptableObject
     public int GetThresholdAt(int idx)
     {
         if (milestones == null || milestones.Count == 0) return int.MaxValue;
-        if (idx < milestones.Count) return milestones[idx].killThreshold;
+        if (idx < milestones.Count) return milestones[idx].experienceThreshold;
 
-        int last = milestones[milestones.Count - 1].killThreshold;
+        int last = milestones[milestones.Count - 1].experienceThreshold;
         int delta = milestones.Count >= 2
-            ? milestones[milestones.Count - 1].killThreshold - milestones[milestones.Count - 2].killThreshold
+            ? milestones[milestones.Count - 1].experienceThreshold - milestones[milestones.Count - 2].experienceThreshold
             : last;
         delta = Mathf.Max(1, delta);
         int extra = idx - (milestones.Count - 1);

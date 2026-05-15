@@ -22,7 +22,7 @@ public class InGameUI : MonoBehaviour
     private TextMeshProUGUI pinBallCountText;
 
     [SerializeField]
-    [Tooltip("可选：显示累计击杀数与下一里程碑阈值。")]
+    [Tooltip("可选：显示累计经验值与下一里程碑阈值。")]
     private TextMeshProUGUI killCountText;
 
     [SerializeField]
@@ -200,14 +200,14 @@ public class InGameUI : MonoBehaviour
             milestoneTableLoaded = true;
         }
 
-        int cur = svc.KillCount;
+        int cur = svc.ExperienceAccumulated;
         int next = 0;
         if (cachedMilestoneTable != null && cachedMilestoneTable.Count > 0)
             next = cachedMilestoneTable.GetThresholdAt(svc.NextMilestoneIdx);
 
         if (next > 0)
-            killCountText.text = $"Kills {cur}/{next}";
+            killCountText.text = $"EXP {cur}/{next}";
         else
-            killCountText.text = $"Kills {cur}";
+            killCountText.text = $"EXP {cur}";
     }
 }

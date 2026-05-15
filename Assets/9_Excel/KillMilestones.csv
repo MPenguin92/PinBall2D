@@ -1,9 +1,9 @@
-killThreshold,weightCommon,weightUncommon,weightRare,weightLegendary
+experienceThreshold,weightCommon,weightUncommon,weightRare,weightLegendary
 5,70,25,5,0
-15,60,30,10,0
-30,50,30,18,2
-50,40,32,23,5
-75,30,32,28,10
-105,20,30,32,18
-140,15,25,35,25
-180,10,20,35,35
+25,60,30,10,0
+80,50,30,18,2
+200,40,32,23,5
+450,30,32,28,10
+900,20,30,32,18
+1600,15,25,35,25
+2800,10,20,35,35

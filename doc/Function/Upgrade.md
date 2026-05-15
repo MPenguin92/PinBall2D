@@ -1,6 +1,7 @@
 # Roguelike 升级系统
 
-PinBall2D 的局内 Roguelike 增强机制：仅以「累计击杀里程碑」作为唯一触发，
+PinBall2D 的局内 Roguelike 增强机制：以「累计经验值达到里程碑」作为唯一触发,
+单个 Unit 给的经验来自 `Difficulty` 当前阶段(`unitExperience` 列)。
 按里程碑配表的品质权重抽出一个 `UpgradeRarity`，再在该品质池中无放回抽 3 张，
 弹出三选一面板让玩家挑选。所有词条都作用于弹珠（Ball 机制参数化强化 + 新球种解锁/扩槽）。
 
@@ -11,22 +12,23 @@ PinBall2D 的局内 Roguelike 增强机制：仅以「累计击杀里程碑」�
 | 路径 | 职责 |
 |------|------|
 | `Assets/1_Scripts/Upgrade/BallStatType.cs` | 弹珠机制参数枚举（伤害、方向倍率、速度、反弹、穿透等） |
-| `Assets/1_Scripts/Upgrade/BallStats.cs` | 全局弹珠属性容器（base + flat + percent，Get 时钳制） |
+| `Assets/1_Scripts/Upgrade/BallStats.cs` | 全局弹珠属性容器（base + flat + percent，Get 时钳制；构造时注入 `BallStatDefaultsTable`，Reset 优先读表，缺项回退硬编码） |
 | `Assets/1_Scripts/Upgrade/BallType.cs` | 弹珠类型枚举（Base/Fire/Ice/Lightning/Poison/Heavy/Boomerang） |
 | `Assets/1_Scripts/Upgrade/SpecialBallParams.cs` | 各 BallType 的全局参数字典（火球爆炸半径、冰球减速等） |
 | `Assets/1_Scripts/Upgrade/UpgradeRarity.cs` | 品质枚举：Common/Uncommon/Rare/Legendary |
 | `Assets/1_Scripts/Upgrade/UpgradeBase.cs` | 升级 SO 抽象基类 + `UpgradeContext` 应用上下文 |
-| `Assets/1_Scripts/Upgrade/UpgradeService.cs` | 监听 `OnUnitKilled` → 阈值检测 → 抽池 → 暂停 → Apply → 恢复 |
+| `Assets/1_Scripts/Upgrade/UpgradeService.cs` | 监听 `OnUnitKilled` → 累加 `unit.Experience` → 阈值检测 → 抽池 → 暂停 → Apply → 恢复 |
 
 ### 数据 SO
 
 | 路径 | 职责 |
 |------|------|
-| `Assets/1_Scripts/DataSO/KillMilestoneData.cs` | 单条里程碑（阈值 + 4 个品质权重） |
-| `Assets/1_Scripts/DataSO/KillMilestoneTable.cs` | 里程碑列表 SO（表末按差值线性外推） |
+| `Assets/1_Scripts/DataSO/KillMilestoneData.cs` | 单条里程碑(`experienceThreshold` + 4 个品质权重) |
+| `Assets/1_Scripts/DataSO/KillMilestoneTable.cs` | 里程碑列表 SO(按累计经验阈值索引,表末按差值线性外推) |
 | `Assets/1_Scripts/DataSO/UpgradeCatalog.cs` | 全局升级池：所有可抽到的 `UpgradeBase` 列表 |
 | `Assets/1_Scripts/DataSO/BallStatUpgradeData.cs` | 数值类升级 SO（一条最多 3 个 modifier） |
 | `Assets/1_Scripts/DataSO/NewBallUpgradeData.cs` | 新球类升级 SO（解锁/扩槽 + paramKeys/Values） |
+| `Assets/1_Scripts/DataSO/BallStatDefaultsTable.cs` | 弹珠属性默认基础值表（每局 Reset 时由 `BallStats` 读取） |
 
 ### 派生弹珠
 
@@ -53,8 +55,10 @@ PinBall2D 的局内 Roguelike 增强机制：仅以「累计击杀里程碑」�
 | `Assets/9_Excel/KillMilestones.csv` | 击杀里程碑表（阈值 + 各品质权重） |
 | `Assets/9_Excel/Upgrades_Stat.csv` | 数值升级配表（id, name, desc, rarity, maxStack, mod1~3） |
 | `Assets/9_Excel/Upgrades_NewBall.csv` | 新球升级配表（id, name, desc, rarity, maxStack, ballType, paramKeys, levelValues）— 每种特殊球一行 × 多级 |
+| `Assets/9_Excel/BallStatDefaults.csv` | 弹珠属性默认基础值表（statType, baseValue） |
 | `Assets/8_Data/KillMilestoneTable.asset` | 由 DataImporter 生成 |
 | `Assets/8_Data/UpgradeCatalog.asset` | 由 DataImporter 生成（同时引用所有 `Assets/8_Data/Upgrades/*.asset`） |
+| `Assets/8_Data/BallStatDefaultsTable.asset` | 由 DataImporter 生成 |
 | `Assets/1_Scripts/Editor/DataImporter.cs` | 菜单 `Tools/Data/Import All` 一键导入全部 |
 
 ## 2. 触发与流程
@@ -64,9 +68,9 @@ flowchart LR
     Hit[PinBallBase.Tick 命中 Unit] --> Dir[计算命中方向 vs Unit.MoveDirection]
     Dir --> Dmg[BaseDamage * dirHitMul]
     Dmg --> Take[unit.TakeDamage]
-    Take -->|destroyed| Kill[GameEvents.RaiseUnitKilled]
-    Kill --> Svc[UpgradeService.OnKill +1]
-    Svc -->|killCount==threshold| Roll[按权重抽品质 + 抽 3 张同品质]
+    Take -->|destroyed| Kill[GameEvents.RaiseUnitKilled unit]
+    Kill --> Svc[UpgradeService.OnKill +unit.Experience]
+    Svc -->|experienceAccumulated>=threshold| Roll[按权重抽品质 + 抽 3 张同品质]
     Roll --> Pause[GameState=SelectingUpgrade]
     Pause --> UI[UpgradeSelectionUI]
     UI -->|玩家点选| Apply[BallStats / Player.AddBalls / SpecialBallParams]
@@ -147,22 +151,26 @@ new_base_more, 弹匣扩容, 普通球+1 入队尾, Common, 5, Base,  ,
 
 ### 3.4 里程碑表 CSV
 
-`KillMilestones.csv`：
+`KillMilestones.csv`(列名为 `experienceThreshold`,数值代表玩家累计经验需要达到的总量):
 
 ```
-killThreshold, weightCommon, weightUncommon, weightRare, weightLegendary
+experienceThreshold, weightCommon, weightUncommon, weightRare, weightLegendary
 5,    70, 25, 5,  0
-15,   60, 30, 10, 0
-30,   50, 30, 18, 2
-50,   40, 32, 23, 5
-75,   30, 32, 28, 10
-105,  20, 30, 32, 18
-140,  15, 25, 35, 25
-180,  10, 20, 35, 35
+25,   60, 30, 10, 0
+80,   50, 30, 18, 2
+200,  40, 32, 23, 5
+450,  30, 32, 28, 10
+900,  20, 30, 32, 18
+1600, 15, 25, 35, 25
+2800, 10, 20, 35, 35
 ```
 
-`UpgradeService` 用 `nextMilestoneIdx` 在表中前进；表末之后按 `last - second_last` 差值线性外推
-（保留最后一行权重），让游戏后期仍有持续升级机会。
+`UpgradeService` 用 `nextMilestoneIdx` 在表中前进;表末之后按 `last - second_last` 差值线性外推
+(保留最后一行权重),让游戏后期仍有持续升级机会。
+
+> 单个 Unit 给的经验值由其所在 Difficulty 阶段的 `unitExperience` 列决定(早期 1~2、晚期 50)。
+> `Difficulty.GetUnitExperience()` 在表缺失或 `unitExperience<=0` 时会输出 `LogError` 并回退 1,
+> 避免静默错误,但建议立即修表而不是依赖兜底。
 
 ## 4. 弹珠与发射
 

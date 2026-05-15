@@ -13,8 +13,13 @@ public class BallStats
     private readonly Dictionary<BallStatType, float> flatModifiers = new Dictionary<BallStatType, float>();
     private readonly Dictionary<BallStatType, float> percentModifiers = new Dictionary<BallStatType, float>();
 
-    public BallStats()
+    private readonly BallStatDefaultsTable defaultsTable;
+
+    public BallStats() : this(null) { }
+
+    public BallStats(BallStatDefaultsTable defaultsTable)
     {
+        this.defaultsTable = defaultsTable;
         Reset();
     }
 
@@ -25,20 +30,29 @@ public class BallStats
         flatModifiers.Clear();
         percentModifiers.Clear();
 
-        baseValues[BallStatType.BaseDamage] = 1f;
-        baseValues[BallStatType.FrontHitMul] = 1f;
-        baseValues[BallStatType.SideHitMul] = 1f;
-        baseValues[BallStatType.BackHitMul] = 1f;
-        baseValues[BallStatType.InitialSpeed] = 10f;
-        baseValues[BallStatType.MinSpeed] = 3f;
-        baseValues[BallStatType.MaxSpeed] = 0f;
-        baseValues[BallStatType.BounceAccel] = 0f;
-        baseValues[BallStatType.BounceSpeedMul] = 1f;
-        baseValues[BallStatType.HitSlowdown] = 0f;
-        baseValues[BallStatType.PiercingChance] = 0f;
-        baseValues[BallStatType.PiercingKeepSpeed] = 0.7f;
-        baseValues[BallStatType.MaxBounces] = 0f;
-        baseValues[BallStatType.FireInterval] = 0.3f;
+        // 优先使用 SO 表里的值,缺项回退到代码兜底,保证 SO 缺失/损坏时游戏仍可玩。
+        SetBaseDefault(BallStatType.BaseDamage, 1f);
+        SetBaseDefault(BallStatType.FrontHitMul, 1f);
+        SetBaseDefault(BallStatType.SideHitMul, 1f);
+        SetBaseDefault(BallStatType.BackHitMul, 1f);
+        SetBaseDefault(BallStatType.InitialSpeed, 10f);
+        SetBaseDefault(BallStatType.MinSpeed, 3f);
+        SetBaseDefault(BallStatType.MaxSpeed, 0f);
+        SetBaseDefault(BallStatType.BounceAccel, 0f);
+        SetBaseDefault(BallStatType.BounceSpeedMul, 1f);
+        SetBaseDefault(BallStatType.HitSlowdown, 0f);
+        SetBaseDefault(BallStatType.PiercingChance, 0f);
+        SetBaseDefault(BallStatType.PiercingKeepSpeed, 0.7f);
+        SetBaseDefault(BallStatType.MaxBounces, 0f);
+        SetBaseDefault(BallStatType.FireInterval, 0.3f);
+    }
+
+    private void SetBaseDefault(BallStatType t, float fallback)
+    {
+        if (defaultsTable != null && defaultsTable.TryGet(t, out float v))
+            baseValues[t] = v;
+        else
+            baseValues[t] = fallback;
     }
 
     public void SetBase(BallStatType t, float value)

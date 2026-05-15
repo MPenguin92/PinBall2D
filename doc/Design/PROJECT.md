@@ -37,7 +37,8 @@ PinBall2D/
 │   │   │   ├── KillMilestoneTable.cs  # Roguelike：里程碑表 SO（表末按差值外推）
 │   │   │   ├── UpgradeCatalog.cs      # Roguelike：全局升级池（所有可抽词条）
 │   │   │   ├── BallStatUpgradeData.cs # Roguelike：数值类升级 SO（多 modifier）
-│   │   │   └── NewBallUpgradeData.cs  # Roguelike：新球类升级 SO（解锁/扩槽 + paramKeys）
+│   │   │   ├── NewBallUpgradeData.cs  # Roguelike：新球类升级 SO（解锁/扩槽 + paramKeys）
+│   │   │   └── BallStatDefaultsTable.cs # Roguelike：弹珠属性默认基础值表（每局 Reset 起点）
 │   │   ├── Upgrade/                   # Roguelike 升级运行时
 │   │   │   ├── BallStatType.cs        # 弹珠机制参数枚举
 │   │   │   ├── BallStats.cs           # 全局弹珠属性容器（base + flat + percent）
@@ -88,12 +89,14 @@ PinBall2D/
 │   │   ├── DifficultyTable.asset
 │   │   ├── KillMilestoneTable.asset    # Roguelike 击杀里程碑（导入后生成）
 │   │   ├── UpgradeCatalog.asset        # Roguelike 升级池（导入后生成）
+│   │   ├── BallStatDefaultsTable.asset # Roguelike 弹珠属性默认值（导入后生成）
 │   │   └── Upgrades/                   # 各词条 SO（Stat_*.asset / NewBall_*.asset）
 │   ├── 9_Excel/                        # 原始配置表（CSV/XLSX）
 │   │   ├── Difficulty.csv
 │   │   ├── KillMilestones.csv
 │   │   ├── Upgrades_Stat.csv
-│   │   └── Upgrades_NewBall.csv
+│   │   ├── Upgrades_NewBall.csv
+│   │   └── BallStatDefaults.csv
 │   ├── Plugins/
 │   │   └── DOTween/                   # DOTween 第三方补间插件
 │   ├── Resources/
@@ -172,7 +175,7 @@ PinBall2D/
 | `OnReturnToHome` | `BackToHome()` |
 | `OnStep` | Running 下每 `Defines.StepInterval` 秒一次（节奏心跳） |
 | `OnUnitKilled(unit)` | `PinBallBase` 击杀 Unit 时（在 `RecycleUnit` 之前） |
-| `OnKillMilestoneReached(idx)` | `UpgradeService` 累计击杀达到一个里程碑时 |
+| `OnKillMilestoneReached(idx)` | `UpgradeService` 累计经验达到一个里程碑时(事件名保留历史命名) |
 | `OnUpgradeOffered(options)` | 抽出三张升级候选，UI 显面板 |
 | `OnUpgradeApplied(upgrade)` | 玩家点选并应用了某个升级，UI 关面板 |
 
@@ -203,7 +206,7 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 - **运行时查询**：`Difficulty` 纯 C# 类：
   - 由 `GameLogicManager.Awake()` 通过 `AssetLoader.Load<DifficultyTable>("8_Data/DifficultyTable.asset")` 加载 SO 并 `new Difficulty(table)`。
   - `StartGame()` 调用 `Reset()` 归零 `gameTime`；`UpdateGame()` 每帧 `Tick(Time.deltaTime)`。
-  - 对外暴露：`GetSpawnRange() / GetUnitHp() / GetUnitAttack() / GetStepInterval()`。所有查询都根据 `gameTime` 匹配 `DifficultyTable.GetStageAt(gameTime)` 返回的阶段。
+  - 对外暴露:`GetSpawnRange() / GetUnitHp() / GetUnitAttack() / GetStepInterval() / GetUnitExperience()`。所有查询都根据 `gameTime` 匹配 `DifficultyTable.GetStageAt(gameTime)` 返回的阶段;`GetUnitExperience()` 在表缺失/缺值时 `LogError` 并回退 1。
 - **调用点**：
   - `UnitCreator.SpawnBatch`：用 `GetSpawnRange()` 取当前阶段生成区间（再以屏幕可容纳数夹紧，避免越界）。
   - `UnitBase.Init()` → `ApplyDifficulty()`：用 `GetUnitHp() / GetUnitAttack()` 覆盖 Inspector 默认值。
@@ -213,8 +216,8 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 
 ### 3.4.2 资源加载（AssetLoader）
 
-- 所有动态资源加载统一走 `AssetLoader.Load<T>(relativePath)`（相对 `Assets/`）。
-- 当前实现：`#if UNITY_EDITOR` 下走 `AssetDatabase.LoadAssetAtPath`；非 Editor 打印错误并返回 null，等待后续接入 **Addressables**（集成时仅在此类内部替换实现，业务调用点不变）。
+- 所有动态资源加载统一走 `AssetLoader.Load<T>(address)`,入参为 Addressables 短地址(例如 `"DifficultyTable"`)。
+- 实现:同步调用 `Addressables.LoadAssetAsync<T>(address).WaitForCompletion()`;失败时打印错误并返回 null。业务层不直接依赖 Addressables API,后续如需切换为异步加载只需改本类。
 
 ### 3.5 UI 与事件
 
@@ -252,7 +255,7 @@ PinBall 与 Unit 的缓存池由独立组件 **PoolManager** 管理，使用 `Un
 ### 4.1.3 DataSO — 数据 ScriptableObject
 
 - 路径：`Assets/1_Scripts/DataSO/`
-- `DifficultyStageData`：一个 `[Serializable]` 类，字段：`startTime / spawnMin / spawnMax / unitHp / unitAttack / stepInterval`。
+- `DifficultyStageData`：一个 `[Serializable]` 类，字段：`startTime / spawnMin / spawnMax / unitHp / unitAttack / stepInterval / unitExperience`。
 - `DifficultyTable`：ScriptableObject，内部 `List<DifficultyStageData> stages` + `SetStages / GetStageAt / StageCount`。`CreateAssetMenu` 名字为 `PinBall2D/Data/DifficultyTable`。
 
 ### 4.1.4 AssetLoader.cs — 资源加载入口
@@ -564,10 +567,12 @@ SimpleUnit    ──► GameLogicManager.OnUnitReachBottom
 | 单位（默认值，运行时被难度表覆盖） | `maxHp / attack` | SimpleUnit Prefab Inspector |
 | 节奏 / 尺寸（缺省） | `UnitSize / StepDistance / StepInterval / StepMoveDuration` | `Mgr/Defines.cs` 常量 |
 | **难度曲线**（主调参入口） | 每阶段 `startTime / spawnMin / spawnMax / unitHp / unitAttack / stepInterval` | `Assets/9_Excel/Difficulty.csv` → `Tools/Data/Import Difficulty` 导入 |
-| **Roguelike 升级**（主调参入口） | 击杀里程碑 + 各品质权重 | `Assets/9_Excel/KillMilestones.csv` → `Tools/Data/Import Kill Milestones` |
+| **Roguelike 升级**（主调参入口） | 经验里程碑(`experienceThreshold`) + 各品质权重 | `Assets/9_Excel/KillMilestones.csv` → `Tools/Data/Import Kill Milestones` |
+| **单位经验值**(随难度阶段成长) | 各 Difficulty 阶段的 `unitExperience` 列 | `Assets/9_Excel/Difficulty.csv` → `Tools/Data/Import Difficulty` |
 | **Roguelike 数值词条** | `id / name / desc / rarity / maxStack / mod1~3` | `Assets/9_Excel/Upgrades_Stat.csv` → `Tools/Data/Import Upgrades` |
 | **Roguelike 新球词条**（单实例 + 多级） | `id / ... / maxStack / ballType / paramKeys / levelValues`（`;` 分隔等级，`|` 分隔参数） | `Assets/9_Excel/Upgrades_NewBall.csv` → `Tools/Data/Import Upgrades` |
-| 弹珠基础值（缺省，全部受 BallStats 修饰） | `BaseDamage / InitialSpeed / MinSpeed / BounceSpeedMul / FireInterval` | `BallStats.Reset()` 默认值 |
+| **弹珠属性默认基础值**（主调参入口） | 每条 `statType, baseValue` | `Assets/9_Excel/BallStatDefaults.csv` → `Tools/Data/Import Ball Stat Defaults` |
+| 弹珠基础值兜底（SO 缺失/缺项时回退） | `BaseDamage / InitialSpeed / MinSpeed / BounceSpeedMul / FireInterval` 等 | `BallStats.Reset()` 内的硬编码 fallback |
 | 生成范围 | `HorizontalPadding / TopOffset` | `UnitCreator.cs` 常量 |
 | 弹球（仅渲染/调试展示） | `ballType / initialSpeedHint` | PinBall Prefab Inspector |
 | 边框 | `bounceDirection / isBottomBorder / autoAlignToCameraEdge / thickness` | 各 Border Inspector |

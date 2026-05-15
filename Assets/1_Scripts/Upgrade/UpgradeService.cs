@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Roguelike 升级服务：唯一触发是「累计击杀达到里程碑」。
-/// 流程：监听 <see cref="GameEvents.OnUnitKilled"/> -> 累计 -> 阈值 ->
+/// Roguelike 升级服务：唯一触发是「累计经验达到里程碑」。
+/// 流程：监听 <see cref="GameEvents.OnUnitKilled"/> -> 把 unit.Experience 加进累计 -> 阈值 ->
 ///       按权重抽品质 -> 在该品质池中无放回抽 3 张 ->
 ///       <see cref="GameEvents.RaiseUpgradeOffered"/>（UI 显示） ->
 ///       玩家点选 <see cref="ApplySelected"/> -> Apply + Resume。
@@ -16,11 +16,11 @@ public class UpgradeService
     private readonly UpgradeContext context;
 
     private readonly List<UpgradeBase> currentOffer = new List<UpgradeBase>(3);
-    private int killCount;
+    private int experienceAccumulated;
     private int nextMilestoneIdx;
     private bool isOffering;
 
-    public int KillCount => killCount;
+    public int ExperienceAccumulated => experienceAccumulated;
 
     public int NextMilestoneIdx => nextMilestoneIdx;
 
@@ -55,10 +55,10 @@ public class UpgradeService
         GameEvents.OnUnitKilled -= HandleUnitKilled;
     }
 
-    /// <summary>StartGame 时调用：清零计数、堆叠状态与候选。</summary>
+    /// <summary>StartGame 时调用：清零累计经验、里程碑索引、堆叠状态与候选。</summary>
     public void Reset()
     {
-        killCount = 0;
+        experienceAccumulated = 0;
         nextMilestoneIdx = 0;
         isOffering = false;
         currentOffer.Clear();
@@ -92,14 +92,17 @@ public class UpgradeService
             GameLogicManager.Instance.ResumeFromUpgradeSelection();
     }
 
-    private void HandleUnitKilled(UnitBase _)
+    private void HandleUnitKilled(UnitBase unit)
     {
-        killCount++;
+        // 单个 Unit 的经验值由其所在 Difficulty 阶段决定;Init 已写入 unit.Experience。
+        // 兜底:不传 Unit 或经验<=0 时按 1 计,避免完全不累积。
+        int gain = (unit != null && unit.Experience > 0) ? unit.Experience : 1;
+        experienceAccumulated += gain;
 
         if (milestoneTable == null || milestoneTable.Count == 0) return;
 
         int threshold = milestoneTable.GetThresholdAt(nextMilestoneIdx);
-        if (killCount < threshold) return;
+        if (experienceAccumulated < threshold) return;
 
         int reachedIdx = nextMilestoneIdx;
         nextMilestoneIdx++;

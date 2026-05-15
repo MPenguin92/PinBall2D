@@ -61,8 +61,9 @@ public class GameLogicManager : MonoBehaviour
         DifficultyTable difficultyTable = AssetLoader.Load<DifficultyTable>("DifficultyTable");
         difficulty = new Difficulty(difficultyTable);
 
-        // Roguelike 升级体系初始化（数据默认值由 BallStats.Reset 提供；表/池数据通过 Addressables 加载）。
-        ballStats = new BallStats();
+        // Roguelike 升级体系初始化（基础默认值优先读 BallStatDefaultsTable，缺失时回退到 BallStats 内的硬编码兜底；表/池数据通过 Addressables 加载）。
+        BallStatDefaultsTable ballStatDefaults = AssetLoader.Load<BallStatDefaultsTable>("BallStatDefaults");
+        ballStats = new BallStats(ballStatDefaults);
         specialBallParams = new SpecialBallParams();
 
         KillMilestoneTable milestoneTable = AssetLoader.Load<KillMilestoneTable>("KillMilestoneTable");
