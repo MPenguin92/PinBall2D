@@ -29,7 +29,7 @@ public class Player : MonoBehaviour
     private PlayerRender playerRender;
 
     /// <summary>各 BallType 的 Addressables 地址;默认填普通球的 BaseBall。</summary>
-    private static readonly Dictionary<BallType, string> BallAddress = new Dictionary<BallType, string>
+    private readonly Dictionary<BallType, string> ballAddress = new Dictionary<BallType, string>
     {
         { BallType.Base, "BaseBall" },
         { BallType.Fire, "FireBall" },
@@ -69,6 +69,16 @@ public class Player : MonoBehaviour
 
     /// <summary>HUD 用:按队列顺序(队首→队尾)只读暴露当前队列内容。</summary>
     public IReadOnlyCollection<BallType> BallQueue => ballQueue;
+
+    /// <summary>当前发射冷却间隔,来自 <see cref="BallStats"/>。</summary>
+    public float FireInterval
+    {
+        get
+        {
+            BallStats stats = GetStats();
+            return stats != null ? stats.Get(BallStatType.FireInterval) : 0.3f;
+        }
+    }
 
     public Vector2 Direction
     {
@@ -197,10 +207,10 @@ public class Player : MonoBehaviour
 
     private string ResolveAddress(BallType type)
     {
-        return BallAddress.TryGetValue(type, out string addr) ? addr : BallAddress[BallType.Base];
+        return ballAddress.TryGetValue(type, out string addr) ? addr : ballAddress[BallType.Base];
     }
 
-    private static BallStats GetStats()
+    private BallStats GetStats()
     {
         GameLogicManager mgr = GameLogicManager.Instance;
         return mgr != null ? mgr.BallStats : null;

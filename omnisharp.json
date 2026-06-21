@@ -1,0 +1,8 @@
+{
+  "MsBuild": {
+    "LoadProjectsOnDemand": false
+  },
+  "RoslynExtensionsOptions": {
+    "EnableAnalyzersSupport": false
+  }
+}

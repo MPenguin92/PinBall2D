@@ -1,0 +1,48 @@
+---
+description: C# 编码规范——非必要不使用 static
+globs: Assets/**/*.cs
+alwaysApply: false
+---
+
+# 非必要不使用 static
+
+默认使用**实例成员**。`MonoBehaviour` 及普通类中，优先实例字段/方法/属性，便于依赖注入、测试与生命周期管理。
+
+## 允许使用 static 的场景
+
+- 已有单例入口：`Instance` 属性（如 `GameLogicManager.Instance`）
+- 有意设计的全局事件总线（如 `GameEvents`）
+- 无状态的纯工具类（如 `AssetLoader`）
+- Editor 菜单入口（`[MenuItem]`、`EditorWindow`）
+- 真正的编译期常量：`const`，或跨实例共享且不可变的 `static readonly`
+
+## 避免使用 static 的场景
+
+- 仅通过 `SomeManager.Instance` 取数据的私有 helper（应改为实例方法）
+- `MonoBehaviour` 上的查找表、配置映射（用 `readonly` 实例字段）
+- 仅为"少写一行"而把本可实例化的逻辑标成 static
+
+## 示例
+
+```csharp
+// ❌ BAD — MonoBehaviour 上不必要的 static helper
+private static BallStats GetStats()
+{
+    return GameLogicManager.Instance?.BallStats;
+}
+
+// ✅ GOOD — 实例方法，与组件生命周期一致
+private BallStats GetStats()
+{
+    GameLogicManager mgr = GameLogicManager.Instance;
+    return mgr != null ? mgr.BallStats : null;
+}
+```
+
+```csharp
+// ❌ BAD — 单实例组件上的 static 查找表
+private static readonly Dictionary<BallType, string> BallAddress = ...;
+
+// ✅ GOOD — readonly 实例字段
+private readonly Dictionary<BallType, string> ballAddress = ...;
+```
