@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3e2ca609ac05fa489c790549d68d0ae, type: 3}
+  m_Name: Stat_ball_dmg_burst
+  m_EditorClassIdentifier: 
+  id: ball_dmg_burst
+  displayName: "\u7206\u53D1"
+  description: "\u57FA\u7840\u4F24\u5BB3+1 \u4E14\u6700\u5927\u53CD\u5F39\u6B21\u6570+5"
+  rarity: 2
+  maxStack: 3
+  modifiers:
+  - statType: 0
+    flat: 1
+    percent: 0
+  - statType: 12
+    flat: 5
+    percent: 0

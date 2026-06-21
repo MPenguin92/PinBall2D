@@ -49,4 +49,8 @@ public static class GameEvents
     public static void RaiseKillMilestoneReached(int milestoneIdx) => OnKillMilestoneReached?.Invoke(milestoneIdx);
     public static void RaiseUpgradeOffered(IList<UpgradeBase> options) => OnUpgradeOffered?.Invoke(options);
     public static void RaiseUpgradeApplied(UpgradeBase upgrade) => OnUpgradeApplied?.Invoke(upgrade);
+
+    /// <summary>是否有 UI 订阅了升级三选一（用于无面板时的兜底逻辑）。</summary>
+    public static bool HasUpgradeOfferedListeners =>
+        OnUpgradeOffered != null && OnUpgradeOffered.GetInvocationList().Length > 0;
 }

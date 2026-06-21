@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f59b477502726ba43afe25c566bd7b1f, type: 3}
+  m_Name: NewBall_new_boomerang
+  m_EditorClassIdentifier: 
+  id: new_boomerang
+  displayName: "\u56DE\u65CB"
+  description: "\u56DE\u65CB\u7403\uFF1A\u89E6\u5E95\u524D\u81EA\u52A8\u53CD\u5F39
+    N \u6B21\uFF08\u6EE1\u7EA7 Lv5\uFF09"
+  rarity: 2
+  maxStack: 5
+  ballType: 6
+  paramKeys:
+  - extraReturns
+  levelValues:
+  - values:
+    - 1
+  - values:
+    - 2
+  - values:
+    - 3
+  - values:
+    - 4
+  - values:
+    - 5

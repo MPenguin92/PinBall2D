@@ -52,14 +52,14 @@ public class UIManager : MonoBehaviour
         if (startScreenUI != null) startScreenUI.SetActive(false);
         if (gameOverUI != null) gameOverUI.SetActive(false);
         if (inGameUI != null) inGameUI.SetActive(true);
-        if (upgradeSelectionUI != null) upgradeSelectionUI.SetActive(false);
+        HideUpgradePanel();
     }
 
     private void HandleGameEnd()
     {
         if (inGameUI != null) inGameUI.SetActive(false);
         if (gameOverUI != null) gameOverUI.SetActive(true);
-        if (upgradeSelectionUI != null) upgradeSelectionUI.SetActive(false);
+        HideUpgradePanel();
     }
 
     private void HandleReturnToHome()
@@ -67,6 +67,14 @@ public class UIManager : MonoBehaviour
         if (inGameUI != null) inGameUI.SetActive(false);
         if (gameOverUI != null) gameOverUI.SetActive(false);
         if (startScreenUI != null) startScreenUI.SetActive(true);
-        if (upgradeSelectionUI != null) upgradeSelectionUI.SetActive(false);
+        HideUpgradePanel();
+    }
+
+    private void HideUpgradePanel()
+    {
+        if (upgradeSelectionUI == null) return;
+        UpgradeSelectionUI ui = upgradeSelectionUI.GetComponent<UpgradeSelectionUI>();
+        if (ui != null)
+            ui.HidePanel();
     }
 }

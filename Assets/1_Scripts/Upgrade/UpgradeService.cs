@@ -102,6 +102,13 @@ public class UpgradeService
         if (milestoneTable == null || milestoneTable.Count == 0) return;
 
         int threshold = milestoneTable.GetThresholdAt(nextMilestoneIdx);
+        if (threshold <= 0)
+        {
+            Debug.LogError($"[UpgradeService] Milestone {nextMilestoneIdx} has invalid experienceThreshold={threshold}. " +
+                           "Re-import KillMilestones.csv via Tools/Data/Import All.");
+            nextMilestoneIdx++;
+            return;
+        }
         if (experienceAccumulated < threshold) return;
 
         int reachedIdx = nextMilestoneIdx;
@@ -128,11 +135,17 @@ public class UpgradeService
         currentOffer.AddRange(picked);
         isOffering = true;
 
-        // 暂停游戏（State -> SelectingUpgrade），UI 监听 OnUpgradeOffered 显面板。
-        if (GameLogicManager.Instance != null)
-            GameLogicManager.Instance.PauseForUpgradeSelection();
-
         GameEvents.RaiseUpgradeOffered(currentOffer);
+
+        // UI 在 HandleOffered 里暂停；若无订阅方则自动选第一项，避免卡死在 SelectingUpgrade。
+        if (!isOffering) return;
+
+        if (!GameEvents.HasUpgradeOfferedListeners)
+        {
+            Debug.LogWarning("[UpgradeService] OnUpgradeOffered has no listeners (UpgradeSelectionUI missing in scene). " +
+                             "Auto-selecting first upgrade.");
+            ApplySelected(currentOffer[0]);
+        }
     }
 
     private static UpgradeRarity RollRarity(KillMilestoneData w)

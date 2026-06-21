@@ -7,8 +7,9 @@ using UnityEngine.UI;
 /// Roguelike 三选一升级面板。监听 <see cref="GameEvents.OnUpgradeOffered"/> 显示，
 /// 监听 <see cref="GameEvents.OnUpgradeApplied"/> 隐藏。
 ///
-/// 自身不做布局：在 Inspector 拖三张「卡片」根节点（按顺序：左中右），
+/// 自身不做布局：使用 <c>UpgradeSelectionUI.prefab</c>，或在 Inspector 拖三张「卡片」根节点（按顺序：左中右），
 /// 每张卡片必须包含 nameText / descText / rarityText（可选）以及 Button。
+/// 脚本所在对象需保持激活，仅隐藏 <c>panelRoot</c>；事件在 Awake 注册，避免面板隐藏时 OnEnable 未触发而漏订阅。
 /// </summary>
 public class UpgradeSelectionUI : MonoBehaviour
 {
@@ -44,6 +45,11 @@ public class UpgradeSelectionUI : MonoBehaviour
 
     private void Awake()
     {
+        GameEvents.OnUpgradeOffered += HandleOffered;
+        GameEvents.OnUpgradeApplied += HandleApplied;
+        GameEvents.OnReturnToHome += HandleReturnToHome;
+        GameEvents.OnGameEnd += HandleGameEnd;
+
         for (int i = 0; i < cards.Count; i++)
         {
             int idx = i;
@@ -53,11 +59,6 @@ public class UpgradeSelectionUI : MonoBehaviour
         }
 
         if (panelRoot != null) panelRoot.SetActive(false);
-
-        GameEvents.OnUpgradeOffered += HandleOffered;
-        GameEvents.OnUpgradeApplied += HandleApplied;
-        GameEvents.OnReturnToHome += HandleReturnToHome;
-        GameEvents.OnGameEnd += HandleGameEnd;
     }
 
     private void OnDestroy()
@@ -68,12 +69,25 @@ public class UpgradeSelectionUI : MonoBehaviour
         GameEvents.OnGameEnd -= HandleGameEnd;
     }
 
+    private void Update()
+    {
+        if (panelRoot == null || !panelRoot.activeSelf) return;
+
+        if (Input.GetKeyDown(KeyCode.Alpha1)) OnCardClicked(0);
+        else if (Input.GetKeyDown(KeyCode.Alpha2)) OnCardClicked(1);
+        else if (Input.GetKeyDown(KeyCode.Alpha3)) OnCardClicked(2);
+    }
+
     private void HandleOffered(IList<UpgradeBase> options)
     {
         currentOptions.Clear();
         if (options != null) currentOptions.AddRange(options);
 
         if (panelRoot != null) panelRoot.SetActive(true);
+
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr != null && mgr.CurrentState == GameState.Running)
+            mgr.PauseForUpgradeSelection();
 
         for (int i = 0; i < cards.Count; i++)
         {
@@ -104,17 +118,23 @@ public class UpgradeSelectionUI : MonoBehaviour
 
     private void HandleApplied(UpgradeBase _)
     {
-        currentOptions.Clear();
-        if (panelRoot != null) panelRoot.SetActive(false);
+        HidePanel();
     }
 
     private void HandleReturnToHome()
     {
-        if (panelRoot != null) panelRoot.SetActive(false);
+        HidePanel();
     }
 
     private void HandleGameEnd()
     {
+        HidePanel();
+    }
+
+    /// <summary>仅隐藏面板，保持脚本所在对象激活以便继续监听事件。</summary>
+    public void HidePanel()
+    {
+        currentOptions.Clear();
         if (panelRoot != null) panelRoot.SetActive(false);
     }
 
