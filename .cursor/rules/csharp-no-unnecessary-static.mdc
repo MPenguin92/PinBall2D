@@ -1,7 +1,7 @@
 ---
 description: C# 编码规范——非必要不使用 static
 globs: Assets/**/*.cs
-alwaysApply: false
+alwaysApply: true
 ---
 
 # 非必要不使用 static

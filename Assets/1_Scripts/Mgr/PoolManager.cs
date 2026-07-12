@@ -201,6 +201,11 @@ public class PoolManager : MonoBehaviour
         PinBallBase pb = pool.Get();
         pb.transform.position = new Vector3(position.x, position.y, 0f);
         pb.Init(direction, speed);
+
+        PinBallRender render = pb.GetComponent<PinBallRender>();
+        if (render != null)
+            render.ResetTrailAfterSpawn();
+
         activePinBalls.Add(pb);
         pinBallPoolByInstance[pb] = pool;
         return pb;
