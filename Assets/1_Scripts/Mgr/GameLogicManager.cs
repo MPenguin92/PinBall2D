@@ -12,6 +12,9 @@ public class GameLogicManager : MonoBehaviour
     [SerializeField]
     private PoolManager poolManager;
 
+    [SerializeField]
+    private VfxSpawner vfxSpawner;
+
     private IUnitCreator unitCreator;
 
     private Border[] borders;
@@ -36,6 +39,8 @@ public class GameLogicManager : MonoBehaviour
 
     public Player Player => player;
 
+    public VfxSpawner VfxSpawner => vfxSpawner;
+
     public BallStats BallStats => ballStats;
 
     public SpecialBallParams SpecialBallParams => specialBallParams;
@@ -56,6 +61,11 @@ public class GameLogicManager : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+
+        if (vfxSpawner == null)
+            vfxSpawner = GetComponent<VfxSpawner>();
+        if (vfxSpawner == null)
+            vfxSpawner = gameObject.AddComponent<VfxSpawner>();
 
         // 难度表：通过 Addressables 短地址加载。
         DifficultyTable difficultyTable = AssetLoader.Load<DifficultyTable>("DifficultyTable");

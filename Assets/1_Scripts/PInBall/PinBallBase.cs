@@ -91,6 +91,10 @@ public class PinBallBase : MonoBehaviour
                 // 子类钩子：可在击杀/未击杀分支前注入额外效果。
                 OnHitUnit(unit, nextPos, hitNormal, dir, destroyed);
 
+                GameLogicManager mgr = GameLogicManager.Instance;
+                if (mgr != null && mgr.VfxSpawner != null)
+                    mgr.VfxSpawner.PlayBallHit(BallType, nextPos, destroyed);
+
                 if (destroyed)
                 {
                     // OnUnitKilled 必须在回收前 Raise，UpgradeService 才能拿到有效引用。
