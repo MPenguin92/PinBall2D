@@ -78,6 +78,7 @@
     <Compile Include="Assets\1_Scripts\PInBall\PinBallBase.cs" />
     <Compile Include="Assets\1_Scripts\Upgrade\BallType.cs" />
     <Compile Include="Assets\1_Scripts\DataSO\BallStatDefaultsTable.cs" />
+    <Compile Include="Assets\1_Scripts\DataSO\BallSpriteSet.cs" />
     <Compile Include="Assets\1_Scripts\Unit\UnitRender.cs" />
     <Compile Include="Assets\1_Scripts\Border.cs" />
     <Compile Include="Assets\1_Scripts\Unit\UnitCreator.cs" />

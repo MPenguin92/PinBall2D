@@ -13,7 +13,7 @@ public class PlayerRender : MonoBehaviour, ICombatAnimation
     private LineRenderer lineRenderer;
 
     [SerializeField]
-    [Tooltip("瞄准线起点沿发射方向前移的距离，避免线段插到 Player 内侧。")]
+    [Tooltip("瞄准线起点沿炮口方向前移的距离，避免线段插到炮口内侧。")]
     private float lineForwardOffset = 0.45f;
 
     [SerializeField]
@@ -35,13 +35,13 @@ public class PlayerRender : MonoBehaviour, ICombatAnimation
 
     public virtual void PlayAttackAnimation()
     {
-        float duration = player != null ? Mathf.Max(0.01f, player.FireInterval) : 0.3f;
-        attackTween?.Kill();
-        transform.localRotation = Quaternion.identity;
-        attackTween = transform
-            .DOLocalRotate(new Vector3(0f, 0f, 360f), duration, RotateMode.FastBeyond360)
-            .SetEase(Ease.Linear)
-            .OnComplete(() => transform.localRotation = Quaternion.identity);
+        // float duration = player != null ? Mathf.Max(0.01f, player.FireInterval) : 0.3f;
+        // attackTween?.Kill();
+        // transform.localRotation = Quaternion.identity;
+        // attackTween = transform
+        //     .DOLocalRotate(new Vector3(0f, 0f, 360f), duration, RotateMode.FastBeyond360)
+        //     .SetEase(Ease.Linear)
+        //     .OnComplete(() => transform.localRotation = Quaternion.identity);
     }
 
     public virtual void PlayHitAnimation()
@@ -67,7 +67,7 @@ public class PlayerRender : MonoBehaviour, ICombatAnimation
 
         direction.Normalize();
 
-        Vector2 origin = (Vector2)player.transform.position + direction * lineForwardOffset;
+        Vector2 origin = player.FirePosition + direction * lineForwardOffset;
         float remainingLength = maxLineLength;
 
         linePoints.Add(origin);

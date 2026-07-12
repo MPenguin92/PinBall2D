@@ -22,7 +22,7 @@ MonoBehaviour:
   - statType: 3
     baseValue: 1
   - statType: 4
-    baseValue: 10
+    baseValue: 12
   - statType: 5
     baseValue: 3
   - statType: 6

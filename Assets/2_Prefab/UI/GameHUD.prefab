@@ -59,7 +59,6 @@ MonoBehaviour:
   heartColor: {r: 1, g: 0, b: 0, a: 1}
   emptyHeartAlpha: 0.25
   ballQueueContainer: {fileID: 910000021}
-  ballIconSprite: {fileID: 21300000, guid: 0b1161b11d2453545bab4afe5a611a8a, type: 3}
   ballIconSize: {x: 36, y: 36}
   ballIconSpacing: 6
   killCountText: {fileID: 910000043}

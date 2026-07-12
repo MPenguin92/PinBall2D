@@ -18,152 +18,152 @@ MonoBehaviour:
     spawnMax: 1
     unitHp: 1
     unitAttack: 1
-    stepInterval: 1.2
+    stepInterval: 1
     unitExperience: 1
   - startTime: 30
     spawnMin: 1
     spawnMax: 2
     unitHp: 1
     unitAttack: 1
-    stepInterval: 1.1
+    stepInterval: 0.917
     unitExperience: 1
   - startTime: 60
     spawnMin: 1
     spawnMax: 3
     unitHp: 2
     unitAttack: 1
-    stepInterval: 1
+    stepInterval: 0.833
     unitExperience: 2
   - startTime: 120
     spawnMin: 2
     spawnMax: 4
     unitHp: 3
     unitAttack: 1
-    stepInterval: 0.85
+    stepInterval: 0.708
     unitExperience: 2
   - startTime: 180
     spawnMin: 7
     spawnMax: 10
     unitHp: 8
     unitAttack: 1
-    stepInterval: 0.42
+    stepInterval: 0.35
     unitExperience: 4
   - startTime: 240
     spawnMin: 8
     spawnMax: 11
     unitHp: 11
     unitAttack: 1
-    stepInterval: 0.36
+    stepInterval: 0.3
     unitExperience: 5
   - startTime: 300
     spawnMin: 9
     spawnMax: 12
     unitHp: 15
     unitAttack: 1
-    stepInterval: 0.32
+    stepInterval: 0.267
     unitExperience: 6
   - startTime: 360
     spawnMin: 10
     spawnMax: 13
     unitHp: 20
     unitAttack: 1
-    stepInterval: 0.28
+    stepInterval: 0.233
     unitExperience: 8
   - startTime: 420
     spawnMin: 11
     spawnMax: 14
     unitHp: 26
     unitAttack: 1
-    stepInterval: 0.25
+    stepInterval: 0.208
     unitExperience: 10
   - startTime: 480
     spawnMin: 12
     spawnMax: 15
     unitHp: 33
     unitAttack: 1
-    stepInterval: 0.22
+    stepInterval: 0.183
     unitExperience: 12
   - startTime: 540
     spawnMin: 13
     spawnMax: 16
     unitHp: 41
     unitAttack: 1
-    stepInterval: 0.2
+    stepInterval: 0.167
     unitExperience: 14
   - startTime: 600
     spawnMin: 14
     spawnMax: 17
     unitHp: 50
     unitAttack: 1
-    stepInterval: 0.18
+    stepInterval: 0.15
     unitExperience: 16
   - startTime: 660
     spawnMin: 15
     spawnMax: 18
     unitHp: 60
     unitAttack: 1
-    stepInterval: 0.16
+    stepInterval: 0.133
     unitExperience: 18
   - startTime: 720
     spawnMin: 16
     spawnMax: 19
     unitHp: 72
     unitAttack: 1
-    stepInterval: 0.145
+    stepInterval: 0.121
     unitExperience: 20
   - startTime: 780
     spawnMin: 17
     spawnMax: 20
     unitHp: 85
     unitAttack: 1
-    stepInterval: 0.13
+    stepInterval: 0.108
     unitExperience: 23
   - startTime: 840
     spawnMin: 18
     spawnMax: 21
     unitHp: 100
     unitAttack: 1
-    stepInterval: 0.115
+    stepInterval: 0.096
     unitExperience: 26
   - startTime: 900
     spawnMin: 19
     spawnMax: 22
     unitHp: 116
     unitAttack: 1
-    stepInterval: 0.1
+    stepInterval: 0.083
     unitExperience: 30
   - startTime: 960
     spawnMin: 20
     spawnMax: 23
     unitHp: 134
     unitAttack: 1
-    stepInterval: 0.09
+    stepInterval: 0.075
     unitExperience: 34
   - startTime: 1020
     spawnMin: 21
     spawnMax: 24
     unitHp: 154
     unitAttack: 1
-    stepInterval: 0.08
+    stepInterval: 0.067
     unitExperience: 38
   - startTime: 1080
     spawnMin: 22
     spawnMax: 25
     unitHp: 176
     unitAttack: 1
-    stepInterval: 0.07
+    stepInterval: 0.058
     unitExperience: 42
   - startTime: 1140
     spawnMin: 23
     spawnMax: 26
     unitHp: 200
     unitAttack: 1
-    stepInterval: 0.06
+    stepInterval: 0.05
     unitExperience: 46
   - startTime: 1200
     spawnMin: 24
     spawnMax: 28
     unitHp: 225
     unitAttack: 1
-    stepInterval: 0.05
+    stepInterval: 0.042
     unitExperience: 50

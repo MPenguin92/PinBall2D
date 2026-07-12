@@ -4,3 +4,4 @@ UserSettings
 *.DS_Store
 Temp
 obj
+.vscode

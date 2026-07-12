@@ -83,11 +83,11 @@ public class UnitBase : MonoBehaviour
 
     public void RefreshRect()
     {
-        Vector3 pos = transform.position;
+        Vector2 center = isMoving ? moveTarget : (Vector2)transform.position;
         float size = Defines.UnitSize;
         UnitRect = new Rect(
-            pos.x - size * 0.5f,
-            pos.y - size * 0.5f,
+            center.x - size * 0.5f,
+            center.y - size * 0.5f,
             size,
             size
         );
@@ -120,11 +120,11 @@ public class UnitBase : MonoBehaviour
             float t = Mathf.Clamp01(moveTimer / Defines.StepMoveDuration);
             Vector2 pos = Vector2.Lerp(moveStart, moveTarget, t);
             transform.position = new Vector3(pos.x, pos.y, transform.position.z);
-            RefreshRect();
 
             if (t >= 1f)
             {
                 isMoving = false;
+                RefreshRect();
                 CheckBottomCollision();
             }
         }
@@ -227,16 +227,25 @@ public class UnitBase : MonoBehaviour
         Vector2 dir = MoveDirection;
         if (dir.sqrMagnitude <= Mathf.Epsilon) return;
 
-        Vector2 nextPos = (Vector2)transform.position + dir * Defines.StepDistance;
+        // 上一拍插值若未播完，先对齐到逻辑目标格，避免同帧生成/堵塞判定仍读到旧位置。
+        if (isMoving)
+        {
+            transform.position = new Vector3(moveTarget.x, moveTarget.y, transform.position.z);
+            isMoving = false;
+        }
+
+        Vector2 currentPos = transform.position;
+        Vector2 nextPos = currentPos + dir * Defines.StepDistance;
 
         // 队列堵塞:目标格被其他 Unit(冻住的、或前面被堵住的)占用,本拍跳过。
         // 减速天然形成"冰墙",后面 Unit 撞到也会排队停下,避免穿模和判定混乱。
         if (IsTargetOccupied(nextPos)) return;
 
-        moveStart = transform.position;
-        moveTarget = moveStart + dir * Defines.StepDistance;
+        moveStart = currentPos;
+        moveTarget = nextPos;
         moveTimer = 0f;
         isMoving = true;
+        RefreshRect();
     }
 
     private bool IsTargetOccupied(Vector2 targetCenter)

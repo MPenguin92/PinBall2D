@@ -1,16 +1,18 @@
 using UnityEngine;
 
 /// <summary>
-/// 默认单位生成器实现：订阅 <see cref="GameEvents.OnStep"/>，每个 Step 从屏幕上方
-/// 批量生成 1..N 个 Unit。N 的上限由可用宽度 / <see cref="Defines.UnitSize"/> 决定，
-/// 保证相邻 Unit 不重叠、不越过屏幕边界。
+/// 默认单位生成器实现：每个 Step 在屏幕外随机生成一行 Unit（填充率 10%~50%）。
+/// 新行在 SpawnStep 时生成于屏外，下一 Step 随全体下移进入画面。
 /// 纯逻辑类，由 GameLogicManager 在 Awake 时 new 一次并持有，OnDestroy 时 Dispose。
 /// </summary>
 public class UnitCreator : IUnitCreator
 {
     private const string UnitAddress = "SimpleUnit";
     private const float HorizontalPadding = 0.5f;
-    private const float TopOffset = 0f;
+    private const float MinFillRatio = 0.1f;
+    private const float MaxFillRatio = 0.5f;
+    /// <summary>出生点相对可见顶行向上偏移的格数（1 = 完全在屏幕外）。</summary>
+    private const float SpawnRowsAboveVisible = 1f;
 
     private bool isRunning;
     private bool isPaused;
@@ -22,7 +24,6 @@ public class UnitCreator : IUnitCreator
         GameEvents.OnGameResume += HandleGameResume;
         GameEvents.OnGameEnd += HandleGameEnd;
         GameEvents.OnReturnToHome += HandleGameEnd;
-        GameEvents.OnStep += HandleStep;
     }
 
     public void Dispose()
@@ -32,7 +33,12 @@ public class UnitCreator : IUnitCreator
         GameEvents.OnGameResume -= HandleGameResume;
         GameEvents.OnGameEnd -= HandleGameEnd;
         GameEvents.OnReturnToHome -= HandleGameEnd;
-        GameEvents.OnStep -= HandleStep;
+    }
+
+    public void SpawnStep()
+    {
+        if (!isRunning || isPaused) return;
+        SpawnBatch();
     }
 
     private void HandleGameStart()
@@ -59,15 +65,9 @@ public class UnitCreator : IUnitCreator
         isPaused = false;
     }
 
-    private void HandleStep()
-    {
-        if (!isRunning || isPaused) return;
-        SpawnBatch();
-    }
-
     /// <summary>
-    /// 一次性在屏幕顶部生成 1..N 个 Unit。
-    /// 把可用宽度均分为 count 个槽，每个槽内随机 X，相邻不重叠。
+    /// 在屏幕外按固定网格随机生成一行 Unit：每行填充 10%~50% 的列，列位置随机。
+    /// 出生点位于可见顶行正上方 1 格；当列被已有 Unit 占用时跳过该列。
     /// </summary>
     private void SpawnBatch()
     {
@@ -83,7 +83,8 @@ public class UnitCreator : IUnitCreator
 
         float minX = camPos.x - halfWidth + HorizontalPadding;
         float maxX = camPos.x + halfWidth - HorizontalPadding;
-        float y = camPos.y + halfHeight - TopOffset;
+        float visibleTopRowCenterY = camPos.y + halfHeight - Defines.UnitSize * 0.5f;
+        float y = visibleTopRowCenterY + Defines.UnitSize * SpawnRowsAboveVisible;
 
         if (maxX <= minX) return;
         float availWidth = maxX - minX;
@@ -91,37 +92,30 @@ public class UnitCreator : IUnitCreator
         float unitW = Defines.UnitSize;
         if (unitW <= 0f) return;
 
-        int maxCount = Mathf.Max(1, Mathf.FloorToInt(availWidth / unitW));
+        int columnCount = Mathf.Max(1, Mathf.FloorToInt(availWidth / unitW));
+        int minSpawn = Mathf.Max(1, Mathf.CeilToInt(columnCount * MinFillRatio));
+        int maxSpawn = Mathf.Max(minSpawn, Mathf.FloorToInt(columnCount * MaxFillRatio));
+        int spawnCount = Random.Range(minSpawn, maxSpawn + 1);
 
-        // 从难度表取当前阶段的生成区间，并用屏幕可容纳数夹紧，保证不越界也不重叠。
-        int rangeMin = 1;
-        int rangeMax = maxCount;
-        if (mgr.Difficulty != null && mgr.Difficulty.HasTable)
+        float gridWidth = columnCount * unitW;
+        float gridStartX = minX + (availWidth - gridWidth) * 0.5f;
+
+        int[] columns = new int[columnCount];
+        for (int i = 0; i < columnCount; i++)
+            columns[i] = i;
+
+        for (int i = 0; i < spawnCount; i++)
         {
-            (int dMin, int dMax) = mgr.Difficulty.GetSpawnRange();
-            rangeMin = Mathf.Clamp(dMin, 1, maxCount);
-            rangeMax = Mathf.Clamp(dMax, rangeMin, maxCount);
+            int pick = Random.Range(i, columnCount);
+            (columns[i], columns[pick]) = (columns[pick], columns[i]);
         }
 
-        int count = Random.Range(rangeMin, rangeMax + 1);
-
-        float slotW = availWidth / count;
-        float halfUnit = unitW * 0.5f;
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < spawnCount; i++)
         {
-            float slotMin = minX + i * slotW + halfUnit;
-            float slotMax = minX + (i + 1) * slotW - halfUnit;
-            if (slotMax < slotMin)
-            {
-                float mid = (slotMin + slotMax) * 0.5f;
-                slotMin = slotMax = mid;
-            }
-
-            float x = Random.Range(slotMin, slotMax);
+            int col = columns[i];
+            float x = gridStartX + (col + 0.5f) * unitW;
             Vector2 spawnPos = new Vector2(x, y);
 
-            // 顶部出生位与已有 Unit(常见原因:下方有冰墙堵着,整列堆到顶端)重叠时,直接放弃这一颗。
-            // 这是一个"压力释放阀":玩家把场面冻死时,新 Unit 不再继续压下来。
             if (IsSpawnOccupied(mgr, spawnPos, unitW)) continue;
 
             mgr.SpawnUnit(UnitAddress, spawnPos);

@@ -28,6 +28,10 @@ public class Player : MonoBehaviour
     [SerializeField]
     private PlayerRender playerRender;
 
+    [SerializeField]
+    [Tooltip("炮口 Transform，旋转与发射均以此为准；Player 本体不旋转。")]
+    private Transform muzzle;
+
     /// <summary>各 BallType 的 Addressables 地址;默认填普通球的 BaseBall。</summary>
     private readonly Dictionary<BallType, string> ballAddress = new Dictionary<BallType, string>
     {
@@ -84,10 +88,16 @@ public class Player : MonoBehaviour
     {
         get
         {
+            if (muzzle != null)
+                return muzzle.up;
+
             float angleRad = transform.eulerAngles.z * Mathf.Deg2Rad;
             return new Vector2(-Mathf.Sin(angleRad), Mathf.Cos(angleRad));
         }
     }
+
+    /// <summary>当前发射位置（炮口世界坐标）。</summary>
+    public Vector2 FirePosition => muzzle != null ? muzzle.position : (Vector2)transform.position;
 
     public void Init()
     {
@@ -102,7 +112,8 @@ public class Player : MonoBehaviour
 
         fireTimer = 0f;
         currentHp = maxHp;
-        transform.rotation = Quaternion.identity;
+        if (muzzle != null)
+            muzzle.localRotation = Quaternion.identity;
     }
 
     public bool TakeDamage(int damage)
@@ -169,19 +180,21 @@ public class Player : MonoBehaviour
 
     private void HandleRotation()
     {
+        if (muzzle == null) return;
+
         float input = 0f;
         if (Input.GetKey(KeyCode.A)) input -= 1f;
         if (Input.GetKey(KeyCode.D)) input += 1f;
 
         if (Mathf.Approximately(input, 0f)) return;
 
-        float currentZ = transform.eulerAngles.z;
+        float currentZ = muzzle.localEulerAngles.z;
         if (currentZ > 180f) currentZ -= 360f;
 
         float delta = -input * rotateSpeed * Time.deltaTime;
         float newAngle = Mathf.Clamp(currentZ + delta, -maxAngle, maxAngle);
 
-        transform.rotation = Quaternion.Euler(0f, 0f, newAngle);
+        muzzle.localRotation = Quaternion.Euler(0f, 0f, newAngle);
     }
 
     private void HandleFire()
@@ -193,10 +206,10 @@ public class Player : MonoBehaviour
         BallType chosen = ballQueue.Dequeue();
 
         BallStats stats = GetStats();
-        float speed = stats != null ? stats.Get(BallStatType.InitialSpeed) : 10f;
+        float speed = stats != null ? stats.Get(BallStatType.InitialSpeed) : 12f;
         string address = ResolveAddress(chosen);
 
-        GameLogicManager.Instance.SpawnPinBall(address, transform.position, Direction, speed);
+        GameLogicManager.Instance.SpawnPinBall(address, FirePosition, Direction, speed);
 
         float fireInterval = stats != null ? stats.Get(BallStatType.FireInterval) : 0.3f;
         fireTimer = fireInterval;

@@ -195,6 +195,7 @@ public class GameLogicManager : MonoBehaviour
         {
             stepTimer -= interval;
             GameEvents.RaiseStep();
+            unitCreator?.SpawnStep();
             interval = difficulty != null ? difficulty.GetStepInterval() : Defines.StepInterval;
         }
 

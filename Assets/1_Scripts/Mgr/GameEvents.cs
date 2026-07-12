@@ -24,7 +24,7 @@ public static class GameEvents
     public static event Action OnReturnToHome;
 
     /// <summary>节奏心跳：Running 状态下 GameLogicManager 每 <see cref="Defines.StepInterval"/> 秒触发一次。
-    /// Unit 用它推进移动、UnitCreator 用它生成新一批。</summary>
+    /// Unit 用它推进移动；随后 GameLogicManager 再调用 UnitCreator.SpawnStep 生成新一行。</summary>
     public static event Action OnStep;
 
     /// <summary>Unit 被弹珠击杀时触发（PinBallBase.Tick 中销毁 Unit 之前 Raise）。</summary>

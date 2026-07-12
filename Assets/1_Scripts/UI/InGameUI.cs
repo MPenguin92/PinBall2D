@@ -36,9 +36,6 @@ public class InGameUI : MonoBehaviour
     private RectTransform ballQueueContainer;
 
     [SerializeField]
-    private Sprite ballIconSprite;
-
-    [SerializeField]
     private Vector2 ballIconSize = new Vector2(36f, 36f);
 
     [SerializeField]
@@ -51,16 +48,7 @@ public class InGameUI : MonoBehaviour
     private readonly List<Image> heartImages = new List<Image>();
     private readonly List<Image> ballIcons = new List<Image>();
     private readonly List<BallType> lastBallQueue = new List<BallType>();
-    private readonly Dictionary<BallType, Color> ballColors = new Dictionary<BallType, Color>
-    {
-        { BallType.Base, Color.white },
-        { BallType.Fire, new Color(1f, 0.4f, 0.2f) },
-        { BallType.Ice, new Color(0.4f, 0.8f, 1f) },
-        { BallType.Lightning, new Color(1f, 0.88f, 0.4f) },
-        { BallType.Poison, new Color(0.6f, 0.8f, 0.2f) },
-        { BallType.Heavy, new Color(0.67f, 0.67f, 0.67f) },
-        { BallType.Boomerang, new Color(1f, 0.6f, 0.8f) },
-    };
+    private BallSpriteSet ballSpriteSet;
 
     private int lastHp = -1;
     private int lastMaxHp = -1;
@@ -150,7 +138,8 @@ public class InGameUI : MonoBehaviour
 
         ClearImages(ballIcons);
 
-        if (ballIconSprite == null || queue == null || queue.Count == 0)
+        BallSpriteSet spriteSet = ResolveBallSpriteSet();
+        if (spriteSet == null || queue == null || queue.Count == 0)
         {
             ballQueueContainer.sizeDelta = new Vector2(ballIconSize.x, 0f);
             return;
@@ -159,8 +148,12 @@ public class InGameUI : MonoBehaviour
         int index = 0;
         foreach (BallType ballType in queue)
         {
-            Image image = CreateSlotIcon(ballQueueContainer, ballIconSprite, ballIconSize, index, ballIconSpacing, anchorRight: true);
-            image.color = GetBallColor(ballType);
+            Sprite sprite = spriteSet.Get(ballType);
+            if (sprite == null)
+                continue;
+
+            Image image = CreateSlotIcon(ballQueueContainer, sprite, ballIconSize, index, ballIconSpacing, anchorRight: true);
+            image.color = Color.white;
             ballIcons.Add(image);
             index++;
         }
@@ -249,9 +242,13 @@ public class InGameUI : MonoBehaviour
             lastBallQueue.Add(ballType);
     }
 
-    private Color GetBallColor(BallType ballType)
+    private BallSpriteSet ResolveBallSpriteSet()
     {
-        return ballColors.TryGetValue(ballType, out Color color) ? color : Color.white;
+        if (ballSpriteSet != null)
+            return ballSpriteSet;
+
+        ballSpriteSet = AssetLoader.Load<BallSpriteSet>("BallSpriteSet");
+        return ballSpriteSet;
     }
 
     private void RefreshKillCount()

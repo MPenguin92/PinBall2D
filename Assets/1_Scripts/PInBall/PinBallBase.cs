@@ -10,9 +10,6 @@ using UnityEngine;
 /// </summary>
 public class PinBallBase : MonoBehaviour
 {
-    [SerializeField]
-    [Tooltip("仅作为 Inspector 调试展示；运行时初速来自 Init 入参或 BallStats.InitialSpeed。")]
-    private float initialSpeedHint = 10f;
 
     [SerializeField]
     [Tooltip("此球种类型，用于回收时归还到对应库存槽位。")]
