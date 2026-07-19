@@ -3,7 +3,7 @@ BaseDamage,1
 FrontHitMul,1
 SideHitMul,1
 BackHitMul,1
-InitialSpeed,12
+InitialSpeed,24
 MinSpeed,3
 MaxSpeed,0
 BounceAccel,0

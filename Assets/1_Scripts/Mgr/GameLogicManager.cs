@@ -12,7 +12,6 @@ public class GameLogicManager : MonoBehaviour
     [SerializeField]
     private PoolManager poolManager;
 
-    [SerializeField]
     private VfxSpawner vfxSpawner;
 
     private IUnitCreator unitCreator;
@@ -61,11 +60,7 @@ public class GameLogicManager : MonoBehaviour
     private void Awake()
     {
         Instance = this;
-
-        if (vfxSpawner == null)
-            vfxSpawner = GetComponent<VfxSpawner>();
-        if (vfxSpawner == null)
-            vfxSpawner = gameObject.AddComponent<VfxSpawner>();
+        vfxSpawner = new VfxSpawner(poolManager);
 
         // 难度表：通过 Addressables 短地址加载。
         DifficultyTable difficultyTable = AssetLoader.Load<DifficultyTable>("DifficultyTable");
@@ -126,6 +121,7 @@ public class GameLogicManager : MonoBehaviour
         {
             poolManager.ClearActivePinBalls();
             poolManager.ClearActiveUnits();
+            poolManager.ClearActiveVfx();
 
             UnitBase[] existingUnits = FindObjectsByType<UnitBase>(FindObjectsSortMode.None);
             for (int i = 0; i < existingUnits.Length; i++)
@@ -291,6 +287,7 @@ public class GameLogicManager : MonoBehaviour
         {
             poolManager.ClearActivePinBalls();
             poolManager.ClearActiveUnits();
+            poolManager.ClearActiveVfx();
         }
 
         GameEvents.RaiseGameEnd();
@@ -311,6 +308,7 @@ public class GameLogicManager : MonoBehaviour
         {
             poolManager.ClearActivePinBalls();
             poolManager.ClearActiveUnits();
+            poolManager.ClearActiveVfx();
         }
 
         GameEvents.RaiseReturnToHome();

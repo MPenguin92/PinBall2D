@@ -26,4 +26,4 @@
 ## 与项目文档的对应
 
 - 脚本路径：`Assets/1_Scripts/Border.cs`
-- 详细接口与 Gizmos 见 **doc/Design/PROJECT.md** 中「4.4 Border」。
+- 详细接口与 Gizmos 见 **doc/Design/PROJECT.md** 中「4.3 Border」。

@@ -59,7 +59,10 @@
     <Compile Include="Assets\1_Scripts\Mgr\Defines.cs" />
     <Compile Include="Assets\1_Scripts\PInBall\HeavyPinBall.cs" />
     <Compile Include="Assets\1_Scripts\Mgr\PoolManager.cs" />
+    <Compile Include="Assets\1_Scripts\Mgr\VfxSpawner.cs" />
     <Compile Include="Assets\1_Scripts\Mgr\GameEvents.cs" />
+    <Compile Include="Assets\1_Scripts\DataSO\VfxCatalog.cs" />
+    <Compile Include="Assets\1_Scripts\DataSO\BallTrailSet.cs" />
     <Compile Include="Assets\1_Scripts\DataSO\DifficultyStageData.cs" />
     <Compile Include="Assets\1_Scripts\Upgrade\UpgradeBase.cs" />
     <Compile Include="Assets\1_Scripts\Mgr\GameLogicManager.cs" />

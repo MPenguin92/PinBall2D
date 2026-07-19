@@ -1,6 +1,6 @@
 # 单位（Unit）
 
-游戏中的方块单位：会被弹球撞击扣血，也会对玩家造成伤害。基类为 `UnitBase.cs`，渲染为 `UnitRender.cs`；现有实现类 `SimpleUnit.cs`；生成由 `UnitCreator.cs`（实现 `IUnitCreator`）负责。单位的**尺寸与移动距离**由 `Mgr/Defines.cs` 统一定义。
+游戏中的方块单位：会被弹球撞击扣血，也会对玩家造成伤害。基类为 `UnitBase.cs`，渲染为 `UnitRender.cs`；`SimpleUnit.cs` 为空壳占位；生成由 `UnitCreator.cs`（实现 `IUnitCreator`）负责。尺寸与节奏常量来自 `Mgr/Defines.cs`。
 
 ---
 
@@ -8,89 +8,55 @@
 
 | 脚本 | 职责 |
 |------|------|
-| **UnitBase.cs** | 基类：生命值（`maxHp`）、攻击力（`attack`）、统一尺寸（`Defines.UnitSize`）、碰撞矩形、受击扣血、碰撞法线、订阅 `OnStep`；将受击 / 死亡 / 触底动画转发到 `UnitRender` |
-| **UnitRender.cs** | 渲染单位形象（Image / SpriteRenderer），按 HP 比例变色；实现 `ICombatAnimation` + 额外 `PlayReachBottomAnimation` 钩子 |
-| **SimpleUnit.cs** | 默认单位实现：`OnStep` 触发 0.2s 下移 1 米 + 到达后触底回调 |
+| **UnitBase.cs** | HP、Attack、Experience；统一尺寸；Step 位移 + 减速 + 堵塞；碰撞法线；动画转发 |
+| **UnitRender.cs** | HP 变色；`ICombatAnimation` + `PlayReachBottomAnimation`；减速染色 |
+| **SimpleUnit.cs** | 空壳：prefab / Addressables 地址 `"SimpleUnit"` 的脚本绑定占位 |
 | **IUnitCreator.cs** | 生成器接口（空标记，继承 `IDisposable`） |
-| **UnitCreator.cs** | 默认生成器：订阅 `OnStep` 批量生成 1..N 个 Unit（不重叠且不越界） |
+| **UnitCreator.cs** | 订阅 `OnStep` 批量生成；出生点占用检测 |
 
 ---
 
 ## 形态与属性
 
-- **形状**：**1x1 正方形**。`UnitBase.Width = Height = Defines.UnitSize`；`Init()` 会把 `transform.localScale` 强制设为 `Vector3.one * Defines.UnitSize`，保证视觉、碰撞与逻辑一致。
-- **UnitRect**：由位置 + `Defines.UnitSize` 计算，不再依赖 `transform.localScale`。
-- **生命值（HP）**：受 PinBall 撞击扣血；归零后 `RecycleUnit` 回池。
-- **攻击力（Attack）**：Unit **触底**时对 Player 造成的伤害，Inspector 可配，默认 1。
+- **形状**：1x1 正方形，`Defines.UnitSize`；`Init()` 强制 `localScale`。
+- **HP / Attack**：运行时由 `Difficulty` 当前阶段覆盖；触底对 Player 造成 `Attack` 伤害。
+- **Experience**：击杀时累加到升级系统；由 `Difficulty.GetUnitExperience()` 在 `Init` 写入。
 
 ---
 
-## 节奏与移动（SimpleUnit）
+## 节奏与移动
 
-Unit 不再连续平移，而是完全跟着 Step 心跳节奏走：
-
-- **订阅 `OnStep`**：`UnitBase` 在 `OnEnable` 订阅、`OnDisable` 取消订阅（对应出池 / 入池）。子类通过重写 `HandleStep()` 响应。
-- **一步移动**：
-  - 距离：`Defines.StepDistance`（= `Defines.UnitSize` = 1 米，方向固定为 `Vector2.down`）
-  - 时长：`Defines.StepMoveDuration`（默认 0.2s）
-  - 过渡：`Vector2.Lerp(start, target, t)`，`t = moveTimer / StepMoveDuration`
-- **推进**：由 `UnitBase.Tick()`（`SimpleUnit.Tick` 重写）每帧推进位移插值并 `RefreshRect`。
-- **触底**：到达目标位置那一帧再检查与底边 Border 是否重叠，若重叠则调用 `GameLogicManager.OnUnitReachBottom(this)`：
-  1. `unit.PlayReachBottomAnimation()`（转发到 `UnitRender` 的钩子，预留特效）
-  2. `player.TakeDamage(Attack)`
-  3. `RecycleUnit(this)` 回收入池
-  4. 如果 Player 死亡 → `EndGame()`
-- **被击毁**：被 PinBall 撞击 `TakeDamage(1)`，扣血时触发 `UnitRender.PlayHitAnimation`；若 HP 归零，先触发 `PlayDeathAnimation`，再由 `PinBallBase` 调用 `RecycleUnit`。
+- **订阅 `OnStep`**：`OnEnable` 订阅 / `OnDisable` 取消（随对象池自动管理）。
+- **HandleStep（基类）**：先处理减速累计（`slowFactor`），再检查目标格是否被其他 Unit 占用；占用则本拍跳过（堵塞/冰墙）；否则启动一次向 `MoveDirection`（默认向下）的 Lerp 位移。
+- **一步**：距离 `Defines.StepDistance`，时长 `Defines.StepMoveDuration`；`Tick` 推进插值。
+- **触底**：到达目标后检测底边 → `OnUnitReachBottom` → 触底动画 → `player.TakeDamage(Attack)` → 回收。
+- **被击毁**：`TakeDamage` → 受击/死亡动画；由 PinBall 在击杀后 `RaiseUnitKilled` 再 `RecycleUnit`。
 
 ---
 
 ## 碰撞与反射
 
-- **PinBall ↔ Unit**：PinBall 根据**当前位置与 Unit 矩形**计算碰撞面法线，做**镜面反射**，并对 Unit 扣血。
-- 反射逻辑与 Border 一致（方向反射 + 可选速度变化），仅在法线来源上不同（Border 用配置方向，Unit 用几何最近面）。
+- PinBall 用 `GetCollisionNormal` 取最近面法线做镜面反射（或穿透），并结算方向倍率伤害。
 
 ---
 
 ## 生成（UnitCreator）
 
-- **接口**：`IUnitCreator` 是空标记接口（`IDisposable`），Manager 只负责持有引用、`Dispose()`。
-- **默认实现 `UnitCreator`**：
-  - 纯 C# 类（非 MonoBehaviour），`GameLogicManager.Awake()` `new` 一次并持有，`OnDestroy` 时 `Dispose` 取消所有订阅。
-  - 构造函数订阅：`OnGameStart / OnGamePause / OnGameResume / OnGameEnd / OnReturnToHome / OnStep`。
-  - `OnGameStart` → 运行；`OnGamePause / Resume` → 切换暂停标志；`OnGameEnd / OnReturnToHome` → 停止运行。
-  - **`OnStep` 回调**：`isRunning && !isPaused` 时调用内部 `SpawnBatch()`：
-    - 以正交相机视口为准计算可用宽度 `availWidth`（左右各留 `HorizontalPadding`）；
-    - `maxCount = floor(availWidth / Defines.UnitSize)`，随机 `count ∈ [1, maxCount]`；
-    - 均分 count 个槽，每个槽内再随机 X，保证相邻 Unit 不重叠、不越界；
-    - 直接使用 `Defines.UnitSize` 作为宽度，不需要再运行时测量 prefab。
-- **常量**：`HorizontalPadding / TopOffset` 写在 `UnitCreator.cs` 内；节奏相关常量（间隔、移动时长）统一来自 `Defines`。
-
----
-
-## 战斗动画（ICombatAnimation）
-
-- `UnitRender` 实现接口，提供四个空钩子：`PlayAttackAnimation / PlayHitAnimation / PlayDeathAnimation / PlayReachBottomAnimation`。
-- `UnitBase.TakeDamage` 在扣血与归零时分别调用 `PlayHitAnimation` / `PlayDeathAnimation`；`GameLogicManager.OnUnitReachBottom` 会先调用 `PlayReachBottomAnimation`。
-- 表现层可在 `UnitRender` 子类中用 DOTween / 粒子 / 抖动等填充，无需触碰逻辑层。
+- 构造时订阅生命周期事件 + `OnStep`；`SpawnBatch` 按相机宽度与 `Difficulty.GetSpawnRange()` 决定数量。
+- 槽位随机 X，保证不重叠不越界；出生点已被占则放弃该颗（避免顶部压死）。
 
 ---
 
 ## 扩展
 
-- **新的 Unit 行为**：继承 `UnitBase` 或 `SimpleUnit`，重写 `HandleStep`（处理节奏）与 `Tick`（每帧推进）；PoolManager 支持替换 `unitPrefab` 或新开池。
-- **新的生成策略**：实现 `IUnitCreator`（例如按波次、仅在活跃 Unit < N 时生成、或监听自定义事件），在 `GameLogicManager.Awake` 里替换 `new UnitCreator()` 即可；订阅 `GameEvents` 自管生命周期。
-- **新的战斗表现**：派生 `UnitRender` 重写四个 `Play*Animation`，在补间 / 粒子 / 震屏中实现具体效果，逻辑层零改动。
-- **修改节奏/尺寸**：只改 `Mgr/Defines.cs` 中的常量，整个节奏系统（Step 间隔、移动距离、移动时长、Unit 尺寸）会整体联动。
+- 新 Unit：继承 `UnitBase`，override `MoveDirection` / `HandleStep` / `ApplyDifficulty`。
+- 新生成策略：实现 `IUnitCreator`，在 `GameLogicManager.Awake` 替换实例。
+- 调节奏/尺寸：改 `Defines` 或缺省表；主曲线改 `Difficulty.csv`。
 
 ---
 
 ## 与项目文档的对应
 
-- 脚本路径：
-  - `Assets/1_Scripts/Unit/UnitBase.cs` / `UnitRender.cs`
-  - `Assets/1_Scripts/Unit/IUnitCreator.cs` / `UnitCreator.cs`
-  - `Assets/1_Scripts/Unit/SimpleUnit.cs`
-  - `Assets/1_Scripts/Mgr/Defines.cs`
-  - `Assets/1_Scripts/ICombatAnimation.cs`
+- 脚本：`Assets/1_Scripts/Unit/`、`Mgr/Defines.cs`
 - 预制体：`Assets/2_Prefab/SimpleUnit.prefab`
-- 详细接口与池化见 **doc/Design/PROJECT.md** 中「4.11 UnitBase」「4.12 UnitRender」「4.13 IUnitCreator」「4.14 UnitCreator」「4.15 SimpleUnit」「4.19 ICombatAnimation」。
+- 详细见 **PROJECT.md**「4.11~4.15」；难度字段见 **DifficultyBalance.md**。

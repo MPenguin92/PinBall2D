@@ -8,8 +8,8 @@
 
 | 脚本 | 职责 |
 |------|------|
-| **Player.cs** | 旋转、发射、弹药容量、冷却间隔、**生命值与受伤**；调用 `PlayerRender` 实现的 `ICombatAnimation` 触发攻击/受击/死亡动画 |
-| **PlayerRender.cs** | 形象渲染 + 方向预览虚线（LineRenderer + `DashedLine.shader`） + 战斗动画（DOTween 攻击旋转） |
+| **Player.cs** | 旋转、FIFO 弹珠队列、发射冷却、生命值；按 `BallType` Addressables 地址生成球 |
+| **PlayerRender.cs** | 方向预览虚线（LineRenderer + DashedLine）+ `ICombatAnimation`（DOTween 攻击旋转） |
 
 ---
 
@@ -17,51 +17,35 @@
 
 ### 移动与旋转
 
-- **不移动**：Player 位置固定，不能平移。
-- **旋转**：通过 **A / D** 键左右旋转。
-- **正方向**：正 Y 轴为朝向正前方（0° 时朝上）。
-- **旋转限制**：左右旋转均不超过 **80°**（即总范围 ±80°）。
+- **不移动**：Player 本体位置固定。
+- **旋转**：A / D 旋转瞄准；正 Y 为前方；限制 ±`maxAngle`（默认 80°）。
+- **炮口**：可选 `muzzle` Transform，旋转与发射以此为准，本体可不转。
 
 ### 发射弹球
 
-- **按键**：按 **F** 从 Player 位置、沿当前朝向发射 PinBall。
-- **容量**：Player 维护一个全局 FIFO 弹珠队列，开局入队 `initialBallCount`（默认 5）个普通球；每次发射 = 队首出队。
-- **间隔**：两次发射之间有冷却时间（`BallStats.FireInterval`），避免连发。
-- **补充**：弹球触底回收后，由 `GameLogicManager.RecyclePinBall` 根据 `pb.BallType` 调 `player.AddPinBall(type)` 入**队尾**；队列为空时无法发射，直到有球归队。后回的球会插到队首先发出去（"插队"）。
-- **升级扩容**：`AddBalls(BallType, count)` 由升级系统调用，把 N 颗指定类型球追加到队尾，容量同步 +N。
+- **按键**：F 发射；冷却读 `BallStats.FireInterval`。
+- **队列**：全局 FIFO `Queue<BallType>`；开局入队 `initialBallCount` 个 `Base`；发射 = 队首出队。
+- **补充**：球触底回收 → `AddPinBall(type)` 入队尾（不改 `totalBalls`）。
+- **升级扩容**：`AddBalls(type, count)` 入队尾并增加容量；非 Base 记入 `UnlockedSpecials`。
+- **地址表**：实例字典 `ballAddress`（BaseBall / FireBall / …），经 PoolManager + Addressables 出池。
 
 ### 生命值与受伤
 
-- **属性**：`maxHp`（Inspector 可配，默认 5）、`currentHp`、`IsDead`；同时对外暴露 `MaxHp / CurrentHp`、`BallQueue / TotalBalls / BallsInFlight` 供 `InGameUI` 取值刷新 HUD（HUD 直接遍历 `BallQueue` 渲染队首→队尾每颗球）。
-- **初始化**：`Init()` 时 `currentHp = maxHp`（开始/重开游戏时触发）。
-- **受伤来源**：Unit 触底 → `GameLogicManager.OnUnitReachBottom(unit)` → `player.TakeDamage(unit.Attack)`。
-- **动画联动**：`TakeDamage` 扣血时调用 `playerRender.PlayHitAnimation()`；归零时再调用 `PlayDeathAnimation()`（默认空实现，预留补间/特效）。
-- **死亡判定**：`TakeDamage` 返回 `IsDead`；死亡时 `GameLogicManager.EndGame()` 会被触发，游戏进入 `Ended`、弹出 GameOver UI。
+- `maxHp` / `currentHp` / `IsDead`；`Init` 重置。
+- Unit 触底 → `TakeDamage(unit.Attack)` → 受击/死亡动画；死亡则 `EndGame()`。
+- HUD：`InGameUI` 读 HP 与 `BallQueue`（纵向心形 + 纵向球图标）。
 
 ---
 
 ## 渲染（PlayerRender）
 
-- **形象**：渲染 Player 外观（当前可用 Image 或 SpriteRenderer）。
-- **方向预览线**：使用 **LineRenderer** 从 Player 位置沿当前方向画一条直线：
-  - **起点偏移**：`lineForwardOffset` 让起点沿发射方向前移一段，避免线段插到 Player 内侧。
-  - **长度**：由 `maxLineLength` 控制最大长度，`maxBounces` 控制最大反射次数。
-  - **碰到 Unit**：线在该处停止，不再向前延伸。
-  - **碰到 Border**：按入射角做**镜面反射**，沿新方向继续画线。
-  - **碰到底边 Border**：与 Unit 一致，停止。
-  - **材质**：使用 `7_Res/dashed_line.mat`（Shader：`3_Shader/DashedLine.shader`）实现滚动虚线效果。
-- **统一调度**：`PlayerRender.Tick()` 由 `Player.Tick()` 内部调用（`GameLogicManager` 不再持有 PlayerRender 引用）。
-
-### 战斗动画（实现 `ICombatAnimation`）
-
-- **PlayAttackAnimation**：发射成功时触发，使用 DOTween 在 `player.FireInterval` 秒内做绕 Z 轴的 360° 旋转（`RotateMode.FastBeyond360 + Ease.Linear`），起手时 `Kill()` 上一段补间，结束自动归零。
-- **PlayHitAnimation / PlayDeathAnimation**：默认空实现，预留扩展（震屏 / 闪红 / 粒子等）。
-- DOTween 插件位于 `Assets/Plugins/DOTween/`，无需场景额外初始化。
+- 预览线：遇 Border 反射、遇 Unit 或底边停止；材质 `dashed_line.mat`。
+- `PlayAttackAnimation`：DOTween 在 `FireInterval` 内 360° 旋转；受击/死亡预留空实现。
 
 ---
 
 ## 与项目文档的对应
 
-- 脚本路径：`Assets/1_Scripts/Player.cs`、`Assets/1_Scripts/PlayerRender.cs`、`Assets/1_Scripts/ICombatAnimation.cs`
-- 资源：瞄准虚线 `Assets/3_Shader/DashedLine.shader` + `Assets/7_Res/dashed_line.mat`；DOTween 插件 `Assets/Plugins/DOTween/`
-- 详细接口与配置见 **doc/Design/PROJECT.md** 中「4.9 Player」「4.10 PlayerRender」「4.19 ICombatAnimation」。
+- 脚本：`Assets/1_Scripts/Player.cs`、`PlayerRender.cs`、`ICombatAnimation.cs`
+- 资源：`3_Shader/DashedLine.shader`、`7_Res/dashed_line.mat`、DOTween
+- 详细见 **PROJECT.md**「4.9 / 4.10」；队列与升级见 **Upgrade.md**。

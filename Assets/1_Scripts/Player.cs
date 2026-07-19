@@ -206,7 +206,7 @@ public class Player : MonoBehaviour
         BallType chosen = ballQueue.Dequeue();
 
         BallStats stats = GetStats();
-        float speed = stats != null ? stats.Get(BallStatType.InitialSpeed) : 12f;
+        float speed = stats != null ? stats.Get(BallStatType.InitialSpeed) : 24f;
         string address = ResolveAddress(chosen);
 
         GameLogicManager.Instance.SpawnPinBall(address, FirePosition, Direction, speed);

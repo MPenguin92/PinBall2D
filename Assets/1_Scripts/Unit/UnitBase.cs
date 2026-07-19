@@ -292,6 +292,6 @@ public class UnitBase : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.white;
-        Gizmos.DrawCube(transform.position, new Vector3(Width, Height, 0f));
+        Gizmos.DrawWireCube(transform.position, new Vector3(Width, Height, 0f));
     }
 }

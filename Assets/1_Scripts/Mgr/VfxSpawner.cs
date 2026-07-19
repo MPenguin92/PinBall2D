@@ -1,26 +1,22 @@
 using UnityEngine;
 
 /// <summary>
-/// 运行时通过 Addressables 动态加载 VFX Prefab 并实例化。
+/// 按 BallType 查 <see cref="VfxCatalog"/> 地址，再通过 <see cref="PoolManager"/> 出池播放。
 /// </summary>
-public class VfxSpawner : MonoBehaviour
+public class VfxSpawner
 {
-    [SerializeField]
-    private Transform vfxRoot;
+    private readonly PoolManager poolManager;
+    private readonly VfxCatalog catalog;
 
-    private VfxCatalog catalog;
-
-    private void Awake()
+    public VfxSpawner(PoolManager poolManager)
     {
-        if (vfxRoot == null)
-            vfxRoot = transform;
-
+        this.poolManager = poolManager;
         catalog = AssetLoader.Load<VfxCatalog>("VfxCatalog");
     }
 
     public void PlayBallHit(BallType type, Vector2 position, bool killed)
     {
-        if (catalog == null)
+        if (catalog == null || poolManager == null)
             return;
 
         string address = killed ? catalog.GetKillAddress(type) : null;
@@ -30,19 +26,6 @@ public class VfxSpawner : MonoBehaviour
         if (string.IsNullOrEmpty(address))
             return;
 
-        Spawn(address, position);
-    }
-
-    private void Spawn(string address, Vector2 position)
-    {
-        GameObject prefab = AssetLoader.Load<GameObject>(address);
-        if (prefab == null)
-            return;
-
-        Instantiate(
-            prefab,
-            new Vector3(position.x, position.y, 0f),
-            Quaternion.identity,
-            vfxRoot);
+        poolManager.SpawnVfx(address, position);
     }
 }

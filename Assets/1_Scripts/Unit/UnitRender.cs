@@ -86,6 +86,10 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
     {
     }
 
+    /// <summary>
+    /// 受击反馈：不加载外部 VFX，直接在自身 SpriteRenderer 上闪白 + PunchScale。
+    /// 由 <see cref="UnitBase.TakeDamage"/> 调用。
+    /// </summary>
     public virtual void PlayHitAnimation()
     {
         if (spriteRenderer == null) return;
@@ -101,6 +105,9 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
             .OnComplete(() => isPlayingHitAnimation = false);
     }
 
+    /// <summary>
+    /// 死亡反馈：在原地临时生成冲击波（及可选碎片），播完后销毁。
+    /// </summary>
     public virtual void PlayDeathAnimation()
     {
         SpawnDeathEffect();
@@ -126,6 +133,9 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
             spriteRenderer.color = originalColor;
     }
 
+    /// <summary>
+    /// 死亡特效根节点：当前只播冲击波；碎片生成已预留但默认注释掉。
+    /// </summary>
     private void SpawnDeathEffect()
     {
         if (spriteRenderer == null || spriteRenderer.sprite == null)
@@ -135,11 +145,14 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         root.transform.position = transform.position;
 
         SpawnDeathShockwave(root.transform);
-        SpawnDeathShards(root.transform);
+        //SpawnDeathShards(root.transform);
 
         Destroy(root, deathEffectDuration + 0.1f);
     }
 
+    /// <summary>
+    /// 死亡冲击波：复制自身 sprite，放大并淡出。
+    /// </summary>
     private void SpawnDeathShockwave(Transform root)
     {
         SpriteRenderer shockwave = CreateEffectSprite("Shockwave", root);
@@ -156,6 +169,10 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
             .SetEase(Ease.OutQuad);
     }
 
+    /// <summary>
+    /// 生成死亡碎片效果。
+    /// </summary>
+    /// <param name="root">效果根节点。</param>
     private void SpawnDeathShards(Transform root)
     {
         int count = Mathf.Max(0, deathShardCount);

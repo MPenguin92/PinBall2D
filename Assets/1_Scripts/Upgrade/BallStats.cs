@@ -35,7 +35,7 @@ public class BallStats
         SetBaseDefault(BallStatType.FrontHitMul, 1f);
         SetBaseDefault(BallStatType.SideHitMul, 1f);
         SetBaseDefault(BallStatType.BackHitMul, 1f);
-        SetBaseDefault(BallStatType.InitialSpeed, 12f);
+        SetBaseDefault(BallStatType.InitialSpeed, 24f);
         SetBaseDefault(BallStatType.MinSpeed, 3f);
         SetBaseDefault(BallStatType.MaxSpeed, 0f);
         SetBaseDefault(BallStatType.BounceAccel, 0f);

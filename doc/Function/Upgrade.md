@@ -46,7 +46,7 @@ PinBall2D 的局内 Roguelike 增强机制：以「累计经验值达到里程�
 | 路径 | 职责 |
 |------|------|
 | `Assets/1_Scripts/UI/UpgradeSelectionUI.cs` | 三选一面板：监听 `OnUpgradeOffered/OnUpgradeApplied` 显隐 |
-| `Assets/1_Scripts/UI/InGameUI.cs` | HUD 多 BallType 库存显示 + 击杀计数与下次里程碑 |
+| `Assets/1_Scripts/UI/InGameUI.cs` | HUD：纵向心形血条 + 纵向弹珠图标队列（`BallSpriteSet`）+ 顶部经验 `cur/next` |
 
 ### 配表
 
@@ -183,7 +183,7 @@ experienceThreshold, weightCommon, weightUncommon, weightRare, weightLegendary
 - **特殊球解锁**：默认 0；任何 `AddBalls(BallType.NotBase, N)` 调用都会同时把该类型加入 `unlockedSpecials` 集合，并在队尾追加 N 颗。
 - **发射**：F 键 → `ballQueue.Dequeue()` → `SpawnPinBall(BallAddress[type], ...)`；初速从 `BallStats.InitialSpeed`、冷却从 `BallStats.FireInterval` 读取。**没有优先级——队首是什么发什么**。
 - **回收**：`PoolManager.RecyclePinBall` 调到 `GameLogicManager.RecyclePinBall`，根据 `pb.BallType` 调 `player.AddPinBall(type)` 入队尾，**不改变 totalBalls**。
-- **HUD**：`InGameUI` 直接遍历 `Player.BallQueue` 按队首→队尾渲染单字符 + TMP 颜色 tag，末尾追加 `(BallsInFlight/TotalBalls)` 汇总。
+- **HUD**：`InGameUI` 用 `BallSpriteSet` 纵向排列队列图标，顶部显示经验 `cur/next` 里程碑。
 
 ### 4.2 派生球扩展点
 

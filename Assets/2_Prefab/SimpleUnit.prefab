@@ -47,6 +47,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHp: 3
   attack: 1
+  experience: 1
   unitRender: {fileID: 5379864550550024781}
 --- !u!1 &9106005839841461887
 GameObject:
@@ -76,7 +77,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.6, y: 0.6, z: 0.6}
+  m_LocalScale: {x: 0.186342, y: 0.186342, z: 0.186342}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 3686580958563720376}
@@ -122,7 +123,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: bc62e1453f4803f4f9f283ef0bd0d467, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 2838fe7c98f3e82429db42297d1640a4, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -150,6 +151,7 @@ MonoBehaviour:
   hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
   hitFlashDuration: 0.12
   hitPunchScale: 0.16
+  slowTintColor: {r: 0.55, g: 0.85, b: 1, a: 1}
   deathEffectDuration: 0.35
   deathShardCount: 8
   deathShardDistance: 0.8

@@ -46,7 +46,7 @@ public class Difficulty
     public int GetUnitHp()
     {
         DifficultyStageData s = CurrentStage;
-        return s != null && s.unitHp > 0 ? s.unitHp : 1;
+        return s != null && s.unitHp > 0 ? s.unitHp : 3;
     }
 
     /// <summary>当前阶段 Unit 的 attack；无表时返回 1。</summary>
