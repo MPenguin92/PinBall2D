@@ -24,19 +24,6 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
     [Tooltip("被减速 buff 命中时整体染色到这个色;buff 结束后恢复原色。")]
     private Color slowTintColor = new Color(0.55f, 0.85f, 1f, 1f);
 
-    [Header("Death")]
-    [SerializeField]
-    private float deathEffectDuration = 0.35f;
-
-    [SerializeField]
-    private int deathShardCount = 8;
-
-    [SerializeField]
-    private float deathShardDistance = 0.8f;
-
-    [SerializeField]
-    private float deathShardScale = 0.18f;
-
     private Color originalColor;
     private Vector3 originalScale;
     private Sequence hitSequence;
@@ -87,10 +74,46 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
     }
 
     /// <summary>
-    /// 受击反馈：不加载外部 VFX，直接在自身 SpriteRenderer 上闪白 + PunchScale。
-    /// 由 <see cref="UnitBase.TakeDamage"/> 调用。
+    /// ICombatAnimation 入口；无球种信息时按 Base 播受击。
     /// </summary>
     public virtual void PlayHitAnimation()
+    {
+        PlayHitAnimation(BallType.Base);
+    }
+
+    /// <summary>
+    /// 受击反馈：本体闪白 + PunchScale，并按球种播 Hit VFX。
+    /// 由 <see cref="UnitBase.TakeDamage"/> 在未击杀时调用。
+    /// </summary>
+    public virtual void PlayHitAnimation(BallType sourceType)
+    {
+        PlayHitFlash();
+        PlayHitVfx(sourceType);
+    }
+
+    /// <summary>
+    /// ICombatAnimation 入口；无球种信息时按 Base 播死亡。
+    /// </summary>
+    public virtual void PlayDeathAnimation()
+    {
+        PlayDeathAnimation(BallType.Base);
+    }
+
+    /// <summary>
+    /// 死亡反馈：闪白 + 按球种播 Kill VFX（无 Kill 地址时回退 Hit）。
+    /// 由 <see cref="UnitBase.TakeDamage"/> 在击杀时调用。
+    /// </summary>
+    public virtual void PlayDeathAnimation(BallType sourceType)
+    {
+        PlayHitFlash();
+        PlayKillVfx(sourceType);
+    }
+
+    public virtual void PlayReachBottomAnimation()
+    {
+    }
+
+    private void PlayHitFlash()
     {
         if (spriteRenderer == null) return;
 
@@ -98,23 +121,26 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         transform.localScale = originalScale;
         isPlayingHitAnimation = true;
 
+        Color restoreColor = isSlowedVisual ? slowTintColor : originalColor;
         hitSequence = DOTween.Sequence()
             .AppendCallback(() => spriteRenderer.color = hitFlashColor)
             .Join(transform.DOPunchScale(Vector3.one * hitPunchScale, hitFlashDuration, 8, 0.6f))
-            .Append(spriteRenderer.DOColor(spriteRenderer.color, hitFlashDuration))
+            .Append(spriteRenderer.DOColor(restoreColor, hitFlashDuration))
             .OnComplete(() => isPlayingHitAnimation = false);
     }
 
-    /// <summary>
-    /// 死亡反馈：在原地临时生成冲击波（及可选碎片），播完后销毁。
-    /// </summary>
-    public virtual void PlayDeathAnimation()
+    private void PlayHitVfx(BallType sourceType)
     {
-        SpawnDeathEffect();
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr == null || mgr.VfxSpawner == null) return;
+        mgr.VfxSpawner.PlayHit(sourceType, transform.position);
     }
 
-    public virtual void PlayReachBottomAnimation()
+    private void PlayKillVfx(BallType sourceType)
     {
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr == null || mgr.VfxSpawner == null) return;
+        mgr.VfxSpawner.PlayKill(sourceType, transform.position);
     }
 
     private Color GetHpColor()
@@ -131,84 +157,5 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
 
         if (spriteRenderer != null)
             spriteRenderer.color = originalColor;
-    }
-
-    /// <summary>
-    /// 死亡特效根节点：当前只播冲击波；碎片生成已预留但默认注释掉。
-    /// </summary>
-    private void SpawnDeathEffect()
-    {
-        if (spriteRenderer == null || spriteRenderer.sprite == null)
-            return;
-
-        GameObject root = new GameObject("UnitDeathEffect");
-        root.transform.position = transform.position;
-
-        SpawnDeathShockwave(root.transform);
-        //SpawnDeathShards(root.transform);
-
-        Destroy(root, deathEffectDuration + 0.1f);
-    }
-
-    /// <summary>
-    /// 死亡冲击波：复制自身 sprite，放大并淡出。
-    /// </summary>
-    private void SpawnDeathShockwave(Transform root)
-    {
-        SpriteRenderer shockwave = CreateEffectSprite("Shockwave", root);
-        shockwave.transform.localScale = transform.lossyScale;
-        shockwave.sortingLayerID = spriteRenderer.sortingLayerID;
-        shockwave.sortingOrder = spriteRenderer.sortingOrder + 1;
-        shockwave.color = originalColor;
-
-        shockwave.transform
-            .DOScale(transform.lossyScale * 1.6f, deathEffectDuration)
-            .SetEase(Ease.OutQuad);
-        shockwave
-            .DOFade(0f, deathEffectDuration)
-            .SetEase(Ease.OutQuad);
-    }
-
-    /// <summary>
-    /// 生成死亡碎片效果。
-    /// </summary>
-    /// <param name="root">效果根节点。</param>
-    private void SpawnDeathShards(Transform root)
-    {
-        int count = Mathf.Max(0, deathShardCount);
-        for (int i = 0; i < count; i++)
-        {
-            float angle = Mathf.PI * 2f * i / count;
-            Vector3 direction = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f);
-
-            SpriteRenderer shard = CreateEffectSprite($"Shard_{i + 1}", root);
-            shard.transform.localScale = transform.lossyScale * deathShardScale;
-            shard.sortingLayerID = spriteRenderer.sortingLayerID;
-            shard.sortingOrder = spriteRenderer.sortingOrder + 2;
-            shard.color = originalColor;
-
-            Vector3 targetPosition = shard.transform.position + direction * deathShardDistance;
-            shard.transform
-                .DOMove(targetPosition, deathEffectDuration)
-                .SetEase(Ease.OutCubic);
-            shard.transform
-                .DORotate(new Vector3(0f, 0f, Random.Range(-240f, 240f)), deathEffectDuration, RotateMode.FastBeyond360)
-                .SetEase(Ease.OutCubic);
-            shard
-                .DOFade(0f, deathEffectDuration)
-                .SetEase(Ease.InQuad);
-        }
-    }
-
-    private SpriteRenderer CreateEffectSprite(string objectName, Transform root)
-    {
-        GameObject effectObject = new GameObject(objectName);
-        effectObject.transform.SetParent(root, false);
-        effectObject.transform.position = transform.position;
-
-        SpriteRenderer effectRenderer = effectObject.AddComponent<SpriteRenderer>();
-        effectRenderer.sprite = spriteRenderer.sprite;
-        effectRenderer.material = spriteRenderer.sharedMaterial;
-        return effectRenderer;
     }
 }

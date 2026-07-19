@@ -86,14 +86,10 @@ public class PinBallBase : MonoBehaviour
                 HitDirection dir = ResolveHitDirection(hitNormal, unit.MoveDirection);
 
                 int dmg = ComputeDamage(stats, dir);
-                bool destroyed = unit.TakeDamage(dmg);
+                bool destroyed = unit.TakeDamage(dmg, BallType);
 
                 // 子类钩子：可在击杀/未击杀分支前注入额外效果。
                 OnHitUnit(unit, nextPos, hitNormal, dir, destroyed);
-
-                GameLogicManager mgr = GameLogicManager.Instance;
-                if (mgr != null && mgr.VfxSpawner != null)
-                    mgr.VfxSpawner.PlayBallHit(BallType, nextPos, destroyed);
 
                 if (destroyed)
                 {

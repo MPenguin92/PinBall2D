@@ -35,7 +35,7 @@ public class FirePinBall : PinBallBase
             Vector2 d = (Vector2)other.transform.position - hitPos;
             if (d.sqrMagnitude > r2) continue;
 
-            bool destroyedByAoe = other.TakeDamage(dmg);
+            bool destroyedByAoe = other.TakeDamage(dmg, BallType.Fire);
             if (destroyedByAoe)
             {
                 GameEvents.RaiseUnitKilled(other);

@@ -20,7 +20,7 @@ public class HeavyPinBall : PinBallBase
         int bonus = Mathf.Max(0, Mathf.RoundToInt(sp.Get(BallType.Heavy, "heavyBonusDamage")));
         if (bonus > 0 && unit != null && !destroyed)
         {
-            bool killedByBonus = unit.TakeDamage(bonus);
+            bool killedByBonus = unit.TakeDamage(bonus, BallType.Heavy);
             if (killedByBonus)
             {
                 GameEvents.RaiseUnitKilled(unit);

@@ -133,20 +133,24 @@ public class UnitBase : MonoBehaviour
             unitRender.SetSlowVisual(IsSlowed);
     }
 
-    public bool TakeDamage(int damage)
+    /// <summary>
+    /// 扣血并驱动 UnitRender 受击/死亡表现（含 VFX）。
+    /// </summary>
+    /// <param name="damage">伤害值。</param>
+    /// <param name="sourceType">造成伤害的球种，用于查 VfxCatalog。</param>
+    public bool TakeDamage(int damage, BallType sourceType = BallType.Base)
     {
         if (damage <= 0 || currentHp <= 0)
             return currentHp <= 0;
 
         currentHp = Mathf.Max(0, currentHp - damage);
-        if (unitRender != null)
-            unitRender.PlayHitAnimation();
+        if (unitRender == null)
+            return currentHp <= 0;
 
         if (currentHp <= 0)
-        {
-            if (unitRender != null)
-                unitRender.PlayDeathAnimation();
-        }
+            unitRender.PlayDeathAnimation(sourceType);
+        else
+            unitRender.PlayHitAnimation(sourceType);
 
         return currentHp <= 0;
     }

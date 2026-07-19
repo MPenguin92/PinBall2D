@@ -47,7 +47,7 @@ public class LightningPinBall : PinBallBase
             if (next == null) break;
 
             visited.Add(next);
-            bool destroyedByChain = next.TakeDamage(dmg);
+            bool destroyedByChain = next.TakeDamage(dmg, BallType.Lightning);
             if (destroyedByChain)
             {
                 GameEvents.RaiseUnitKilled(next);

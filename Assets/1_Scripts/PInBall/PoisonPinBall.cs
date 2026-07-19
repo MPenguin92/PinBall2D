@@ -40,7 +40,7 @@ public class PoisonPinBall : PinBallBase
 
             if (unit == null || !unit.gameObject.activeSelf) yield break;
 
-            bool destroyed = unit.TakeDamage(dps);
+            bool destroyed = unit.TakeDamage(dps, BallType.Poison);
             if (destroyed)
             {
                 GameEvents.RaiseUnitKilled(unit);

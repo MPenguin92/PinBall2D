@@ -1087,7 +1087,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: be061581563f5433c902161794735016, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1401,12 +1401,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   pinBallPoolRoot: {fileID: 59786219}
   unitPoolRoot: {fileID: 1596499690}
+  vfxPoolRoot: {fileID: 0}
   pinBallSpawnRoot: {fileID: 423378737}
   unitSpawnRoot: {fileID: 1732573472}
+  vfxSpawnRoot: {fileID: 0}
   pinBallPoolDefaultCapacity: 20
   pinBallPoolMaxSize: 50
   unitPoolDefaultCapacity: 20
   unitPoolMaxSize: 100
+  vfxPoolDefaultCapacity: 16
+  vfxPoolMaxSize: 64
+  vfxFallbackLifetime: 2
 --- !u!4 &2061181184
 Transform:
   m_ObjectHideFlags: 0
