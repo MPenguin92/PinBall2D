@@ -2,11 +2,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Roguelike 升级服务：唯一触发是「累计经验达到里程碑」。
-/// 流程：监听 <see cref="GameEvents.OnUnitKilled"/> -> 把 unit.Experience 加进累计 -> 阈值 ->
-///       按权重抽品质 -> 在该品质池中无放回抽 3 张 ->
-///       <see cref="GameEvents.RaiseUpgradeOffered"/>（UI 显示） ->
-///       玩家点选 <see cref="ApplySelected"/> -> Apply + Resume。
+/// Roguelike 升级服务：击杀累积经验，达到里程碑时**只记账不弹窗**（获得一次可升级次数），
+/// 玩家点 HUD 宝箱按钮后经 <see cref="TryBeginOffer"/> 才进入抽卡。
+/// 流程：监听 <see cref="GameEvents.OnUnitKilled"/> -> 把 unit.Experience 加进累计 -> 跨阈值 -> 
+///       pendingMilestones 入队 + <see cref="GameEvents.OnKillMilestoneReached"/>（HUD 刷新宝箱角标） ->
+///       玩家点宝箱 <see cref="TryBeginOffer"/> -> 按权重抽品质 -> 在该品质池中无放回抽 3 张 ->
+///       <see cref="GameEvents.RaiseUpgradeOffered"/>（UI 显示） -> 玩家点选 <see cref="ApplySelected"/>。
+/// 选完一张后若仍有剩余次数，不关闭面板，重新抽 3 张替换继续选；全部用完才收尾恢复 Running。
 /// 由 <see cref="GameLogicManager"/> 在 Awake 创建并持有，StartGame 时 Reset。
 /// </summary>
 public class UpgradeService
@@ -16,6 +18,7 @@ public class UpgradeService
     private readonly UpgradeContext context;
 
     private readonly List<UpgradeBase> currentOffer = new List<UpgradeBase>(3);
+    private readonly Queue<int> pendingMilestones = new Queue<int>();
     private int experienceAccumulated;
     private int nextMilestoneIdx;
     private bool isOffering;
@@ -25,6 +28,9 @@ public class UpgradeService
     public int NextMilestoneIdx => nextMilestoneIdx;
 
     public bool IsOffering => isOffering;
+
+    /// <summary>当前累积、尚未消费的升级次数（HUD 宝箱角标读取）。</summary>
+    public int PendingUpgradeCount => pendingMilestones.Count;
 
     public IReadOnlyList<UpgradeBase> CurrentOffer => currentOffer;
 
@@ -55,13 +61,14 @@ public class UpgradeService
         GameEvents.OnUnitKilled -= HandleUnitKilled;
     }
 
-    /// <summary>StartGame 时调用：清零累计经验、里程碑索引、堆叠状态与候选。</summary>
+    /// <summary>StartGame 时调用：清零累计经验、里程碑索引、待消费次数、堆叠状态与候选。</summary>
     public void Reset()
     {
         experienceAccumulated = 0;
         nextMilestoneIdx = 0;
         isOffering = false;
         currentOffer.Clear();
+        pendingMilestones.Clear();
 
         if (catalog != null)
         {
@@ -73,7 +80,19 @@ public class UpgradeService
         }
     }
 
-    /// <summary>玩家点击三选一面板上的某张卡：应用并恢复 Running。</summary>
+    /// <summary>
+    /// 玩家点击 HUD 宝箱：进入抽卡（当前这一组的次数暂不消费，选完才扣）。
+    /// 成功抽到候选后返回 true；抽卡失败（池空等）返回 false，次数仍保留。
+    /// </summary>
+    public bool TryBeginOffer()
+    {
+        if (isOffering) return false;
+        if (pendingMilestones.Count == 0) return false;
+
+        return RollAndOffer(pendingMilestones.Peek());
+    }
+
+    /// <summary>玩家点击三选一面板上的某张卡：消费本次次数并应用升级；若还有剩余次数则重抽下一组继续选，否则收尾恢复 Running。</summary>
     public void ApplySelected(UpgradeBase chosen)
     {
         if (!isOffering || chosen == null) return;
@@ -82,8 +101,18 @@ public class UpgradeService
         chosen.Apply(context);
         chosen.IncrementStack();
 
+        // 消费当前这一组的升级次数。
+        pendingMilestones.Dequeue();
+
         currentOffer.Clear();
         isOffering = false;
+
+        // 还有剩余升级次数：不关闭面板，直接抽下一组候选替换内容。
+        if (pendingMilestones.Count > 0)
+        {
+            if (RollAndOffer(pendingMilestones.Peek()))
+                return;
+        }
 
         GameEvents.RaiseUpgradeApplied(chosen);
 
@@ -101,35 +130,39 @@ public class UpgradeService
 
         if (milestoneTable == null || milestoneTable.Count == 0) return;
 
-        int threshold = milestoneTable.GetThresholdAt(nextMilestoneIdx);
-        if (threshold <= 0)
+        // 一次击杀可能跨多个里程碑：全部入队记账，弹窗时机交给玩家（宝箱按钮）。
+        while (nextMilestoneIdx < milestoneTable.Count)
         {
-            Debug.LogError($"[UpgradeService] Milestone {nextMilestoneIdx} has invalid experienceThreshold={threshold}. " +
-                           "Re-import KillMilestones.csv via Tools/Data/Import All.");
+            int threshold = milestoneTable.GetThresholdAt(nextMilestoneIdx);
+            if (threshold <= 0)
+            {
+                Debug.LogError($"[UpgradeService] Milestone {nextMilestoneIdx} has invalid experienceThreshold={threshold}. " +
+                               "Re-import KillMilestones.csv via Tools/Data/Import All.");
+                nextMilestoneIdx++;
+                continue;
+            }
+            if (experienceAccumulated < threshold) break;
+
+            int reachedIdx = nextMilestoneIdx;
             nextMilestoneIdx++;
-            return;
+            pendingMilestones.Enqueue(reachedIdx);
+            GameEvents.RaiseKillMilestoneReached(reachedIdx);
         }
-        if (experienceAccumulated < threshold) return;
-
-        int reachedIdx = nextMilestoneIdx;
-        nextMilestoneIdx++;
-        GameEvents.RaiseKillMilestoneReached(reachedIdx);
-
-        RollAndOffer(reachedIdx);
     }
 
-    private void RollAndOffer(int milestoneIdx)
+    /// <summary>按指定里程碑权重抽卡并推送 UI；无候选返回 false。</summary>
+    private bool RollAndOffer(int milestoneIdx)
     {
-        if (catalog == null || catalog.Count == 0) return;
+        if (catalog == null || catalog.Count == 0) return false;
 
         KillMilestoneData weights = milestoneTable.GetWeightsAt(milestoneIdx);
-        if (weights == null) return;
+        if (weights == null) return false;
 
         UpgradeRarity rolledRarity = RollRarity(weights);
 
         // 按品质从高到低依次降级保底，直到凑够 3 张或全部品质为空。
         List<UpgradeBase> picked = PickThree(rolledRarity);
-        if (picked.Count == 0) return;
+        if (picked.Count == 0) return false;
 
         currentOffer.Clear();
         currentOffer.AddRange(picked);
@@ -137,15 +170,15 @@ public class UpgradeService
 
         GameEvents.RaiseUpgradeOffered(currentOffer);
 
-        // UI 在 HandleOffered 里暂停；若无订阅方则自动选第一项，避免卡死在 SelectingUpgrade。
-        if (!isOffering) return;
-
-        if (!GameEvents.HasUpgradeOfferedListeners)
+        // 无订阅方时自动选第一项，避免卡死在 SelectingUpgrade。
+        if (isOffering && !GameEvents.HasUpgradeOfferedListeners)
         {
             Debug.LogWarning("[UpgradeService] OnUpgradeOffered has no listeners (UpgradeSelectionUI missing in scene). " +
                              "Auto-selecting first upgrade.");
             ApplySelected(currentOffer[0]);
         }
+
+        return true;
     }
 
     private static UpgradeRarity RollRarity(KillMilestoneData w)

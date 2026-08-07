@@ -17,7 +17,7 @@ PinBall2D 的局内 Roguelike 增强机制：以「累计经验值达到里程�
 | `Assets/1_Scripts/Upgrade/SpecialBallParams.cs` | 各 BallType 的全局参数字典（火球爆炸半径、冰球减速等） |
 | `Assets/1_Scripts/Upgrade/UpgradeRarity.cs` | 品质枚举：Common/Uncommon/Rare/Legendary |
 | `Assets/1_Scripts/Upgrade/UpgradeBase.cs` | 升级 SO 抽象基类 + `UpgradeContext` 应用上下文 |
-| `Assets/1_Scripts/Upgrade/UpgradeService.cs` | 监听 `OnUnitKilled` → 累加 `unit.Experience` → 阈值检测 → 抽池 → 暂停 → Apply → 恢复 |
+| `Assets/1_Scripts/Upgrade/UpgradeService.cs` | 监听 `OnUnitKilled` → 累加经验 → 跨里程碑时**只记账**（升级次数 +1）→ 点宝箱后抽池 → 连选 → 次数用完恢复 |
 
 ### 数据 SO
 
@@ -45,8 +45,8 @@ PinBall2D 的局内 Roguelike 增强机制：以「累计经验值达到里程�
 
 | 路径 | 职责 |
 |------|------|
-| `Assets/1_Scripts/UI/UpgradeSelectionUI.cs` | 三选一面板：监听 `OnUpgradeOffered/OnUpgradeApplied` 显隐 |
-| `Assets/1_Scripts/UI/InGameUI.cs` | HUD：纵向心形血条 + 纵向弹珠图标队列（`BallSpriteSet`）+ 顶部经验 `cur/next` |
+| `Assets/1_Scripts/UI/UpgradeSelectionUI.cs` | 三选一面板：监听 `OnUpgradeOffered/OnUpgradeApplied` 显隐；底部宝箱角标显示剩余升级次数 | 
+| `Assets/1_Scripts/UI/InGameUI.cs` | HUD：纵向心形血条 + 纵向弹珠图标队列（`BallSpriteSet`）+ 顶部经验 `cur/next` + 右侧升级宝箱按钮（剩余次数角标） |
 
 ### 配表
 
@@ -70,11 +70,14 @@ flowchart LR
     Dmg --> Take[unit.TakeDamage]
     Take -->|destroyed| Kill[GameEvents.RaiseUnitKilled unit]
     Kill --> Svc[UpgradeService.OnKill +unit.Experience]
-    Svc -->|experienceAccumulated>=threshold| Roll[按权重抽品质 + 抽 3 张同品质]
-    Roll --> Pause[GameState=SelectingUpgrade]
-    Pause --> UI[UpgradeSelectionUI]
-    UI -->|玩家点选| Apply[BallStats / Player.AddBalls / SpecialBallParams]
-    Apply --> Resume[GameState=Running]
+    Svc -->|跨里程碑| Bank[pendingMilestones 入队 + RaiseKillMilestoneReached]
+    Bank --> HUD[InGameUI 宝箱按钮显示剩余次数]
+    HUD -->|点击| Open[GameLogicManager.OpenUpgradeSelection]
+    Open -->|TryBeginOffer 抽品质+抽3张| Pause[GameState=SelectingUpgrade]
+    Pause --> UI[UpgradeSelectionUI 显示三选一]
+    UI -->|玩家点选| Apply[消费一次 + BallStats / Player.AddBalls / SpecialBallParams]
+    Apply -->|还有剩余次数| Reoffer[重抽 3 张替换继续选]
+    Apply -->|次数用完| Resume[GameState=Running]
 ```
 
 关键点：
@@ -82,9 +85,13 @@ flowchart LR
 - `PinBallBase.Tick` 内 `unit.TakeDamage` 后，无论是否击杀都会调用子类钩子 `OnHitUnit`，
   让 FirePinBall 等可在击杀前做 AOE。`destroyed=true` 时**先 Raise OnUnitKilled 再 RecycleUnit**，
   确保 UpgradeService / 子类拿到的 Unit 引用仍然有效。
-- `UpgradeService.RollAndOffer` 调用 `GameLogicManager.PauseForUpgradeSelection()` 把状态切到
-  `SelectingUpgrade`；该状态等同 `Paused`，`Update` 提前 return 不推进 difficulty 与 step。
-- `ApplySelected` 调用 `GameLogicManager.ResumeFromUpgradeSelection()` 切回 `Running`。
+- 击杀跨里程碑时 `UpgradeService` **只记账不弹窗**：升级次数进入 `pendingMilestones` 队列，
+  `RaiseKillMilestoneReached` 通知 HUD 刷新宝箱角标，战斗继续。
+- 玩家点 HUD 宝箱 → `GameLogicManager.OpenUpgradeSelection()` → `TryBeginOffer()` 抽卡
+  （`Peek` 不预扣次数，抽卡失败次数保留），成功后把状态切到 `SelectingUpgrade`
+  （等同 `Paused`，`Update` 提前 return 不推进 difficulty 与 step）。
+- `ApplySelected` 消费本次次数；若 `pendingMilestones` 仍有剩余，**不关闭面板**，
+  重新抽 3 张替换继续选；全部用完才 `ResumeFromUpgradeSelection()` 切回 `Running`。
 
 ## 3. 数据模型
 
@@ -181,7 +188,7 @@ experienceThreshold, weightCommon, weightUncommon, weightRare, weightLegendary
 - **初始化**：`Init()` 时把 `Player.initialBallCount`(Inspector 字段，默认 5)个 `BallType.Base` 入队，`totalBalls = 初始值`。
 - **容量**：`TotalBalls = ballQueue.Count + BallsInFlight`。`AddBalls` 增加 totalBalls，`AddPinBall` 不增加。
 - **特殊球解锁**：默认 0；任何 `AddBalls(BallType.NotBase, N)` 调用都会同时把该类型加入 `unlockedSpecials` 集合，并在队尾追加 N 颗。
-- **发射**：F 键 → `ballQueue.Dequeue()` → `SpawnPinBall(BallAddress[type], ...)`；初速从 `BallStats.InitialSpeed`、冷却从 `BallStats.FireInterval` 读取。**没有优先级——队首是什么发什么**。
+- **发射**：鼠标左键/触摸按住时炮口跟随指针方向，松开即 `ballQueue.Dequeue()` → `SpawnPinBall(BallAddress[type], ...)`；初速从 `BallStats.InitialSpeed`、冷却从 `BallStats.FireInterval` 读取。**没有优先级——队首是什么发什么**。
 - **回收**：`PoolManager.RecyclePinBall` 调到 `GameLogicManager.RecyclePinBall`，根据 `pb.BallType` 调 `player.AddPinBall(type)` 入队尾，**不改变 totalBalls**。
 - **HUD**：`InGameUI` 用 `BallSpriteSet` 纵向排列队列图标，顶部显示经验 `cur/next` 里程碑。
 
@@ -208,7 +215,7 @@ experienceThreshold, weightCommon, weightUncommon, weightRare, weightLegendary
    - `UpgradeCatalog.asset`     → 地址 `UpgradeCatalog`，加入 `Data` 组
    - 各特殊球 prefab（`FireBall.prefab` / `IceBall.prefab` / `LightningBall.prefab` / ...） → 加入 `Unit` 组（与 `BaseBall` 同组）
 3. **场景**：在 Canvas 下复制 `GameHUD.prefab`/`GameOverScreen.prefab` 同级新建 `UpgradeSelectionUI` 面板，挂上脚本并把根节点拖到 `UIManager.upgradeSelectionUI`。三张卡片（按钮 + name/desc/rarity 文本 + 背景 Image）配置到脚本的 `cards` 列表里。
-4. **运行**：开局后击杀 5 个 Unit 触发首个升级；所有词条均可堆叠到 `maxStack` 后从抽卡池剔除；过 8 个里程碑后按差值线性外推。
+4. **运行**：开局后击杀 5 个 Unit 获得首次升级机会（HUD 右侧出现宝箱按钮 + 剩余次数角标），点击宝箱进入三选一；选完若仍有剩余次数会直接重抽 3 张继续选；所有词条均可堆叠到 `maxStack` 后从抽卡池剔除；过 8 个里程碑后按差值线性外推。
 
 ## 6. 与既有系统的关系
 

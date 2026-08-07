@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 游戏中 HUD：左下纵向生命值、右下纵向弹珠队列图标、顶部居中经验值。
+/// 游戏中 HUD：左下纵向生命值、右下纵向弹珠队列图标、顶部居中经验值、右侧升级宝箱入口。
 /// </summary>
 public class InGameUI : MonoBehaviour
 {
@@ -45,6 +45,15 @@ public class InGameUI : MonoBehaviour
     [SerializeField]
     private TextMeshProUGUI killCountText;
 
+    [Header("Upgrade chest button — right side")]
+    [SerializeField]
+    [Tooltip("升级宝箱按钮：有剩余升级次数时显示，点击打开三选一面板。图标为 Image，Sprite 留空由美术资源导入。")]
+    private Button chestButton;
+
+    [SerializeField]
+    [Tooltip("宝箱按钮右下角的剩余升级次数文本")]
+    private TextMeshProUGUI chestCountText;
+
     private readonly List<Image> heartImages = new List<Image>();
     private readonly List<Image> ballIcons = new List<Image>();
     private readonly List<BallType> lastBallQueue = new List<BallType>();
@@ -54,6 +63,12 @@ public class InGameUI : MonoBehaviour
     private int lastMaxHp = -1;
     private KillMilestoneTable cachedMilestoneTable;
     private bool milestoneTableLoaded;
+
+    private void Awake()
+    {
+        if (chestButton != null)
+            chestButton.onClick.AddListener(OnChestClicked);
+    }
 
     private void OnEnable()
     {
@@ -84,9 +99,38 @@ public class InGameUI : MonoBehaviour
         }
 
         RefreshKillCount();
+        RefreshChestButton();
 
         lastHp = target.CurrentHp;
         lastMaxHp = target.MaxHp;
+    }
+
+    /// <summary>
+    /// 宝箱按钮显隐与角标数字：有剩余升级次数且不在升级选择期间才显示；
+    /// 点击后由 <see cref="GameLogicManager.OpenUpgradeSelection"/> 打开三选一面板。
+    /// </summary>
+    private void RefreshChestButton()
+    {
+        if (chestButton == null) return;
+
+        GameLogicManager mgr = GameLogicManager.Instance;
+        UpgradeService svc = mgr != null ? mgr.UpgradeService : null;
+        bool selecting = mgr != null && mgr.CurrentState == GameState.SelectingUpgrade;
+        int count = svc != null ? svc.PendingUpgradeCount : 0;
+
+        bool show = !selecting && count > 0;
+        if (chestButton.gameObject.activeSelf != show)
+            chestButton.gameObject.SetActive(show);
+
+        if (chestCountText != null)
+            chestCountText.text = count.ToString();
+    }
+
+    private void OnChestClicked()
+    {
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr != null)
+            mgr.OpenUpgradeSelection();
     }
 
     private Player ResolvePlayer()

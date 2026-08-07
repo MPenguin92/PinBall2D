@@ -161,6 +161,20 @@ public class GameLogicManager : MonoBehaviour
         gameState = GameState.SelectingUpgrade;
     }
 
+    /// <summary>
+    /// HUD 宝箱按钮入口：消耗一次升级次数并打开三选一面板。
+    /// 仅在 Running 且有剩余升级次数时生效。
+    /// </summary>
+    public void OpenUpgradeSelection()
+    {
+        if (gameState != GameState.Running) return;
+        if (upgradeService == null || !upgradeService.TryBeginOffer()) return;
+
+        // 无 UI 订阅方时 UpgradeService 会自动应用并结束，此时无需暂停。
+        if (upgradeService.IsOffering)
+            PauseForUpgradeSelection();
+    }
+
     /// <summary>UpgradeService.ApplySelected 完成后回到 Running。</summary>
     public void ResumeFromUpgradeSelection()
     {

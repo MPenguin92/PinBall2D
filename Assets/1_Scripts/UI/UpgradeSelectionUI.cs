@@ -29,6 +29,15 @@ public class UpgradeSelectionUI : MonoBehaviour
     [SerializeField]
     private List<CardView> cards = new List<CardView>(3);
 
+    [Header("Remaining count — bottom center badge")]
+    [Tooltip("剩余升级次数图标（Image，Sprite 由美术资源自行导入填入）。")]
+    [SerializeField]
+    private Image chestIcon;
+
+    [SerializeField]
+    [Tooltip("面板底部居中的剩余升级次数文本。")]
+    private TextMeshProUGUI remainingCountText;
+
     [SerializeField]
     private Color colorCommon = new Color(0.85f, 0.85f, 0.85f, 1f);
 
@@ -84,10 +93,7 @@ public class UpgradeSelectionUI : MonoBehaviour
         if (options != null) currentOptions.AddRange(options);
 
         if (panelRoot != null) panelRoot.SetActive(true);
-
-        GameLogicManager mgr = GameLogicManager.Instance;
-        if (mgr != null && mgr.CurrentState == GameState.Running)
-            mgr.PauseForUpgradeSelection();
+        RefreshRemainingCount();
 
         for (int i = 0; i < cards.Count; i++)
         {
@@ -114,6 +120,15 @@ public class UpgradeSelectionUI : MonoBehaviour
             if (card.background != null) card.background.color = tint;
             if (card.rarityText != null) card.rarityText.color = tint;
         }
+    }
+
+    /// <summary>底部宝箱角标：显示剩余可升级次数（含当前这一次）。</summary>
+    private void RefreshRemainingCount()
+    {
+        if (remainingCountText == null) return;
+
+        UpgradeService svc = GameLogicManager.Instance != null ? GameLogicManager.Instance.UpgradeService : null;
+        remainingCountText.text = svc != null ? svc.PendingUpgradeCount.ToString() : "0";
     }
 
     private void HandleApplied(UpgradeBase _)
