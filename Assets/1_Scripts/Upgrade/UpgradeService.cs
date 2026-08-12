@@ -219,7 +219,7 @@ public class UpgradeService
         return result;
     }
 
-    private static UpgradeRarity[] BuildFallbackOrder(UpgradeRarity preferred)
+    private UpgradeRarity[] BuildFallbackOrder(UpgradeRarity preferred)
     {
         // 例如 preferred=Rare(2): [Rare, Uncommon, Common, Legendary]
         List<UpgradeRarity> order = new List<UpgradeRarity>(4);
