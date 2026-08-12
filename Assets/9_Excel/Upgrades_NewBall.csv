@@ -1,8 +1,3 @@
 id,name,desc,rarity,maxStack,ballType,paramKeys,levelValues
 new_base_more,弹匣扩容,普通球+1 入队尾,Common,5,Base,,
-new_fire,引燃,火球：命中点AOE爆炸（满级 Lv5）,Rare,5,Fire,explosionRadius|explosionDamage,1.0|1;1.5|1;2.0|2;2.5|2;3.0|3
-new_ice,霜冻,冰球：命中AOE减速（满级 Lv5）,Rare,5,Ice,slowPct|slowDuration|slowRadius,0.5|2|1.0;0.6|2.5|1.5;0.7|3|2.0;0.8|3.5|2.5;0.9|4|3.0
-new_lightning,链电,雷球：命中后链跳目标（满级 Lv5）,Rare,5,Lightning,chainCount|chainDecay|chainRange,3|0.3|2.5;4|0.28|3.0;5|0.25|3.5;6|0.22|4.0;7|0.2|4.5
-new_poison,腐蚀,毒球：DoT 持续若干秒（满级 Lv5）,Rare,5,Poison,poisonDuration|poisonDamagePerSec,3|1;3.5|1;4|2;4.5|2;5|3
-new_heavy,重击,重力球：加伤+击退（满级 Lv5）,Rare,5,Heavy,heavyBonusDamage|knockbackDistance,2|1;3|1;4|2;5|2;6|3
-new_boomerang,回旋,回旋球：触底前自动反弹 N 次（满级 Lv5）,Rare,5,Boomerang,extraReturns,1;2;3;4;5
+new_base_flood,弹匣扩充,普通球+3 入队尾,Legendary,2,Base,,

@@ -14,17 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitAddresses:
   - VFX/HitBase
-  - VFX/HitFire
-  - VFX/HitIce
-  - VFX/HitLightning
-  - VFX/HitPoison
-  - VFX/HitHeavy
-  - VFX/HitBoomerang
   killAddresses:
-  - VFX/KillBase
-  - VFX/KillFire
-  - VFX/KillBase
-  - VFX/KillBase
-  - VFX/KillBase
-  - VFX/KillBase
   - VFX/KillBase

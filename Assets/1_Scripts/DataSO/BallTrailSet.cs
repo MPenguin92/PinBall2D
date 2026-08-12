@@ -33,60 +33,6 @@ public class BallTrailSet : ScriptableObject
             startWidth = 0.18f,
             endWidth = 0.04f,
         },
-        // Fire
-        new BallTrailStyle
-        {
-            startColor = new Color(1f, 0.55f, 0.1f, 0.85f),
-            endColor = new Color(1f, 0.15f, 0f, 0f),
-            time = 0.25f,
-            startWidth = 0.24f,
-            endWidth = 0.04f,
-        },
-        // Ice
-        new BallTrailStyle
-        {
-            startColor = new Color(0.55f, 0.9f, 1f, 0.75f),
-            endColor = new Color(1f, 1f, 1f, 0f),
-            time = 0.2f,
-            startWidth = 0.2f,
-            endWidth = 0.04f,
-        },
-        // Lightning
-        new BallTrailStyle
-        {
-            startColor = new Color(0.7f, 0.85f, 1f, 0.9f),
-            endColor = new Color(0.4f, 0.6f, 1f, 0f),
-            time = 0.08f,
-            startWidth = 0.18f,
-            endWidth = 0.02f,
-        },
-        // Poison
-        new BallTrailStyle
-        {
-            startColor = new Color(0.35f, 0.95f, 0.25f, 0.8f),
-            endColor = new Color(0.1f, 0.5f, 0.1f, 0f),
-            time = 0.2f,
-            startWidth = 0.22f,
-            endWidth = 0.05f,
-        },
-        // Heavy
-        new BallTrailStyle
-        {
-            startColor = new Color(0.75f, 0.75f, 0.8f, 0.7f),
-            endColor = new Color(0.45f, 0.45f, 0.5f, 0f),
-            time = 0.15f,
-            startWidth = 0.3f,
-            endWidth = 0.08f,
-        },
-        // Boomerang
-        new BallTrailStyle
-        {
-            startColor = new Color(1f, 0.9f, 0.25f, 0.8f),
-            endColor = new Color(1f, 0.65f, 0.1f, 0f),
-            time = 0.18f,
-            startWidth = 0.22f,
-            endWidth = 0.05f,
-        },
     };
 
     public BallTrailStyle Get(BallType type)

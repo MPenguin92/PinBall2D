@@ -3,7 +3,8 @@ using System.Collections.Generic;
 /// <summary>
 /// 特殊球（Fire / Ice / Lightning 等）的全局参数容器。
 /// 每种 BallType 一份键值字典，由对应升级词条的 paramJson 通过
-/// AddOrSet / Add 累加写入；运行时由对应派生球类（FirePinBall 等）读取。
+/// AddOrSet / Add 累加写入；运行时由对应派生球类读取。
+/// 特殊球体系正在重新设计，当前仅保留架构，无运行时调用方。
 ///
 /// 约定：以 "Add" 结尾的 key 表示对同名基础 key 做加法增量；
 ///       例如 explosionRadiusAdd += 0.5 会被 GetMerged("explosionRadius") 累加上去。

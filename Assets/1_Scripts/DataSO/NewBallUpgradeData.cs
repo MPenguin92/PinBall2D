@@ -27,7 +27,7 @@ public class BallLevelValues
 public class NewBallUpgradeData : UpgradeBase
 {
     [SerializeField]
-    private BallType ballType = BallType.Fire;
+    private BallType ballType = BallType.Base;
 
     [SerializeField]
     [Tooltip("写入 SpecialBallParams 的 key 列表（与每一级的 values 一一对应）。")]

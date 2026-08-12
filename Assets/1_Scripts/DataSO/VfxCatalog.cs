@@ -11,23 +11,11 @@ public class VfxCatalog : ScriptableObject
     private string[] hitAddresses = new string[]
     {
         "VFX/HitBase",
-        "VFX/HitFire",
-        "VFX/HitIce",
-        "VFX/HitLightning",
-        "VFX/HitPoison",
-        "VFX/HitHeavy",
-        "VFX/HitBoomerang",
     };
 
     [SerializeField]
     private string[] killAddresses = new string[]
     {
-        "VFX/KillBase",
-        "VFX/KillFire",
-        "VFX/KillBase",
-        "VFX/KillBase",
-        "VFX/KillBase",
-        "VFX/KillBase",
         "VFX/KillBase",
     };
 

@@ -14,6 +14,7 @@ PinBall2D 各模块的设计说明分散在以下文档中，本文档作为索�
 | **doc/Function/PinBall.md** | 弹球：BallStats 驱动数值、碰撞反射/穿透、派生球种、Sprite/拖尾、命中 VFX |
 | **doc/Function/GamePlay.md** | 主逻辑：GameState、GameEvents、统一 Tick、PoolManager、UIManager、Difficulty、VfxSpawner |
 | **doc/Function/Upgrade.md** | Roguelike 升级：经验里程碑、品质抽卡、三选一、BallStats / 新球种解锁 |
+| **doc/Design/UpgradeList.md** | 升级效果总表：当前所有生效升级的编号、效果、品质与堆叠（持续维护） |
 | **doc/Data/DifficultyBalance.md** | 难度曲线：字段含义、当前 CSV、调参原则、与升级经验的关系 |
 | **doc/Design/PROJECT.md** | 项目总览：目录结构、脚本说明、架构原则、流程与配置建议 |
 

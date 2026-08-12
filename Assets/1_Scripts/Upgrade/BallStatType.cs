@@ -31,14 +31,14 @@ public enum BallStatType
     /// <summary>每次反弹保留比例（默认 1.0：完全弹性）。</summary>
     BounceSpeedMul,
 
-    /// <summary>命中 Unit 后速度衰减比例（0 表示不衰减；0.3 表示 -30%）。</summary>
-    HitSlowdown,
+    /// <summary>暴击率（0~1）：命中时按该概率造成双倍伤害。</summary>
+    CritChance,
 
-    /// <summary>击杀 Unit 后触发穿透（跳过反弹继续直行）的概率（0~1）。</summary>
-    PiercingChance,
+    /// <summary>处决斩杀线（0~1）：命中目标当前血量比例低于该值时伤害翻倍。</summary>
+    ExecutionThreshold,
 
-    /// <summary>穿透成功时保留速度比例（0~1）。</summary>
-    PiercingKeepSpeed,
+    /// <summary>击杀回复阈值：每击杀 N 个敌人回复 1 点生命；base=10 表示未解锁（词条以 flat -2/层 递减为 8/6/4）。</summary>
+    KillHealThreshold,
 
     /// <summary>反弹次数上限：0 = 无限；&gt;0 表示反弹达到该次数后自动回收。</summary>
     MaxBounces,

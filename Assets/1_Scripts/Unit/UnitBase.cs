@@ -18,7 +18,7 @@ public class UnitBase : MonoBehaviour
 
     private int currentHp;
 
-    // 减速 buff（由 IcePinBall 等通过 ApplySlow 写入）：每个 Unit 私有的 step 节奏缩放因子。
+    // 减速 buff（由 ApplySlow 写入）：每个 Unit 私有的 step 节奏缩放因子。
     // 取值 (0, 1]。1 = 不减速；0.5 = 行为减半（Step 心跳每 2 次才执行一次个体移动）。
     private float slowFactor = 1f;
     private float slowRemaining;
@@ -35,6 +35,9 @@ public class UnitBase : MonoBehaviour
     public int CurrentHp => currentHp;
 
     public int MaxHp => maxHp;
+
+    /// <summary>当前血量比例（0~1），处决词条按此判定斩杀线。</summary>
+    public float HpRatio => maxHp > 0 ? (float)currentHp / maxHp : 0f;
 
     public int Attack => attack;
 

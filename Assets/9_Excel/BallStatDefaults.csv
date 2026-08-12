@@ -8,8 +8,8 @@ MinSpeed,3
 MaxSpeed,0
 BounceAccel,0
 BounceSpeedMul,1
-HitSlowdown,0
-PiercingChance,0
-PiercingKeepSpeed,0.7
+CritChance,0
+ExecutionThreshold,0
+KillHealThreshold,10
 MaxBounces,0
 FireInterval,0.3

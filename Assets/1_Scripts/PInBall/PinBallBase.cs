@@ -3,10 +3,9 @@ using UnityEngine;
 
 /// <summary>
 /// 弹珠基类：每帧自行推进位置，与 Border / UnitBase 做圆-AABB 相交检测。
-/// 数值（速度、伤害、命中方向倍率、穿透、反弹次数等）统一从全局
+/// 数值（速度、伤害、命中方向倍率、暴击、处决、反弹次数等）统一从全局
 /// <see cref="BallStats"/> 读取，所以同一份 modifier 同时影响所有出场球。
-/// 子类（FirePinBall / IcePinBall ...）通过 override <see cref="OnHitUnit"/>
-/// 注入命中时的额外效果（爆炸、减速、链跳）。
+/// 子类通过 override <see cref="OnHitUnit"/> 注入命中时的额外效果。
 /// </summary>
 public class PinBallBase : MonoBehaviour
 {
@@ -85,7 +84,7 @@ public class PinBallBase : MonoBehaviour
                 Vector2 hitNormal = unit.GetCollisionNormal(nextPos);
                 HitDirection dir = ResolveHitDirection(hitNormal, unit.MoveDirection);
 
-                int dmg = ComputeDamage(stats, dir);
+                int dmg = ComputeDamage(stats, dir, unit);
                 bool destroyed = unit.TakeDamage(dmg, BallType);
 
                 // 子类钩子：可在击杀/未击杀分支前注入额外效果。
@@ -97,30 +96,16 @@ public class PinBallBase : MonoBehaviour
                     GameEvents.RaiseUnitKilled(unit);
                     GameLogicManager.Instance.RecycleUnit(unit);
 
-                    if (TryPiercing(stats))
+                    ApplyBounce(stats, hitNormal);
+                    if (HitMaxBounces(stats))
                     {
-                        // 穿透：跳过反弹，按比例保留速度继续直行。
-                        float keep = stats != null ? stats.Get(BallStatType.PiercingKeepSpeed) : 0.7f;
-                        float minSpeed = stats != null ? stats.Get(BallStatType.MinSpeed) : 3f;
-                        float curMag = velocity.magnitude;
-                        float newMag = Mathf.Max(minSpeed, curMag * keep);
-                        velocity = velocity.normalized * newMag;
-                    }
-                    else
-                    {
-                        ApplyBounce(stats, hitNormal);
-                        if (HitMaxBounces(stats))
-                        {
-                            GameLogicManager.Instance.RecyclePinBall(this);
-                            return;
-                        }
+                        GameLogicManager.Instance.RecyclePinBall(this);
+                        return;
                     }
                 }
                 else
                 {
-                    // 未击杀：先反弹，再按 HitSlowdown 整体减速。
                     ApplyBounce(stats, hitNormal);
-                    ApplyHitSlowdown(stats);
 
                     if (HitMaxBounces(stats))
                     {
@@ -138,8 +123,7 @@ public class PinBallBase : MonoBehaviour
     }
 
     /// <summary>
-    /// 命中 Unit 时的子类扩展点。基类不做事；FirePinBall 在此实现 AOE，
-    /// IcePinBall 在此调用 ApplySlow，LightningPinBall 在此触发链跳。
+    /// 命中 Unit 时的子类扩展点。基类不做事；子类可在此注入命中时的额外效果。
     /// </summary>
     /// <param name="unit">直接命中的 Unit。</param>
     /// <param name="hitPos">本帧位置（圆心）。</param>
@@ -156,26 +140,6 @@ public class PinBallBase : MonoBehaviour
         if (stats == null) return false;
         int maxB = stats.GetInt(BallStatType.MaxBounces);
         return maxB > 0 && bounceCount >= maxB;
-    }
-
-    private static bool TryPiercing(BallStats stats)
-    {
-        if (stats == null) return false;
-        float p = stats.Get(BallStatType.PiercingChance);
-        if (p <= 0f) return false;
-        return Random.value < p;
-    }
-
-    private void ApplyHitSlowdown(BallStats stats)
-    {
-        if (stats == null) return;
-        float slow = stats.Get(BallStatType.HitSlowdown);
-        if (slow <= 0f) return;
-
-        float minSpeed = stats.Get(BallStatType.MinSpeed);
-        float newMag = Mathf.Max(minSpeed, velocity.magnitude * (1f - slow));
-        if (velocity.sqrMagnitude > 0f)
-            velocity = velocity.normalized * newMag;
     }
 
     private void ApplyBounce(BallStats stats, Vector2 normal)
@@ -196,7 +160,7 @@ public class PinBallBase : MonoBehaviour
         velocity = reflected.normalized * newMagnitude;
     }
 
-    private static int ComputeDamage(BallStats stats, HitDirection dir)
+    private static int ComputeDamage(BallStats stats, HitDirection dir, UnitBase target)
     {
         float baseDmg = stats != null ? stats.Get(BallStatType.BaseDamage) : 1f;
         float dirMul = 1f;
@@ -209,7 +173,27 @@ public class PinBallBase : MonoBehaviour
                 case HitDirection.Back: dirMul = stats.Get(BallStatType.BackHitMul); break;
             }
         }
-        return Mathf.Max(1, Mathf.RoundToInt(baseDmg * dirMul));
+
+        float multiplier = dirMul;
+        // 处决：目标当前血量比例低于斩杀线时伤害翻倍。
+        if (stats != null && target != null)
+        {
+            float exec = stats.Get(BallStatType.ExecutionThreshold);
+            if (exec > 0f && target.HpRatio <= exec)
+                multiplier *= 2f;
+        }
+
+        int dmg = Mathf.Max(1, Mathf.RoundToInt(baseDmg * multiplier));
+
+        // 暴击：按暴击率翻倍（与处决可叠加）。
+        if (stats != null)
+        {
+            float crit = stats.Get(BallStatType.CritChance);
+            if (crit > 0f && Random.value < crit)
+                dmg *= 2;
+        }
+
+        return dmg;
     }
 
     /// <summary>

@@ -31,16 +31,10 @@ public class Player : MonoBehaviour
     /// <summary>屏幕→世界坐标转换用的主相机；无相机时禁用鼠标操作。</summary>
     private Camera mainCamera;
 
-    /// <summary>各 BallType 的 Addressables 地址;默认填普通球的 BaseBall。</summary>
+    /// <summary>各 BallType 的 Addressables 地址。当前仅有普通球（Base），特殊球体系重新设计后再扩展。</summary>
     private readonly Dictionary<BallType, string> ballAddress = new Dictionary<BallType, string>
     {
         { BallType.Base, "BaseBall" },
-        { BallType.Fire, "FireBall" },
-        { BallType.Ice, "IceBall" },
-        { BallType.Lightning, "LightningBall" },
-        { BallType.Poison, "PoisonBall" },
-        { BallType.Heavy, "HeavyBall" },
-        { BallType.Boomerang, "BoomerangBall" },
     };
 
     // FIFO 队列:队首=下一发,队尾=最新入队。Enqueue/Dequeue 是 O(1)。
@@ -54,6 +48,9 @@ public class Player : MonoBehaviour
 
     private float fireTimer;
     private int currentHp;
+
+    // 振奋词条的击杀计数：达到 KillHealThreshold 时回复 1 点生命。
+    private int killHealCounter;
 
     public int CurrentHp => currentHp;
 
@@ -116,6 +113,7 @@ public class Player : MonoBehaviour
 
         fireTimer = 0f;
         currentHp = maxHp;
+        killHealCounter = 0;
         if (muzzle != null)
             muzzle.localRotation = Quaternion.identity;
     }
@@ -135,6 +133,35 @@ public class Player : MonoBehaviour
         }
 
         return IsDead;
+    }
+
+    /// <summary>回复生命（振奋词条等使用），不超过上限。</summary>
+    public void Heal(int amount)
+    {
+        if (amount <= 0 || IsDead) return;
+        currentHp = Mathf.Min(maxHp, currentHp + amount);
+    }
+
+    /// <summary>
+    /// 击杀计数：由 UpgradeService 在每次击杀时调用。
+    /// KillHealThreshold base=10 表示未解锁；振奋词条以 flat -2/层 递减为 8/6/4，
+    /// 只有被修饰（threshold &lt; 10）时才启用计数回血。
+    /// </summary>
+    public void RegisterKill()
+    {
+        BallStats stats = GetStats();
+        if (stats == null) return;
+
+        float threshold = stats.Get(BallStatType.KillHealThreshold);
+        if (threshold >= 10f) return;
+
+        killHealCounter++;
+        int need = Mathf.Max(1, Mathf.RoundToInt(threshold));
+        if (killHealCounter >= need)
+        {
+            killHealCounter = 0;
+            Heal(1);
+        }
     }
 
     public void Tick()

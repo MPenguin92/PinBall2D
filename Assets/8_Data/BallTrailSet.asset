@@ -18,33 +18,3 @@ MonoBehaviour:
     time: 0.12
     startWidth: 0.18
     endWidth: 0.04
-  - startColor: {r: 1, g: 0.55, b: 0.1, a: 0.85}
-    endColor: {r: 1, g: 0.15, b: 0, a: 0}
-    time: 0.25
-    startWidth: 0.24
-    endWidth: 0.04
-  - startColor: {r: 0.55, g: 0.9, b: 1, a: 0.75}
-    endColor: {r: 1, g: 1, b: 1, a: 0}
-    time: 0.2
-    startWidth: 0.2
-    endWidth: 0.04
-  - startColor: {r: 0.7, g: 0.85, b: 1, a: 0.9}
-    endColor: {r: 0.4, g: 0.6, b: 1, a: 0}
-    time: 0.08
-    startWidth: 0.18
-    endWidth: 0.02
-  - startColor: {r: 0.35, g: 0.95, b: 0.25, a: 0.8}
-    endColor: {r: 0.1, g: 0.5, b: 0.1, a: 0}
-    time: 0.2
-    startWidth: 0.22
-    endWidth: 0.05
-  - startColor: {r: 0.75, g: 0.75, b: 0.8, a: 0.7}
-    endColor: {r: 0.45, g: 0.45, b: 0.5, a: 0}
-    time: 0.15
-    startWidth: 0.3
-    endWidth: 0.08
-  - startColor: {r: 1, g: 0.9, b: 0.25, a: 0.8}
-    endColor: {r: 1, g: 0.65, b: 0.1, a: 0}
-    time: 0.18
-    startWidth: 0.22
-    endWidth: 0.05

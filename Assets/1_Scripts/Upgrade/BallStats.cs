@@ -40,9 +40,10 @@ public class BallStats
         SetBaseDefault(BallStatType.MaxSpeed, 0f);
         SetBaseDefault(BallStatType.BounceAccel, 0f);
         SetBaseDefault(BallStatType.BounceSpeedMul, 1f);
-        SetBaseDefault(BallStatType.HitSlowdown, 0f);
-        SetBaseDefault(BallStatType.PiercingChance, 0f);
-        SetBaseDefault(BallStatType.PiercingKeepSpeed, 0.7f);
+        SetBaseDefault(BallStatType.CritChance, 0f);
+        SetBaseDefault(BallStatType.ExecutionThreshold, 0f);
+        // 击杀回复阈值：base=10 表示"未解锁"，振奋词条以 flat -2/层 递减为 8/6/4。
+        SetBaseDefault(BallStatType.KillHealThreshold, 10f);
         SetBaseDefault(BallStatType.MaxBounces, 0f);
         SetBaseDefault(BallStatType.FireInterval, 0.3f);
     }
@@ -110,12 +111,12 @@ public class BallStats
                 return v;
             case BallStatType.BounceSpeedMul:
                 return Mathf.Clamp(v, 0.1f, 2f);
-            case BallStatType.HitSlowdown:
+            case BallStatType.CritChance:
                 return Mathf.Clamp01(v);
-            case BallStatType.PiercingChance:
+            case BallStatType.ExecutionThreshold:
                 return Mathf.Clamp01(v);
-            case BallStatType.PiercingKeepSpeed:
-                return Mathf.Clamp(v, 0.1f, 1.5f);
+            case BallStatType.KillHealThreshold:
+                return Mathf.Max(1f, v);
             case BallStatType.MaxBounces:
                 return Mathf.Max(0f, v);
             case BallStatType.FireInterval:
