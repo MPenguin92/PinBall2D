@@ -46,11 +46,16 @@ public class Player : MonoBehaviour
     // 已解锁过的特殊 BallType 集合(仅记录非 Base):用于"全部已解锁特殊球各 +N"类升级。
     private readonly HashSet<BallType> unlockedSpecials = new HashSet<BallType>();
 
+    [SerializeField]
+    [Tooltip("发射间隔（秒）：重新设计升级体系前暂为固定值。")]
+    private float fireInterval = 0.3f;
+
+    [SerializeField]
+    [Tooltip("发射初速：重新设计升级体系前暂为固定值。")]
+    private float fireSpeed = 24f;
+
     private float fireTimer;
     private int currentHp;
-
-    // 振奋词条的击杀计数：达到 KillHealThreshold 时回复 1 点生命。
-    private int killHealCounter;
 
     public int CurrentHp => currentHp;
 
@@ -70,15 +75,8 @@ public class Player : MonoBehaviour
     /// <summary>HUD 用:按队列顺序(队首→队尾)只读暴露当前队列内容。</summary>
     public IReadOnlyCollection<BallType> BallQueue => ballQueue;
 
-    /// <summary>当前发射冷却间隔,来自 <see cref="BallStats"/>。</summary>
-    public float FireInterval
-    {
-        get
-        {
-            BallStats stats = GetStats();
-            return stats != null ? stats.Get(BallStatType.FireInterval) : 0.3f;
-        }
-    }
+    /// <summary>当前发射冷却间隔（升级体系清空期间为固定值，重新设计后可改由属性系统驱动）。</summary>
+    public float FireInterval => fireInterval;
 
     public Vector2 Direction
     {
@@ -113,7 +111,6 @@ public class Player : MonoBehaviour
 
         fireTimer = 0f;
         currentHp = maxHp;
-        killHealCounter = 0;
         if (muzzle != null)
             muzzle.localRotation = Quaternion.identity;
     }
@@ -135,33 +132,11 @@ public class Player : MonoBehaviour
         return IsDead;
     }
 
-    /// <summary>回复生命（振奋词条等使用），不超过上限。</summary>
+    /// <summary>回复生命（不超过上限）。</summary>
     public void Heal(int amount)
     {
         if (amount <= 0 || IsDead) return;
         currentHp = Mathf.Min(maxHp, currentHp + amount);
-    }
-
-    /// <summary>
-    /// 击杀计数：由 UpgradeService 在每次击杀时调用。
-    /// KillHealThreshold base=10 表示未解锁；振奋词条以 flat -2/层 递减为 8/6/4，
-    /// 只有被修饰（threshold &lt; 10）时才启用计数回血。
-    /// </summary>
-    public void RegisterKill()
-    {
-        BallStats stats = GetStats();
-        if (stats == null) return;
-
-        float threshold = stats.Get(BallStatType.KillHealThreshold);
-        if (threshold >= 10f) return;
-
-        killHealCounter++;
-        int need = Mathf.Max(1, Mathf.RoundToInt(threshold));
-        if (killHealCounter >= need)
-        {
-            killHealCounter = 0;
-            Heal(1);
-        }
     }
 
     public void Tick()
@@ -259,13 +234,9 @@ public class Player : MonoBehaviour
 
         BallType chosen = ballQueue.Dequeue();
 
-        BallStats stats = GetStats();
-        float speed = stats != null ? stats.Get(BallStatType.InitialSpeed) : 24f;
         string address = ResolveAddress(chosen);
+        GameLogicManager.Instance.SpawnPinBall(address, FirePosition, Direction, fireSpeed);
 
-        GameLogicManager.Instance.SpawnPinBall(address, FirePosition, Direction, speed);
-
-        float fireInterval = stats != null ? stats.Get(BallStatType.FireInterval) : 0.3f;
         fireTimer = fireInterval;
 
         if (playerRender != null)
@@ -275,11 +246,5 @@ public class Player : MonoBehaviour
     private string ResolveAddress(BallType type)
     {
         return ballAddress.TryGetValue(type, out string addr) ? addr : ballAddress[BallType.Base];
-    }
-
-    private BallStats GetStats()
-    {
-        GameLogicManager mgr = GameLogicManager.Instance;
-        return mgr != null ? mgr.BallStats : null;
     }
 }

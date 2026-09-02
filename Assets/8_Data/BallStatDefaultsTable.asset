@@ -12,32 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d95e4be66d7391e4d9e521b24bb4a92c, type: 3}
   m_Name: BallStatDefaultsTable
   m_EditorClassIdentifier: 
-  defaults:
-  - statType: 0
-    baseValue: 1
-  - statType: 1
-    baseValue: 1
-  - statType: 2
-    baseValue: 1
-  - statType: 3
-    baseValue: 1
-  - statType: 4
-    baseValue: 24
-  - statType: 5
-    baseValue: 3
-  - statType: 6
-    baseValue: 0
-  - statType: 7
-    baseValue: 0
-  - statType: 8
-    baseValue: 1
-  - statType: 9
-    baseValue: 0
-  - statType: 10
-    baseValue: 0
-  - statType: 11
-    baseValue: 10
-  - statType: 12
-    baseValue: 0
-  - statType: 13
-    baseValue: 0.3
+  defaults: []

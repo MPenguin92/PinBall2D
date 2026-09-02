@@ -128,10 +128,6 @@ public class UpgradeService
         int gain = (unit != null && unit.Experience > 0) ? unit.Experience : 1;
         experienceAccumulated += gain;
 
-        // 振奋词条：每次击杀推进回复计数（内部自行判断是否已解锁）。
-        if (context.Player != null)
-            context.Player.RegisterKill();
-
         if (milestoneTable == null || milestoneTable.Count == 0) return;
 
         // 一次击杀可能跨多个里程碑：全部入队记账，弹窗时机交给玩家（宝箱按钮）。

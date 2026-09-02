@@ -1,10 +1,1 @@
 id,name,desc,rarity,maxStack,mod1Stat,mod1Flat,mod1Pct,mod2Stat,mod2Flat,mod2Pct,mod3Stat,mod3Flat,mod3Pct
-ball_dmg_basic,锋利,球基础伤害+1,Common,5,BaseDamage,1,0,,0,0,,0,0
-ball_fire_faster,连射,发射间隔-15%,Common,4,FireInterval,0,-0.15,,0,0,,0,0
-ball_speed_charge,弹射加速,每次反弹+1速度,Common,5,BounceAccel,1,0,,0,0,,0,0
-ball_side_swift,巧击,侧面命中伤害+30%,Common,4,SideHitMul,0,0.3,,0,0,,0,0
-ball_crit_basic,暴击,命中时10%概率造成双倍伤害,Common,5,CritChance,0.1,0,,0,0,,0,0
-ball_execution,处决,对低血量敌人伤害翻倍,Uncommon,3,ExecutionThreshold,0.1,0,,0,0,,0,0
-ball_speed_boost,急速,初始速度+20%,Uncommon,3,InitialSpeed,0,0.2,,0,0,,0,0
-ball_heal_on_kill,振奋,击杀累积后回复1点生命,Uncommon,3,KillHealThreshold,-2,0,,0,0,,0,0
-ball_back_assassin,背刺,背面命中伤害+80%,Rare,3,BackHitMul,0,0.8,,0,0,,0,0

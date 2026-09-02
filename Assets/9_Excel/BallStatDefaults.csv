@@ -1,15 +1,1 @@
 statType,baseValue
-BaseDamage,1
-FrontHitMul,1
-SideHitMul,1
-BackHitMul,1
-InitialSpeed,24
-MinSpeed,3
-MaxSpeed,0
-BounceAccel,0
-BounceSpeedMul,1
-CritChance,0
-ExecutionThreshold,0
-KillHealThreshold,10
-MaxBounces,0
-FireInterval,0.3

@@ -3,8 +3,8 @@ using UnityEngine;
 
 /// <summary>
 /// 弹珠基类：每帧自行推进位置，与 Border / UnitBase 做圆-AABB 相交检测。
-/// 数值（速度、伤害、命中方向倍率、暴击、处决、反弹次数等）统一从全局
-/// <see cref="BallStats"/> 读取，所以同一份 modifier 同时影响所有出场球。
+/// ⚠️ 升级体系已清空（2026-09-01）：伤害、速度、反弹等均回到基础行为
+/// （伤害固定 1、完全弹性反弹），后续由重新设计的属性系统接管。
 /// 子类通过 override <see cref="OnHitUnit"/> 注入命中时的额外效果。
 /// </summary>
 public class PinBallBase : MonoBehaviour
@@ -15,7 +15,6 @@ public class PinBallBase : MonoBehaviour
     private BallType ballType = BallType.Base;
 
     private Vector2 velocity;
-    private int bounceCount;
 
     public Vector2 Velocity => velocity;
 
@@ -27,15 +26,11 @@ public class PinBallBase : MonoBehaviour
 
     public void Init(Vector2 direction, float speed)
     {
-        BallStats stats = GetStats();
-        float minSpeed = stats != null ? stats.Get(BallStatType.MinSpeed) : 3f;
-        velocity = direction.normalized * Mathf.Max(speed, minSpeed);
-        bounceCount = 0;
+        velocity = direction.normalized * Mathf.Max(speed, 0.01f);
     }
 
     public virtual void Tick(Border[] borders, IReadOnlyList<UnitBase> activeUnits)
     {
-        BallStats stats = GetStats();
         float dt = Time.deltaTime;
         Vector2 currentPos = transform.position;
         float radius = Radius;
@@ -59,14 +54,8 @@ public class PinBallBase : MonoBehaviour
             }
 
             Vector2 normal = border.GetNormal();
-            ApplyBounce(stats, normal);
+            ApplyBounce(normal);
             bounced = true;
-
-            if (HitMaxBounces(stats))
-            {
-                GameLogicManager.Instance.RecyclePinBall(this);
-                return;
-            }
             break;
         }
 
@@ -84,8 +73,7 @@ public class PinBallBase : MonoBehaviour
                 Vector2 hitNormal = unit.GetCollisionNormal(nextPos);
                 HitDirection dir = ResolveHitDirection(hitNormal, unit.MoveDirection);
 
-                int dmg = ComputeDamage(stats, dir, unit);
-                bool destroyed = unit.TakeDamage(dmg, BallType);
+                bool destroyed = unit.TakeDamage(1, BallType);
 
                 // 子类钩子：可在击杀/未击杀分支前注入额外效果。
                 OnHitUnit(unit, nextPos, hitNormal, dir, destroyed);
@@ -95,25 +83,9 @@ public class PinBallBase : MonoBehaviour
                     // OnUnitKilled 必须在回收前 Raise，UpgradeService 才能拿到有效引用。
                     GameEvents.RaiseUnitKilled(unit);
                     GameLogicManager.Instance.RecycleUnit(unit);
-
-                    ApplyBounce(stats, hitNormal);
-                    if (HitMaxBounces(stats))
-                    {
-                        GameLogicManager.Instance.RecyclePinBall(this);
-                        return;
-                    }
-                }
-                else
-                {
-                    ApplyBounce(stats, hitNormal);
-
-                    if (HitMaxBounces(stats))
-                    {
-                        GameLogicManager.Instance.RecyclePinBall(this);
-                        return;
-                    }
                 }
 
+                ApplyBounce(hitNormal);
                 break;
             }
         }
@@ -134,66 +106,12 @@ public class PinBallBase : MonoBehaviour
     {
     }
 
-    private bool HitMaxBounces(BallStats stats)
-    {
-        bounceCount++;
-        if (stats == null) return false;
-        int maxB = stats.GetInt(BallStatType.MaxBounces);
-        return maxB > 0 && bounceCount >= maxB;
-    }
-
-    private void ApplyBounce(BallStats stats, Vector2 normal)
+    /// <summary>完全弹性反弹：仅反射速度方向，大小保持不变。</summary>
+    private void ApplyBounce(Vector2 normal)
     {
         Vector2 reflected = Vector2.Reflect(velocity, normal);
         if (reflected.sqrMagnitude <= Mathf.Epsilon) return;
-
-        float bounceMul = stats != null ? stats.Get(BallStatType.BounceSpeedMul) : 1f;
-        float bounceAccel = stats != null ? stats.Get(BallStatType.BounceAccel) : 0f;
-        float minSpeed = stats != null ? stats.Get(BallStatType.MinSpeed) : 3f;
-        float maxSpeed = stats != null ? stats.Get(BallStatType.MaxSpeed) : 0f;
-
-        float newMagnitude = reflected.magnitude * bounceMul + bounceAccel;
-        newMagnitude = Mathf.Max(newMagnitude, minSpeed);
-        if (maxSpeed > 0f)
-            newMagnitude = Mathf.Min(newMagnitude, maxSpeed);
-
-        velocity = reflected.normalized * newMagnitude;
-    }
-
-    private static int ComputeDamage(BallStats stats, HitDirection dir, UnitBase target)
-    {
-        float baseDmg = stats != null ? stats.Get(BallStatType.BaseDamage) : 1f;
-        float dirMul = 1f;
-        if (stats != null)
-        {
-            switch (dir)
-            {
-                case HitDirection.Front: dirMul = stats.Get(BallStatType.FrontHitMul); break;
-                case HitDirection.Side: dirMul = stats.Get(BallStatType.SideHitMul); break;
-                case HitDirection.Back: dirMul = stats.Get(BallStatType.BackHitMul); break;
-            }
-        }
-
-        float multiplier = dirMul;
-        // 处决：目标当前血量比例低于斩杀线时伤害翻倍。
-        if (stats != null && target != null)
-        {
-            float exec = stats.Get(BallStatType.ExecutionThreshold);
-            if (exec > 0f && target.HpRatio <= exec)
-                multiplier *= 2f;
-        }
-
-        int dmg = Mathf.Max(1, Mathf.RoundToInt(baseDmg * multiplier));
-
-        // 暴击：按暴击率翻倍（与处决可叠加）。
-        if (stats != null)
-        {
-            float crit = stats.Get(BallStatType.CritChance);
-            if (crit > 0f && Random.value < crit)
-                dmg *= 2;
-        }
-
-        return dmg;
+        velocity = reflected;
     }
 
     /// <summary>
@@ -215,12 +133,6 @@ public class PinBallBase : MonoBehaviour
         if (dot > 0.5f) return HitDirection.Front;
         if (dot < -0.5f) return HitDirection.Back;
         return HitDirection.Side;
-    }
-
-    private static BallStats GetStats()
-    {
-        GameLogicManager mgr = GameLogicManager.Instance;
-        return mgr != null ? mgr.BallStats : null;
     }
 
     private static bool IsCircleOverlappingRect(Vector2 circleCenter, float radius, Rect rect)

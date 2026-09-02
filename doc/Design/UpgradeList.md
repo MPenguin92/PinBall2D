@@ -1,50 +1,28 @@
-# 升级效果总表（当前生效）
+# 升级效果总表（已清空，重新设计中）
 
-> 本表是**所有已有升级效果**的权威清单，后续新增 / 修改 / 删除升级时同步更新此表。
-> 配表数据源：`Assets/9_Excel/Upgrades_Stat.csv`（数值）与 `Assets/9_Excel/Upgrades_NewBall.csv`（新球 / 扩容）。
-> 修改配表后需在 Unity 执行 `Tools/Data/Import All` 重新导入。
-> 最后更新：2026-08-10
+> 升级词条体系已于 2026-09-01 全量清空，仅保留架构与机制框架，具体内容待重新设计。
+> 重新设计完成后需同步更新本表与 `doc/Function/Upgrade.md`。
 
-## 总览
+## 当前保留（架构 / 机制）
 
-- 数值词条 9 个（`BallStatUpgradeData`）
-- 扩容词条 2 个（`NewBallUpgradeData`，BallType.Base）
-- 特殊球体系（Fire/Ice/Lightning/Poison/Heavy/Boomerang）已整体撤下，重新设计中
+- **两个大类区分**：
+  - `stat`（数值类）→ `BallStatUpgradeData`，通过修改 `BallStats` 的 stat 生效；`BallStatType` 已清空为空枚举，待重新定义
+  - `newball`（新球 / 扩容类）→ `NewBallUpgradeData`，通过 `SpecialBallParams` 参数 + `Player.AddBalls` 生效；`BallType` 仅剩 `Base`
+- **抽卡机制框架**（保留可用）：经验累积 → `KillMilestones.csv` 里程碑 → HUD 宝箱 → 三选一面板（`UpgradeService` / `UpgradeSelectionUI` / `GameEvents` 相关事件）
+- **空池子**：`UpgradeCatalog.asset` 已置空（entries = []）
 
-## Common（6）
+## 已清空
 
-| # | 名称（id） | 类型 | 效果 | 堆叠 |
-|---|-----------|------|------|------|
-| 1 | 锋利 `ball_dmg_basic` | 数值 | 基础伤害 +1 | 5 |
-| 2 | 连射 `ball_fire_faster` | 数值 | 发射间隔 -15% | 4 |
-| 3 | 弹匣扩容 `new_base_more` | 扩容 | 普通球 +1 入队尾 | 5 |
-| 4 | 弹射加速 `ball_speed_charge` | 数值 | 每次反弹 +1 速度 | 5 |
-| 5 | 巧击 `ball_side_swift` | 数值 | 侧面命中伤害 +30% | 4 |
-| 6 | 暴击 `ball_crit_basic` | 数值 | 命中 10% 概率双倍伤害（每层 +10%） | 5 |
+| 项目 | 状态 |
+|------|------|
+| `Upgrades_Stat.csv`（原 9 条） | 只留表头 |
+| `Upgrades_NewBall.csv`（原 2 条） | 只留表头 |
+| `BallStatDefaults.csv` / `BallStatDefaultsTable.asset` | 只留表头 / 空表 |
+| `8_Data/Upgrades/*.asset`（原 6 个词条） | 已删除 |
+| `BallStatType` 枚举值（伤害/速度/暴击/处决/回血/倍率等） | 已清空 |
+| 词条效果逻辑（暴击、处决、振奋回血、反弹加速、命中倍率等） | 已移除，球回到基础行为 |
 
-## Uncommon（3）
+## 重建提示
 
-| # | 名称（id） | 类型 | 效果 | 堆叠 |
-|---|-----------|------|------|------|
-| 7 | 处决 `ball_execution` | 数值 | 对低血量敌人伤害翻倍（斩杀线 10%/层） | 3 |
-| 8 | 急速 `ball_speed_boost` | 数值 | 初始速度 +20% | 3 |
-| 9 | 振奋 `ball_heal_on_kill` | 数值 | 击杀 8/6/4 个敌人回复 1 点生命 | 3 |
-
-## Rare（1）
-
-| # | 名称（id） | 类型 | 效果 | 堆叠 |
-|---|-----------|------|------|------|
-| 10 | 背刺 `ball_back_assassin` | 数值 | 背面命中伤害 +80% | 3 |
-
-## Legendary（1）
-
-| # | 名称（id） | 类型 | 效果 | 堆叠 |
-|---|-----------|------|------|------|
-| 11 | 弹匣扩充 `new_base_flood` | 扩容 | 普通球 +3 入队尾 | 2 |
-
-## 说明
-
-- **编号**：按品质分组连续编号，仅用于本表沟通，与代码无关。
-- **堆叠**：抽到同一条词条可重复生效的次数；堆满后从抽卡池剔除。
-- **扩容词条**（3 / 11）复用 `NewBallUpgradeData` 的 `BallType.Base` 形态：每次抽到直接入队对应数量的普通球。
-- **特殊球参数**：`SpecialBallParams` 容器与 `NewBallUpgradeData` 的分级结构保留，待新球体系设计完成后回填。
+- 修改配表后在 Unity 执行 `Tools/Data/Import All` 重新导入。
+- 重新设计 stat 时：`BallStatType` 回填枚举 → `BallStats.Reset()` 设默认值 → 按类型补充钳制规则 → 使用方（Player / PinBallBase）接回读取。
