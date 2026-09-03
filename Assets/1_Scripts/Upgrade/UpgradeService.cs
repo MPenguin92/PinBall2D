@@ -27,6 +27,19 @@ public class UpgradeService
 
     public int NextMilestoneIdx => nextMilestoneIdx;
 
+    /// <summary>
+    /// 下一个里程碑的经验阈值（与 <see cref="ExperienceAccumulated"/> 配合显示 cur/next；
+    /// 跨过该阈值即会刷出一只宝箱怪）。无里程碑表时返回 -1。
+    /// </summary>
+    public int NextMilestoneThreshold
+    {
+        get
+        {
+            if (milestoneTable == null || milestoneTable.Count == 0) return -1;
+            return milestoneTable.GetThresholdAt(nextMilestoneIdx);
+        }
+    }
+
     public bool IsOffering => isOffering;
 
     /// <summary>当前累积、尚未消费的升级次数（HUD 宝箱角标读取）。</summary>
@@ -38,7 +51,6 @@ public class UpgradeService
         KillMilestoneTable milestoneTable,
         UpgradeCatalog catalog,
         BallStats stats,
-        SpecialBallParams specialParams,
         Player player)
     {
         this.milestoneTable = milestoneTable;
@@ -46,7 +58,6 @@ public class UpgradeService
         this.context = new UpgradeContext
         {
             Stats = stats,
-            SpecialParams = specialParams,
             Player = player,
         };
     }
@@ -99,7 +110,7 @@ public class UpgradeService
         if (!currentOffer.Contains(chosen)) return;
 
         chosen.Apply(context);
-        chosen.IncrementStack();
+        chosen.IncrementLevel();
 
         // 消费当前这一组的升级次数。
         pendingMilestones.Dequeue();
@@ -128,13 +139,10 @@ public class UpgradeService
         int gain = (unit != null && unit.Experience > 0) ? unit.Experience : 1;
         experienceAccumulated += gain;
 
-        // 振奋词条：每次击杀推进回复计数（内部自行判断是否已解锁）。
-        if (context.Player != null)
-            context.Player.RegisterKill();
-
         if (milestoneTable == null || milestoneTable.Count == 0) return;
 
-        // 一次击杀可能跨多个里程碑：全部入队记账，弹窗时机交给玩家（宝箱按钮）。
+        // 经验累计推进里程碑；跨里程碑只广播（GameLogicManager 据此刷宝箱怪），
+        // 不再自动累计升级次数——升级机会改由「击杀宝箱怪」获得（GrantUpgradePoint）。
         while (nextMilestoneIdx < milestoneTable.Count)
         {
             int threshold = milestoneTable.GetThresholdAt(nextMilestoneIdx);
@@ -149,9 +157,22 @@ public class UpgradeService
 
             int reachedIdx = nextMilestoneIdx;
             nextMilestoneIdx++;
-            pendingMilestones.Enqueue(reachedIdx);
+
+            // [临时调试] 仅跨里程碑打印当前进度与下一档目标；验证后可移除。
+            int nextNeed = NextMilestoneThreshold;
+            Debug.Log($"[EXP] 里程碑达成，当前 {experienceAccumulated}，下一档 {nextNeed}");
+
             GameEvents.RaiseKillMilestoneReached(reachedIdx);
         }
+    }
+
+    /// <summary>
+    /// 击杀宝箱怪：获得一次升级机会（右上角宝箱按钮 +1）。
+    /// 三选一品质权重按当前里程碑进度取（表末自动沿用末行权重）。
+    /// </summary>
+    public void GrantUpgradePoint()
+    {
+        pendingMilestones.Enqueue(Mathf.Max(0, nextMilestoneIdx));
     }
 
     /// <summary>按指定里程碑权重抽卡并推送 UI；无候选返回 false。</summary>

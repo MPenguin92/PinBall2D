@@ -4,7 +4,9 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 游戏中 HUD：左下纵向生命值、右下纵向弹珠队列图标、顶部居中经验值、右侧升级宝箱入口。
+/// 游戏中 HUD：左下纵向生命值、右侧升级宝箱入口。
+/// （右下角弹珠队列已于 2026-09-03 移除；顶部经验文本已于 2026-09-04 移除——
+/// 升级机会改由击杀宝箱怪获得，经验进度改为数据接口供后续手动查看 UI 接入。）
 /// </summary>
 public class InGameUI : MonoBehaviour
 {
@@ -31,20 +33,6 @@ public class InGameUI : MonoBehaviour
     [Range(0f, 1f)]
     private float emptyHeartAlpha = 0.25f;
 
-    [Header("Ball queue — bottom-right, vertical icons")]
-    [SerializeField]
-    private RectTransform ballQueueContainer;
-
-    [SerializeField]
-    private Vector2 ballIconSize = new Vector2(36f, 36f);
-
-    [SerializeField]
-    private float ballIconSpacing = 6f;
-
-    [Header("Experience — top center")]
-    [SerializeField]
-    private TextMeshProUGUI killCountText;
-
     [Header("Upgrade chest button — right side")]
     [SerializeField]
     [Tooltip("升级宝箱按钮：有剩余升级次数时显示，点击打开三选一面板。图标为 Image，Sprite 留空由美术资源导入。")]
@@ -55,14 +43,9 @@ public class InGameUI : MonoBehaviour
     private TextMeshProUGUI chestCountText;
 
     private readonly List<Image> heartImages = new List<Image>();
-    private readonly List<Image> ballIcons = new List<Image>();
-    private readonly List<BallType> lastBallQueue = new List<BallType>();
-    private BallSpriteSet ballSpriteSet;
 
     private int lastHp = -1;
     private int lastMaxHp = -1;
-    private KillMilestoneTable cachedMilestoneTable;
-    private bool milestoneTableLoaded;
 
     private void Awake()
     {
@@ -92,13 +75,6 @@ public class InGameUI : MonoBehaviour
         if (force || target.CurrentHp != lastHp || target.MaxHp != lastMaxHp)
             RefreshHearts(target.CurrentHp, target.MaxHp);
 
-        if (force || BallQueueChanged(target.BallQueue))
-        {
-            RebuildBallIcons(target.BallQueue);
-            SyncBallQueueCache(target.BallQueue);
-        }
-
-        RefreshKillCount();
         RefreshChestButton();
 
         lastHp = target.CurrentHp;
@@ -175,39 +151,6 @@ public class InGameUI : MonoBehaviour
         }
     }
 
-    private void RebuildBallIcons(IReadOnlyCollection<BallType> queue)
-    {
-        if (ballQueueContainer == null)
-            return;
-
-        ClearImages(ballIcons);
-
-        BallSpriteSet spriteSet = ResolveBallSpriteSet();
-        if (spriteSet == null || queue == null || queue.Count == 0)
-        {
-            ballQueueContainer.sizeDelta = new Vector2(ballIconSize.x, 0f);
-            return;
-        }
-
-        int index = 0;
-        foreach (BallType ballType in queue)
-        {
-            Sprite sprite = spriteSet.Get(ballType);
-            if (sprite == null)
-                continue;
-
-            Image image = CreateSlotIcon(ballQueueContainer, sprite, ballIconSize, index, ballIconSpacing, anchorRight: true);
-            image.color = Color.white;
-            ballIcons.Add(image);
-            index++;
-        }
-
-        ballQueueContainer.sizeDelta = new Vector2(
-            ballIconSize.x,
-            VerticalStackHeight(index, ballIconSize.y, ballIconSpacing)
-        );
-    }
-
     private static Image CreateSlotIcon(
         RectTransform container,
         Sprite sprite,
@@ -257,66 +200,5 @@ public class InGameUI : MonoBehaviour
                 Destroy(images[i].gameObject);
         }
         images.Clear();
-    }
-
-    private bool BallQueueChanged(IReadOnlyCollection<BallType> queue)
-    {
-        if (queue == null)
-            return lastBallQueue.Count > 0;
-
-        if (queue.Count != lastBallQueue.Count)
-            return true;
-
-        int index = 0;
-        foreach (BallType ballType in queue)
-        {
-            if (lastBallQueue[index] != ballType)
-                return true;
-            index++;
-        }
-
-        return false;
-    }
-
-    private void SyncBallQueueCache(IReadOnlyCollection<BallType> queue)
-    {
-        lastBallQueue.Clear();
-        if (queue == null) return;
-        foreach (BallType ballType in queue)
-            lastBallQueue.Add(ballType);
-    }
-
-    private BallSpriteSet ResolveBallSpriteSet()
-    {
-        if (ballSpriteSet != null)
-            return ballSpriteSet;
-
-        ballSpriteSet = AssetLoader.Load<BallSpriteSet>("BallSpriteSet");
-        return ballSpriteSet;
-    }
-
-    private void RefreshKillCount()
-    {
-        if (killCountText == null) return;
-
-        UpgradeService svc = GameLogicManager.Instance != null ? GameLogicManager.Instance.UpgradeService : null;
-        if (svc == null)
-        {
-            killCountText.text = string.Empty;
-            return;
-        }
-
-        if (!milestoneTableLoaded)
-        {
-            cachedMilestoneTable = AssetLoader.Load<KillMilestoneTable>("KillMilestoneTable");
-            milestoneTableLoaded = true;
-        }
-
-        int cur = svc.ExperienceAccumulated;
-        int next = 0;
-        if (cachedMilestoneTable != null && cachedMilestoneTable.Count > 0)
-            next = cachedMilestoneTable.GetThresholdAt(svc.NextMilestoneIdx);
-
-        killCountText.text = next > 0 ? $"EXP {cur}/{next}" : $"EXP {cur}";
     }
 }

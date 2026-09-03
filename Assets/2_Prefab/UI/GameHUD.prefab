@@ -59,10 +59,6 @@ MonoBehaviour:
   heartSpacing: 8
   heartColor: {r: 1, g: 0, b: 0, a: 1}
   emptyHeartAlpha: 0.25
-  ballQueueContainer: {fileID: 910000021}
-  ballIconSize: {x: 36, y: 36}
-  ballIconSpacing: 6
-  killCountText: {fileID: 910000043}
   chestButton: {fileID: 930000004}
   chestCountText: {fileID: 930000013}
 --- !u!1 &910000010
@@ -115,7 +111,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &910000021
 RectTransform:
   m_ObjectHideFlags: 0

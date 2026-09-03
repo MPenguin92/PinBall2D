@@ -1,50 +1,44 @@
-# 升级效果总表（当前生效）
+# 升级效果总表（重新设计中）
 
-> 本表是**所有已有升级效果**的权威清单，后续新增 / 修改 / 删除升级时同步更新此表。
-> 配表数据源：`Assets/9_Excel/Upgrades_Stat.csv`（数值）与 `Assets/9_Excel/Upgrades_NewBall.csv`（新球 / 扩容）。
-> 修改配表后需在 Unity 执行 `Tools/Data/Import All` 重新导入。
-> 最后更新：2026-08-10
+> 升级体系已推倒重来（2026-09-03 起）：清空旧数值词条，先搭底层支持再填内容。
+> 当前第一个测试词条：**连发（Burst）**。完成后同步更新本表与 `doc/Function/Upgrade.md`。
 
-## 总览
+## 底层支持（已完成）
 
-- 数值词条 9 个（`BallStatUpgradeData`）
-- 扩容词条 2 个（`NewBallUpgradeData`，BallType.Base）
-- 特殊球体系（Fire/Ice/Lightning/Poison/Heavy/Boomerang）已整体撤下，重新设计中
+- **弹珠时机事件 `BallEvents`**：发射 / 命中 / 恰好击杀 / 反弹 / 返回（触底），
+  只读 struct 上下文、零分配，供效果订阅（`Assets/1_Scripts/PInBall/BallEvents.cs`）
+- **射击策略 `FireStrategy`**：Single / Burst（连发）/ Fan（扇形）互斥策略，
+  `Player` 只提供发射能力（`IFireExecutor`），策略决定"一次射击产出什么"
+- **抽卡机制框架**（保留可用）：经验 → 里程碑 → HUD 宝箱 → 三选一
 
-## Common（6）
+## 配表结构（2026-09-04 起）
 
-| # | 名称（id） | 类型 | 效果 | 堆叠 |
-|---|-----------|------|------|------|
-| 1 | 锋利 `ball_dmg_basic` | 数值 | 基础伤害 +1 | 5 |
-| 2 | 连射 `ball_fire_faster` | 数值 | 发射间隔 -15% | 4 |
-| 3 | 弹匣扩容 `new_base_more` | 扩容 | 普通球 +1 入队尾 | 5 |
-| 4 | 弹射加速 `ball_speed_charge` | 数值 | 每次反弹 +1 速度 | 5 |
-| 5 | 巧击 `ball_side_swift` | 数值 | 侧面命中伤害 +30% | 4 |
-| 6 | 暴击 `ball_crit_basic` | 数值 | 命中 10% 概率双倍伤害（每层 +10%） | 5 |
+升级数据拆成两层，加字段 = 加列，扩展不再散落：
 
-## Uncommon（3）
+1. **`Upgrades.csv`（通用元信息，展示用）**
+   列：`id, name, desc, rarity, maxLevel`
+   - `desc` 为**抽象概括**（描述效果类别，如「增加每次射击的弹珠数量」），不做数值
+   - `maxLevel` = 满级等级，抽到一次升 1 级，满级后从池剔除
+   - 后续 icon 等通用展示列加这里
 
-| # | 名称（id） | 类型 | 效果 | 堆叠 |
-|---|-----------|------|------|------|
-| 7 | 处决 `ball_execution` | 数值 | 对低血量敌人伤害翻倍（斩杀线 10%/层） | 3 |
-| 8 | 急速 `ball_speed_boost` | 数值 | 初始速度 +20% | 3 |
-| 9 | 振奋 `ball_heal_on_kill` | 数值 | 击杀 8/6/4 个敌人回复 1 点生命 | 3 |
+2. **类型专有表（每类词条一张，逐级）**
+   一行 = 一个词条的某一级（`id, level, ...`），`level` 从 1 起；
+   某级未配置的行会沿用上一级数据。
+   - `Upgrades_Fire.csv`（射击类）：`id, level, desc, shots, interval`
+     - `desc` = **等级化描述**（选卡时展示「升到该级后」的文案，如「每次发射 3 颗弹珠」）
+     - `shots` = 该级每次发射球数（**直接取值**，不做推导）
+   - 运行时展示走 `UpgradeBase.OfferDescription`：子类词条返回目标等级的专有描述，基类回退通用 `desc`
 
-## Rare（1）
+## 词条（测试中）
 
-| # | 名称（id） | 类型 | 效果 | 堆叠 |
-|---|-----------|------|------|------|
-| 10 | 背刺 `ball_back_assassin` | 数值 | 背面命中伤害 +80% | 3 |
+| id | 名称 | 类型 | 机制 | 满级 |
+|----|------|------|------|------|
+| `burst` | 连发 | Fire（行为） | 逐级配表：发射 2→6 颗，间隔 0.08→0.04 | 5 |
 
-## Legendary（1）
+- 实现：`FireBurstUpgradeData`（每级 `FireLevelData{desc, shots, interval}`，Apply 直接取该级 shots/interval 替换 FireStrategy）
+- 导入：`DataImporter` 读 `Upgrades.csv` 元信息 + `Upgrades_Fire.csv` 逐级数据 → 生成 `Fire_burst.asset` 写入 `UpgradeCatalog`
 
-| # | 名称（id） | 类型 | 效果 | 堆叠 |
-|---|-----------|------|------|------|
-| 11 | 弹匣扩充 `new_base_flood` | 扩容 | 普通球 +3 入队尾 | 2 |
+## 重建提示
 
-## 说明
-
-- **编号**：按品质分组连续编号，仅用于本表沟通，与代码无关。
-- **堆叠**：抽到同一条词条可重复生效的次数；堆满后从抽卡池剔除。
-- **扩容词条**（3 / 11）复用 `NewBallUpgradeData` 的 `BallType.Base` 形态：每次抽到直接入队对应数量的普通球。
-- **特殊球参数**：`SpecialBallParams` 容器与 `NewBallUpgradeData` 的分级结构保留，待新球体系设计完成后回填。
+- 修改配表后在 Unity 执行 `Tools/Data/Import All` 重新导入。
+- 新增行为词条类时：在 `Upgrades.csv` 加元信息行 → 新建类型专有表/行 → `DataImporter` 加对应导入方法。

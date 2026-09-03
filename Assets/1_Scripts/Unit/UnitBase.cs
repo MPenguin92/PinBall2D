@@ -3,6 +3,10 @@ using UnityEngine;
 public class UnitBase : MonoBehaviour
 {
     [SerializeField]
+    [Tooltip("本 prefab 对应的单位类型 id（与 Units.csv 第一列一致），用于按等级查询数值")]
+    private string unitId;
+
+    [SerializeField]
     private int maxHp = 3;
 
     [SerializeField]
@@ -10,13 +14,20 @@ public class UnitBase : MonoBehaviour
     private int attack = 1;
 
     [SerializeField]
-    [Tooltip("被击杀时给玩家累加的经验值（运行时由 Difficulty 当前阶段覆盖）")]
+    [Tooltip("被击杀时给玩家累加的经验值（运行时由 UnitTable 当前等级覆盖）")]
     private int experience = 1;
 
     [SerializeField]
     private UnitRender unitRender;
 
+    private int gold;
+
+    public string UnitId => unitId;
+
     private int currentHp;
+
+    /// <summary>本次出场（spawn）时被注入的等级；场景初始 Unit 无注入时为 1。</summary>
+    private int spawnedLevel = 1;
 
     // 减速 buff（由 ApplySlow 写入）：每个 Unit 私有的 step 节奏缩放因子。
     // 取值 (0, 1]。1 = 不减速；0.5 = 行为减半（Step 心跳每 2 次才执行一次个体移动）。
@@ -41,8 +52,11 @@ public class UnitBase : MonoBehaviour
 
     public int Attack => attack;
 
-    /// <summary>本 Unit 被击杀时给玩家累加的经验值。由 Difficulty 当前阶段在 Init 时写入。</summary>
+    /// <summary>本 Unit 被击杀时给玩家累加的经验值。由 UnitTable 按等级在 Init 时写入。</summary>
     public int Experience => experience;
+
+    /// <summary>击杀本 Unit 掉落的金币。由 UnitTable 按等级在 Init 时写入。</summary>
+    public int Gold => gold;
 
     /// <summary>标准 Unit 为 1x1 正方形，尺寸统一来自 <see cref="Defines.UnitSize"/>。</summary>
     public float Width => Defines.UnitSize;
@@ -71,17 +85,27 @@ public class UnitBase : MonoBehaviour
     }
 
     /// <summary>
-    /// 从 <see cref="Difficulty"/> 读取当前阶段参数并覆盖字段；无表时保留 Inspector 默认值。
+    /// 按 (UnitId, <see cref="SetSpawnedLevel"/> 注入的等级) 从 <see cref="UnitTable"/> 读取
+    /// 本单位的 hp/attack/experience/gold；无表、未配置或 id 缺失时保留 Inspector 默认值。
     /// 子类可重写以插入其他属性。
     /// </summary>
     protected virtual void ApplyDifficulty()
     {
         GameLogicManager mgr = GameLogicManager.Instance;
-        if (mgr == null || mgr.Difficulty == null || !mgr.Difficulty.HasTable) return;
+        if (mgr == null || mgr.UnitTable == null) return;
 
-        maxHp = mgr.Difficulty.GetUnitHp();
-        attack = mgr.Difficulty.GetUnitAttack();
-        experience = mgr.Difficulty.GetUnitExperience();
+        if (!mgr.UnitTable.TryGetLevel(unitId, spawnedLevel, out UnitLevelData data)) return;
+
+        maxHp = data.hp;
+        attack = data.attack;
+        experience = data.experience;
+        gold = data.gold;
+    }
+
+    /// <summary>出场前注入本次等级（由生成链路在 Init 前调用）；不调用则保持 1。</summary>
+    public void SetSpawnedLevel(int level)
+    {
+        spawnedLevel = Mathf.Max(1, level);
     }
 
     public void RefreshRect()

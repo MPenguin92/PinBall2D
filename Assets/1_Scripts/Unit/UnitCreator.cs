@@ -1,16 +1,24 @@
 using UnityEngine;
 
 /// <summary>
-/// 默认单位生成器实现：每个 Step 在屏幕外随机生成一行 Unit（填充率 10%~50%）。
-/// 新行在 SpawnStep 时生成于屏外，下一 Step 随全体下移进入画面。
+/// 默认单位生成器实现：
+/// - 普通怪（unit_damage，吃伤害型）：每个 Step 在屏幕外生成一批，
+///   总数与等级均由难度表驱动（spawnMin~spawnMax + 等级权重）；
+/// - 金币怪（unit_gold）**混入普通波**：金币冷却就绪（GameLogicManager 计时），
+///   本波会把随机 1~2 只原本的普通怪替换成金币怪（等级跟随当前难度最高等级）；
+/// - 宝箱怪（unit_chest）**混入普通波**：经验里程碑达成（GameLogicManager 置标记），
+///   本波替换一只（顺序靠后：随机到金币位会顶掉金币怪），击杀获得一次升级机会。
+/// 怪的类型（unitId → prefab 地址）都查 <see cref="UnitTable"/>，id 常量见 <see cref="Defines"/>。
 /// 纯逻辑类，由 GameLogicManager 在 Awake 时 new 一次并持有，OnDestroy 时 Dispose。
 /// </summary>
 public class UnitCreator : IUnitCreator
 {
-    private const string UnitAddress = "SimpleUnit";
+    /// <summary>金币波替换普通怪的最大只数（随机 1~max）。</summary>
+    private const int MaxGoldPerWave = 2;
+
+    /// <summary>出生点与屏幕左右边缘的间距。</summary>
     private const float HorizontalPadding = 0.5f;
-    private const float MinFillRatio = 0.1f;
-    private const float MaxFillRatio = 0.5f;
+
     /// <summary>出生点相对可见顶行向上偏移的格数（1 = 完全在屏幕外）。</summary>
     private const float SpawnRowsAboveVisible = 1f;
 
@@ -35,10 +43,10 @@ public class UnitCreator : IUnitCreator
         GameEvents.OnReturnToHome -= HandleGameEnd;
     }
 
-    public void SpawnStep()
+    public void SpawnStep(bool allowGoldReplace, bool allowChestReplace)
     {
         if (!isRunning || isPaused) return;
-        SpawnBatch();
+        SpawnBatch(allowGoldReplace, allowChestReplace);
     }
 
     private void HandleGameStart()
@@ -66,16 +74,88 @@ public class UnitCreator : IUnitCreator
     }
 
     /// <summary>
-    /// 在屏幕外按固定网格随机生成一行 Unit：每行填充 10%~50% 的列，列位置随机。
-    /// 出生点位于可见顶行正上方 1 格；当列被已有 Unit 占用时跳过该列。
+    /// 普通怪一批：总数取当前难度阶段 spawnMin~spawnMax 随机区间（不超屏幕列数），
+    /// 随机不重复列放置；每只的等级由难度阶段等级权重独立 roll。
+    /// 金币就绪（allowGoldReplace）：随机 1~2 个位置标为金币怪（等级取难度最高级）；
+    /// 宝箱就绪（allowChestReplace）：再随机挑 1 个位置标为宝箱怪（顺序靠后，
+    /// 可能随机到金币位并顶掉它）。
     /// </summary>
-    private void SpawnBatch()
+    private void SpawnBatch(bool allowGoldReplace, bool allowChestReplace)
     {
         GameLogicManager mgr = GameLogicManager.Instance;
-        if (mgr == null) return;
+        if (mgr == null || mgr.UnitTable == null || mgr.Difficulty == null) return;
+
+        UnitDefinition damage = mgr.UnitTable.Get(Defines.UnitDamageId);
+        if (damage == null) return;
+
+        if (!TryResolveSpawnGrid(out int columnCount, out float gridStartX, out float y)) return;
+
+        (int min, int max) range = mgr.Difficulty.GetSpawnRange();
+        int spawnCount = Mathf.Clamp(Random.Range(range.min, range.max + 1), 1, columnCount);
+
+        int[] columns = ShuffledColumns(columnCount);
+
+        // 金币替换位：columns[0, goldCount) 对应的本波位置改为金币怪。
+        UnitDefinition gold = allowGoldReplace ? mgr.UnitTable.Get(Defines.UnitGoldId) : null;
+        int goldCount = 0;
+        int goldLevel = 1;
+        if (gold != null)
+        {
+            goldCount = Mathf.Min(Random.Range(1, MaxGoldPerWave + 1), spawnCount);
+            // 在已选中的本波列里再洗一次，取前 goldCount 个作为替换位。
+            for (int i = 0; i < goldCount; i++)
+            {
+                int pick = Random.Range(i, spawnCount);
+                (columns[i], columns[pick]) = (columns[pick], columns[i]);
+            }
+            goldLevel = Mathf.Clamp(mgr.Difficulty.GetStageMaxLevel(), 1, Mathf.Max(1, gold.levels.Count));
+        }
+
+        // 宝箱替换位：整段随机挑 1 个下标（可能落在金币区 → 顶掉该金币）。
+        UnitDefinition chest = allowChestReplace ? mgr.UnitTable.Get(Defines.UnitChestId) : null;
+        int chestIndex = -1;
+        int chestLevel = 1;
+        if (chest != null && spawnCount >= 1)
+        {
+            chestIndex = Random.Range(0, spawnCount);
+            chestLevel = Mathf.Clamp(mgr.Difficulty.GetStageMaxLevel(), 1, Mathf.Max(1, chest.levels.Count));
+        }
+
+        for (int i = 0; i < spawnCount; i++)
+        {
+            float x = gridStartX + (columns[i] + 0.5f) * Defines.UnitSize;
+            Vector2 spawnPos = new Vector2(x, y);
+            if (IsSpawnOccupied(spawnPos)) continue;
+
+            if (i == chestIndex)
+            {
+                mgr.SpawnUnit(chest.prefabAddress, spawnPos, chestLevel);
+            }
+            else if (i < goldCount)
+            {
+                mgr.SpawnUnit(gold.prefabAddress, spawnPos, goldLevel);
+            }
+            else
+            {
+                // 普通怪：每只独立 roll 等级（难度阶段等级权重）。
+                int level = mgr.Difficulty.RollSpawnLevel();
+                mgr.SpawnUnit(damage.prefabAddress, spawnPos, level);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 解析出生行网格：可见顶行上方 1 格处，铺满可用宽度的列。
+    /// 成功返回 true 并给出列数、首列中心 x 与出生 y。
+    /// </summary>
+    private bool TryResolveSpawnGrid(out int columnCount, out float gridStartX, out float y)
+    {
+        columnCount = 0;
+        gridStartX = 0f;
+        y = 0f;
 
         Camera cam = Camera.main;
-        if (cam == null || !cam.orthographic) return;
+        if (cam == null || !cam.orthographic) return false;
 
         float halfHeight = cam.orthographicSize;
         float halfWidth = halfHeight * cam.aspect;
@@ -84,51 +164,46 @@ public class UnitCreator : IUnitCreator
         float minX = camPos.x - halfWidth + HorizontalPadding;
         float maxX = camPos.x + halfWidth - HorizontalPadding;
         float visibleTopRowCenterY = camPos.y + halfHeight - Defines.UnitSize * 0.5f;
-        float y = visibleTopRowCenterY + Defines.UnitSize * SpawnRowsAboveVisible;
+        y = visibleTopRowCenterY + Defines.UnitSize * SpawnRowsAboveVisible;
 
-        if (maxX <= minX) return;
+        if (maxX <= minX) return false;
+
         float availWidth = maxX - minX;
-
         float unitW = Defines.UnitSize;
-        if (unitW <= 0f) return;
+        if (unitW <= 0f) return false;
 
-        int columnCount = Mathf.Max(1, Mathf.FloorToInt(availWidth / unitW));
-        int minSpawn = Mathf.Max(1, Mathf.CeilToInt(columnCount * MinFillRatio));
-        int maxSpawn = Mathf.Max(minSpawn, Mathf.FloorToInt(columnCount * MaxFillRatio));
-        int spawnCount = Random.Range(minSpawn, maxSpawn + 1);
-
+        columnCount = Mathf.Max(1, Mathf.FloorToInt(availWidth / unitW));
         float gridWidth = columnCount * unitW;
-        float gridStartX = minX + (availWidth - gridWidth) * 0.5f;
+        gridStartX = minX + (availWidth - gridWidth) * 0.5f;
+        return true;
+    }
 
+    /// <summary>返回 [0, columnCount) 洗牌后的列号数组（取前 N 个即 N 个不重复列）。</summary>
+    private int[] ShuffledColumns(int columnCount)
+    {
         int[] columns = new int[columnCount];
         for (int i = 0; i < columnCount; i++)
             columns[i] = i;
 
-        for (int i = 0; i < spawnCount; i++)
+        for (int i = 0; i < columnCount - 1; i++)
         {
             int pick = Random.Range(i, columnCount);
             (columns[i], columns[pick]) = (columns[pick], columns[i]);
         }
-
-        for (int i = 0; i < spawnCount; i++)
-        {
-            int col = columns[i];
-            float x = gridStartX + (col + 0.5f) * unitW;
-            Vector2 spawnPos = new Vector2(x, y);
-
-            if (IsSpawnOccupied(mgr, spawnPos, unitW)) continue;
-
-            mgr.SpawnUnit(UnitAddress, spawnPos);
-        }
+        return columns;
     }
 
-    private static bool IsSpawnOccupied(GameLogicManager mgr, Vector2 center, float unitSize)
+    /// <summary>目标格是否已被场上其他 Unit 占用。</summary>
+    private bool IsSpawnOccupied(Vector2 center)
     {
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr == null) return false;
+
         var actives = mgr.ActiveUnits;
         if (actives == null) return false;
 
-        float half = unitSize * 0.5f;
-        Rect spawnRect = new Rect(center.x - half, center.y - half, unitSize, unitSize);
+        float half = Defines.UnitSize * 0.5f;
+        Rect spawnRect = new Rect(center.x - half, center.y - half, Defines.UnitSize, Defines.UnitSize);
 
         for (int i = 0; i < actives.Count; i++)
         {

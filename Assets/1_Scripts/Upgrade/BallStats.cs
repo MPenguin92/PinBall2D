@@ -3,9 +3,12 @@ using UnityEngine;
 
 /// <summary>
 /// 全局弹珠属性容器：管理每个 <see cref="BallStatType"/> 的「基础值 + Flat 修饰器 + Percent 修饰器」
-/// 三段式结构。读取时 Get(t) = base * (1 + sumPct) + sumFlat，并按 t 自身约束钳制。
-/// 由 GameLogicManager 创建并持有，PinBallBase / Player 在各自 Tick 中通过 Get 读取。
-/// 升级词条通过 AddFlat / AddPercent 写入；StartGame 时 Reset 回到默认基础值。
+/// 三段式结构。读取时 Get(t) = base * (1 + sumPct) + sumFlat。
+///
+/// ⚠️ 升级体系已清空（2026-09-01）：<see cref="BallStatType"/> 暂无取值，
+/// 具体 stat 与按类型的钳制规则待重新设计后回填。容器与通用 API
+/// （SetBase / AddFlat / AddPercent / Get）保留，供数值类升级词条（BallStatUpgradeData）写入。
+/// 由 GameLogicManager 创建并持有；StartGame 时 Reset 清空到初始状态。
 /// </summary>
 public class BallStats
 {
@@ -13,47 +16,12 @@ public class BallStats
     private readonly Dictionary<BallStatType, float> flatModifiers = new Dictionary<BallStatType, float>();
     private readonly Dictionary<BallStatType, float> percentModifiers = new Dictionary<BallStatType, float>();
 
-    private readonly BallStatDefaultsTable defaultsTable;
-
-    public BallStats() : this(null) { }
-
-    public BallStats(BallStatDefaultsTable defaultsTable)
-    {
-        this.defaultsTable = defaultsTable;
-        Reset();
-    }
-
-    /// <summary>清空所有修饰器并把基础值恢复为默认值。GameLogicManager.StartGame 调用。</summary>
+    /// <summary>清空所有基础值与修饰器。GameLogicManager.StartGame 调用。</summary>
     public void Reset()
     {
         baseValues.Clear();
         flatModifiers.Clear();
         percentModifiers.Clear();
-
-        // 优先使用 SO 表里的值,缺项回退到代码兜底,保证 SO 缺失/损坏时游戏仍可玩。
-        SetBaseDefault(BallStatType.BaseDamage, 1f);
-        SetBaseDefault(BallStatType.FrontHitMul, 1f);
-        SetBaseDefault(BallStatType.SideHitMul, 1f);
-        SetBaseDefault(BallStatType.BackHitMul, 1f);
-        SetBaseDefault(BallStatType.InitialSpeed, 24f);
-        SetBaseDefault(BallStatType.MinSpeed, 3f);
-        SetBaseDefault(BallStatType.MaxSpeed, 0f);
-        SetBaseDefault(BallStatType.BounceAccel, 0f);
-        SetBaseDefault(BallStatType.BounceSpeedMul, 1f);
-        SetBaseDefault(BallStatType.CritChance, 0f);
-        SetBaseDefault(BallStatType.ExecutionThreshold, 0f);
-        // 击杀回复阈值：base=10 表示"未解锁"，振奋词条以 flat -2/层 递减为 8/6/4。
-        SetBaseDefault(BallStatType.KillHealThreshold, 10f);
-        SetBaseDefault(BallStatType.MaxBounces, 0f);
-        SetBaseDefault(BallStatType.FireInterval, 0.3f);
-    }
-
-    private void SetBaseDefault(BallStatType t, float fallback)
-    {
-        if (defaultsTable != null && defaultsTable.TryGet(t, out float v))
-            baseValues[t] = v;
-        else
-            baseValues[t] = fallback;
     }
 
     public void SetBase(BallStatType t, float value)
@@ -73,56 +41,18 @@ public class BallStats
         percentModifiers[t] = current + value;
     }
 
-    /// <summary>
-    /// 读取最终值：base * (1 + sumPct) + sumFlat，并按类型规则钳制。
-    /// </summary>
+    /// <summary>读取最终值：base * (1 + sumPct) + sumFlat。重新设计后如需按类型钳制，在此补充。</summary>
     public float Get(BallStatType t)
     {
         baseValues.TryGetValue(t, out float baseValue);
         flatModifiers.TryGetValue(t, out float flat);
         percentModifiers.TryGetValue(t, out float pct);
 
-        float raw = baseValue * (1f + pct) + flat;
-        return Clamp(t, raw);
+        return baseValue * (1f + pct) + flat;
     }
 
     public int GetInt(BallStatType t)
     {
         return Mathf.Max(0, Mathf.RoundToInt(Get(t)));
-    }
-
-    private static float Clamp(BallStatType t, float v)
-    {
-        switch (t)
-        {
-            case BallStatType.BaseDamage:
-                return Mathf.Max(1f, v);
-            case BallStatType.FrontHitMul:
-            case BallStatType.SideHitMul:
-            case BallStatType.BackHitMul:
-                return Mathf.Max(0.1f, v);
-            case BallStatType.InitialSpeed:
-                return Mathf.Max(1f, v);
-            case BallStatType.MinSpeed:
-                return Mathf.Max(0.5f, v);
-            case BallStatType.MaxSpeed:
-                return Mathf.Max(0f, v);
-            case BallStatType.BounceAccel:
-                return v;
-            case BallStatType.BounceSpeedMul:
-                return Mathf.Clamp(v, 0.1f, 2f);
-            case BallStatType.CritChance:
-                return Mathf.Clamp01(v);
-            case BallStatType.ExecutionThreshold:
-                return Mathf.Clamp01(v);
-            case BallStatType.KillHealThreshold:
-                return Mathf.Max(1f, v);
-            case BallStatType.MaxBounces:
-                return Mathf.Max(0f, v);
-            case BallStatType.FireInterval:
-                return Mathf.Max(0.05f, v);
-            default:
-                return v;
-        }
     }
 }

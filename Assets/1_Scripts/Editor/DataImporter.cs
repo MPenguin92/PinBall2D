@@ -22,6 +22,7 @@ public static class DataImporter
     {
         EnsureDataFolder();
         ImportDifficulty();
+        ImportUnits();
         ImportKillMilestones();
         ImportBallStatDefaults();
         ImportUpgrades();
@@ -48,9 +49,9 @@ public static class DataImporter
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] tokens = line.Split(',');
-            if (tokens.Length < 7)
+            if (tokens.Length < 5)
             {
-                Debug.LogError($"[DataImporter] Difficulty line {i + 1} has too few columns (expected 7: startTime,spawnMin,spawnMax,unitHp,unitAttack,stepInterval,unitExperience), skipped: {line}");
+                Debug.LogError($"[DataImporter] Difficulty line {i + 1} has too few columns (expected 5: startTime,spawnMin,spawnMax,stepInterval,spawnLevels), skipped: {line}");
                 continue;
             }
 
@@ -59,10 +60,8 @@ public static class DataImporter
                 startTime = ParseFloat(tokens[0]),
                 spawnMin = ParseInt(tokens[1]),
                 spawnMax = ParseInt(tokens[2]),
-                unitHp = ParseInt(tokens[3]),
-                unitAttack = ParseInt(tokens[4]),
-                stepInterval = ParseFloat(tokens[5]),
-                unitExperience = ParseInt(tokens[6]),
+                stepInterval = ParseFloat(tokens[3]),
+                spawnLevels = ParseSpawnLevels(tokens[4]),
             });
         }
 
@@ -80,6 +79,107 @@ public static class DataImporter
         AssetDatabase.SaveAssets();
 
         Debug.Log($"[DataImporter] Difficulty imported: {stages.Count} stages -> {assetPath}");
+    }
+
+    [MenuItem("Tools/Data/Import Units")]
+    public static void ImportUnits()
+    {
+        // Units.csv：id, name, prefab（每类一行）—— 定义与 prefab 地址。
+        // Units_Level.csv：id, level, hp, attack, experience（每级一行）—— 逐级数值。
+        string metaCsv = ExcelFolder + "/Units.csv";
+        string levelCsv = ExcelFolder + "/Units_Level.csv";
+        if (!File.Exists(metaCsv) || !File.Exists(levelCsv))
+        {
+            Debug.LogError($"[DataImporter] Units.csv / Units_Level.csv not found (need both).");
+            return;
+        }
+
+        // 第一步：读定义。
+        Dictionary<string, UnitDefinition> defs = new Dictionary<string, UnitDefinition>();
+        string[] metaLines = File.ReadAllLines(metaCsv);
+        for (int i = 1; i < metaLines.Length; i++)
+        {
+            string line = metaLines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] t = line.Split(',');
+            if (t.Length < 3) continue;
+
+            string id = t[0].Trim();
+            if (string.IsNullOrEmpty(id)) continue;
+
+            defs[id] = new UnitDefinition
+            {
+                id = id,
+                name = t[1].Trim(),
+                prefabAddress = t[2].Trim(),
+            };
+        }
+
+        // 第二步：按 id 聚合逐级数值（level 升序填充，缺失沿用上一级）。
+        string[] levelLines = File.ReadAllLines(levelCsv);
+        for (int i = 1; i < levelLines.Length; i++)
+        {
+            string line = levelLines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] t = line.Split(',');
+            if (t.Length < 6)
+            {
+                Debug.LogWarning($"[DataImporter] Units_Level.csv line {i + 1} has too few columns, skipped: {line}");
+                continue;
+            }
+
+            string id = t[0].Trim();
+            int level = ParseInt(t[1]);
+            if (!defs.TryGetValue(id, out UnitDefinition def) || level < 1) continue;
+
+            // 填充到目标等级；缺口沿用上一级。
+            while (def.levels.Count < level)
+                def.levels.Add(LastOrNew(def));
+
+            def.levels[level - 1] = new UnitLevelData
+            {
+                hp = Mathf.Max(1, ParseInt(t[2])),
+                attack = Mathf.Max(0, ParseInt(t[3])),
+                experience = Mathf.Max(1, ParseInt(t[4])),
+                gold = Mathf.Max(0, ParseInt(t[5])),
+            };
+        }
+
+        // 第三步：写入 / 更新 UnitTable.asset。
+        EnsureDataFolder();
+        string assetPath = DataFolder + "/UnitTable.asset";
+        UnitTable table = AssetDatabase.LoadAssetAtPath<UnitTable>(assetPath);
+        if (table == null)
+        {
+            table = ScriptableObject.CreateInstance<UnitTable>();
+            AssetDatabase.CreateAsset(table, assetPath);
+        }
+
+        List<UnitDefinition> list = new List<UnitDefinition>(defs.Values);
+        table.SetUnits(list);
+        EditorUtility.SetDirty(table);
+        AssetDatabase.SaveAssets();
+
+        Debug.Log($"[DataImporter] Units imported: {list.Count} definitions -> {assetPath}");
+    }
+
+    /// <summary>取定义现有末级数值，用于补齐缺口；无末级时给默认（1/1/1/1）。</summary>
+    private static UnitLevelData LastOrNew(UnitDefinition def)
+    {
+        if (def.levels != null && def.levels.Count > 0)
+        {
+            UnitLevelData last = def.levels[def.levels.Count - 1];
+            return new UnitLevelData
+            {
+                hp = last.hp,
+                attack = last.attack,
+                experience = last.experience,
+                gold = last.gold,
+            };
+        }
+        return new UnitLevelData { hp = 1, attack = 1, experience = 1, gold = 1 };
     }
 
     [MenuItem("Tools/Data/Import Kill Milestones")]
@@ -196,8 +296,12 @@ public static class DataImporter
 
         List<UpgradeBase> entries = new List<UpgradeBase>();
 
-        ImportBallStatUpgrades(entries);
-        ImportNewBallUpgrades(entries);
+        // 词条通用元信息表：Upgrades.csv = id,name,desc,rarity,maxLevel
+        // （展示/通用字段集中于此，后续加 icon 等也在这一张表加列）。
+        Dictionary<string, UpgradeMeta> meta = ReadUpgradeMeta();
+
+        // 类型专有参数按表分发：每个专有表一行 = 某个词条的某一级。
+        ImportFireUpgrades(meta, entries);
 
         // 写入 / 更新 UpgradeCatalog
         string catalogPath = DataFolder + "/UpgradeCatalog.asset";
@@ -214,13 +318,23 @@ public static class DataImporter
         Debug.Log($"[DataImporter] Upgrades imported: {entries.Count} entries -> {catalogPath}");
     }
 
-    private static void ImportBallStatUpgrades(List<UpgradeBase> entries)
+    private struct UpgradeMeta
     {
-        string csvPath = ExcelFolder + "/Upgrades_Stat.csv";
+        public string name;
+        public string desc;
+        public UpgradeRarity rarity;
+        public int maxLevel;
+    }
+
+    /// <summary>读取通用元信息表；返回 id → 元信息（不含 id 无行）。</summary>
+    private static Dictionary<string, UpgradeMeta> ReadUpgradeMeta()
+    {
+        Dictionary<string, UpgradeMeta> result = new Dictionary<string, UpgradeMeta>();
+        string csvPath = ExcelFolder + "/Upgrades.csv";
         if (!File.Exists(csvPath))
         {
-            Debug.LogWarning($"[DataImporter] Upgrades_Stat.csv not found: {csvPath}");
-            return;
+            Debug.LogWarning($"[DataImporter] Upgrades.csv not found: {csvPath}");
+            return result;
         }
 
         string[] lines = File.ReadAllLines(csvPath);
@@ -230,132 +344,140 @@ public static class DataImporter
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] t = line.Split(',');
-            if (t.Length < 14)
+            if (t.Length < 5)
             {
-                Debug.LogWarning($"[DataImporter] Stat upgrade line {i + 1} has too few columns, skipped: {line}");
+                Debug.LogWarning($"[DataImporter] Upgrades.csv line {i + 1} has too few columns, skipped: {line}");
                 continue;
             }
 
             string id = t[0].Trim();
             if (string.IsNullOrEmpty(id)) continue;
 
-            string assetPath = $"{DataFolder}/{UpgradesSubFolder}/Stat_{id}.asset";
-            BallStatUpgradeData asset = AssetDatabase.LoadAssetAtPath<BallStatUpgradeData>(assetPath);
-            if (asset == null)
+            result[id] = new UpgradeMeta
             {
-                asset = ScriptableObject.CreateInstance<BallStatUpgradeData>();
-                AssetDatabase.CreateAsset(asset, assetPath);
-            }
-
-            asset.SetMeta(
-                id,
-                t[1].Trim(),
-                t[2].Trim(),
-                ParseRarity(t[3]),
-                ParseInt(t[4])
-            );
-
-            List<BallStatModifier> mods = new List<BallStatModifier>();
-            TryAddModifier(mods, t[5], t[6], t[7]);
-            TryAddModifier(mods, t[8], t[9], t[10]);
-            TryAddModifier(mods, t[11], t[12], t[13]);
-            asset.SetModifiers(mods);
-
-            EditorUtility.SetDirty(asset);
-            entries.Add(asset);
-        }
-    }
-
-    private static void ImportNewBallUpgrades(List<UpgradeBase> entries)
-    {
-        string csvPath = ExcelFolder + "/Upgrades_NewBall.csv";
-        if (!File.Exists(csvPath))
-        {
-            Debug.LogWarning($"[DataImporter] Upgrades_NewBall.csv not found: {csvPath}");
-            return;
-        }
-
-        string[] lines = File.ReadAllLines(csvPath);
-        for (int i = 1; i < lines.Length; i++)
-        {
-            string line = lines[i];
-            if (string.IsNullOrWhiteSpace(line)) continue;
-
-            string[] t = line.Split(',');
-            if (t.Length < 8)
-            {
-                Debug.LogWarning($"[DataImporter] NewBall upgrade line {i + 1} has too few columns, skipped: {line}");
-                continue;
-            }
-
-            string id = t[0].Trim();
-            if (string.IsNullOrEmpty(id)) continue;
-
-            string assetPath = $"{DataFolder}/{UpgradesSubFolder}/NewBall_{id}.asset";
-            NewBallUpgradeData asset = AssetDatabase.LoadAssetAtPath<NewBallUpgradeData>(assetPath);
-            if (asset == null)
-            {
-                asset = ScriptableObject.CreateInstance<NewBallUpgradeData>();
-                AssetDatabase.CreateAsset(asset, assetPath);
-            }
-
-            asset.SetMeta(
-                id,
-                t[1].Trim(),
-                t[2].Trim(),
-                ParseRarity(t[3]),
-                ParseInt(t[4])
-            );
-
-            BallType type = ParseBallType(t[5]);
-            List<string> keys = SplitPipe(t[6]);
-            List<BallLevelValues> levels = ParseLevelValues(t[7]);
-            asset.SetData(type, keys, levels);
-
-            EditorUtility.SetDirty(asset);
-            entries.Add(asset);
-        }
-    }
-
-    /// <summary>解析 levelValues 列：";" 分隔多个等级，每个等级用 "|" 分隔多个 float。</summary>
-    private static List<BallLevelValues> ParseLevelValues(string raw)
-    {
-        List<BallLevelValues> result = new List<BallLevelValues>();
-        if (string.IsNullOrWhiteSpace(raw)) return result;
-
-        string[] levelChunks = raw.Split(';');
-        for (int i = 0; i < levelChunks.Length; i++)
-        {
-            BallLevelValues lv = new BallLevelValues();
-            string chunk = levelChunks[i];
-            if (!string.IsNullOrWhiteSpace(chunk))
-            {
-                string[] nums = chunk.Split('|');
-                for (int j = 0; j < nums.Length; j++)
-                    lv.values.Add(ParseFloat(nums[j]));
-            }
-            result.Add(lv);
+                name = t[1].Trim(),
+                desc = t[2].Trim(),
+                rarity = ParseRarity(t[3]),
+                maxLevel = ParseInt(t[4]),
+            };
         }
         return result;
     }
 
-    private static void TryAddModifier(List<BallStatModifier> mods, string statRaw, string flatRaw, string pctRaw)
+    /// <summary>
+    /// 导入射击类行为词条（当前：连发 Burst）：
+    /// Upgrades_Fire.csv = id, level, desc, shots, interval —— 一行 = 一个词条的某一级。
+    /// desc 为等级化描述（选卡卡面展示）；shots 为该级每次发射球数（直接取值）。
+    /// 生成 asset 前缀 Fire_；满级取自通用表的 maxLevel，某级未配置时沿用上一级。
+    /// </summary>
+    private static void ImportFireUpgrades(Dictionary<string, UpgradeMeta> meta, List<UpgradeBase> entries)
     {
-        string s = statRaw == null ? string.Empty : statRaw.Trim();
-        if (string.IsNullOrEmpty(s)) return;
-
-        if (!Enum.TryParse<BallStatType>(s, true, out BallStatType type))
+        string csvPath = ExcelFolder + "/Upgrades_Fire.csv";
+        if (!File.Exists(csvPath))
         {
-            Debug.LogWarning($"[DataImporter] Unknown BallStatType '{s}', skipped.");
+            Debug.LogWarning($"[DataImporter] Upgrades_Fire.csv not found: {csvPath}");
             return;
         }
 
-        mods.Add(new BallStatModifier
+        // 第一步：按词条 id 收集 (level -> 等级数据)。
+        Dictionary<string, Dictionary<int, FireLevelData>> raw = new Dictionary<string, Dictionary<int, FireLevelData>>();
+        string[] lines = File.ReadAllLines(csvPath);
+        for (int i = 1; i < lines.Length; i++)
         {
-            statType = type,
-            flat = ParseFloat(flatRaw),
-            percent = ParseFloat(pctRaw),
-        });
+            string line = lines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] t = line.Split(',');
+            if (t.Length < 5)
+            {
+                Debug.LogWarning($"[DataImporter] Upgrades_Fire.csv line {i + 1} has too few columns, skipped: {line}");
+                continue;
+            }
+
+            string id = t[0].Trim();
+            int level = ParseInt(t[1]);
+            if (string.IsNullOrEmpty(id) || level < 1) continue;
+
+            if (!raw.TryGetValue(id, out Dictionary<int, FireLevelData> levels))
+            {
+                levels = new Dictionary<int, FireLevelData>();
+                raw[id] = levels;
+            }
+            levels[level] = new FireLevelData
+            {
+                desc = t[2].Trim(),
+                shots = Mathf.Max(1, ParseInt(t[3])),
+                interval = Mathf.Max(0f, ParseFloat(t[4])),
+            };
+        }
+
+        // 第二步：逐词条生成 / 更新 asset（通用元信息 + 逐级专有数据）。
+        foreach (KeyValuePair<string, Dictionary<int, FireLevelData>> pair in raw)
+        {
+            string id = pair.Key;
+            if (!meta.TryGetValue(id, out UpgradeMeta m))
+            {
+                Debug.LogWarning($"[DataImporter] Upgrades_Fire.csv id '{id}' missing in Upgrades.csv, skipped.");
+                continue;
+            }
+
+            // 补全到 maxLevel 长度；缺失等级沿用上一级（逐级拷贝，避免列表内共享同一实例）。
+            List<FireLevelData> levels = new List<FireLevelData>();
+            FireLevelData last = null;
+            for (int lv = 1; lv <= Mathf.Max(1, m.maxLevel); lv++)
+            {
+                if (pair.Value.TryGetValue(lv, out FireLevelData data))
+                    last = data;
+
+                levels.Add(new FireLevelData
+                {
+                    desc = last != null ? last.desc : string.Empty,
+                    shots = last != null ? last.shots : 1,
+                    interval = last != null ? last.interval : 0.08f,
+                });
+            }
+
+            string assetPath = $"{DataFolder}/{UpgradesSubFolder}/Fire_{id}.asset";
+            FireBurstUpgradeData asset = AssetDatabase.LoadAssetAtPath<FireBurstUpgradeData>(assetPath);
+            if (asset == null)
+            {
+                asset = ScriptableObject.CreateInstance<FireBurstUpgradeData>();
+                AssetDatabase.CreateAsset(asset, assetPath);
+            }
+
+            asset.SetMeta(id, m.name, m.desc, m.rarity, m.maxLevel);
+            asset.SetLevels(levels);
+
+            EditorUtility.SetDirty(asset);
+            entries.Add(asset);
+        }
+    }
+
+    /// <summary>
+    /// 解析 spawnLevels 列：";" 分隔多个「levelxweight」段（如 1x60;2x30;3x10）。
+    /// 段格式不合法（缺 x 或权重 &lt;=0）时跳过该段。
+    /// </summary>
+    private static List<SpawnLevelEntry> ParseSpawnLevels(string raw)
+    {
+        List<SpawnLevelEntry> list = new List<SpawnLevelEntry>();
+        if (string.IsNullOrWhiteSpace(raw)) return list;
+
+        string[] segments = raw.Split(';');
+        for (int i = 0; i < segments.Length; i++)
+        {
+            string seg = segments[i];
+            if (string.IsNullOrWhiteSpace(seg)) continue;
+
+            string[] parts = seg.Split('x');
+            if (parts.Length < 2) continue;
+
+            int level = ParseInt(parts[0]);
+            int weight = ParseInt(parts[1]);
+            if (level < 1 || weight <= 0) continue;
+
+            list.Add(new SpawnLevelEntry { level = level, weight = weight });
+        }
+        return list;
     }
 
     private static UpgradeRarity ParseRarity(string s)
@@ -363,38 +485,6 @@ public static class DataImporter
         if (Enum.TryParse<UpgradeRarity>(s.Trim(), true, out UpgradeRarity r))
             return r;
         return UpgradeRarity.Common;
-    }
-
-    private static BallType ParseBallType(string s)
-    {
-        if (Enum.TryParse<BallType>(s.Trim(), true, out BallType t))
-            return t;
-        return BallType.Base;
-    }
-
-    private static List<string> SplitPipe(string raw)
-    {
-        List<string> list = new List<string>();
-        if (string.IsNullOrWhiteSpace(raw)) return list;
-        string[] parts = raw.Split('|');
-        for (int i = 0; i < parts.Length; i++)
-        {
-            string p = parts[i].Trim();
-            if (!string.IsNullOrEmpty(p)) list.Add(p);
-        }
-        return list;
-    }
-
-    private static List<float> SplitPipeFloat(string raw)
-    {
-        List<float> list = new List<float>();
-        if (string.IsNullOrWhiteSpace(raw)) return list;
-        string[] parts = raw.Split('|');
-        for (int i = 0; i < parts.Length; i++)
-        {
-            list.Add(ParseFloat(parts[i]));
-        }
-        return list;
     }
 
     private static void EnsureDataFolder()

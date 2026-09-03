@@ -1,25 +1,28 @@
-using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// 玩家:发射弹珠 + 鼠标瞄准 + 生命值。
+/// 玩家：发射弹珠 + 鼠标瞄准 + 生命值。
+/// 弹珠为无限发射模式（2026-09-03 起不再维护库存队列）：
+/// 发射不扣库存、回收不还库存，每次松开鼠标执行一次射击。
 ///
-/// 弹珠库存为一个**全局 FIFO 队列**:发射 = 队首出队,球碰底回收 = 入队尾。
-/// 默认 <see cref="initialBallCount"/> 个普通球(Base)入队;获得特殊球升级时,
-/// 立即把对应数量的该 BallType 入队尾,容量随之增长。
-/// 谁在队首就发谁——后发先回的球会"插队"到下一次发射位置。
+/// 「一次射击产出什么」由 <see cref="FireStrategy"/> 决定（单发 / 连发 / 扇形…），
+/// 玩家自身只提供发射能力（生成球、延迟调度、当前瞄准方向），
+/// 升级词条可通过 <see cref="SetFireStrategy"/> 替换射击模式。
 ///
-/// 操作方式:按住鼠标左键时炮口持续跟随鼠标方向,松开鼠标发射一发。
+/// 操作方式：按住鼠标左键时炮口持续跟随鼠标方向，松开鼠标发射。
 /// </summary>
-public class Player : MonoBehaviour
+public class Player : MonoBehaviour, IFireExecutor
 {
+    /// <summary>普通球在 Addressables 中的地址（BaseBall.prefab，注册于 Unit 组）。</summary>
+    private const string BaseBallAddress = "BaseBall";
+
+    /// <summary>当前射击模式；默认单发，升级系统可替换。</summary>
+    private FireStrategy fireStrategy = new SingleFireStrategy();
+
     [SerializeField]
     [Tooltip("Player 最大生命值")]
     private int maxHp = 5;
-
-    [SerializeField]
-    [Tooltip("StartGame 时入队的初始普通球数量。")]
-    private int initialBallCount = 5;
 
     [SerializeField]
     private PlayerRender playerRender;
@@ -31,26 +34,16 @@ public class Player : MonoBehaviour
     /// <summary>屏幕→世界坐标转换用的主相机；无相机时禁用鼠标操作。</summary>
     private Camera mainCamera;
 
-    /// <summary>各 BallType 的 Addressables 地址。当前仅有普通球（Base），特殊球体系重新设计后再扩展。</summary>
-    private readonly Dictionary<BallType, string> ballAddress = new Dictionary<BallType, string>
-    {
-        { BallType.Base, "BaseBall" },
-    };
+    [SerializeField]
+    [Tooltip("发射间隔（秒）：重新设计升级体系前暂为固定值。")]
+    private float fireInterval = 0.3f;
 
-    // FIFO 队列:队首=下一发,队尾=最新入队。Enqueue/Dequeue 是 O(1)。
-    private readonly Queue<BallType> ballQueue = new Queue<BallType>();
-
-    // 历史累计入队总数(含已发射在外的球)。等于"容量",用于 HUD 显示与 BallsInFlight 推导。
-    private int totalBalls;
-
-    // 已解锁过的特殊 BallType 集合(仅记录非 Base):用于"全部已解锁特殊球各 +N"类升级。
-    private readonly HashSet<BallType> unlockedSpecials = new HashSet<BallType>();
+    [SerializeField]
+    [Tooltip("发射初速：重新设计升级体系前暂为固定值。")]
+    private float fireSpeed = 24f;
 
     private float fireTimer;
     private int currentHp;
-
-    // 振奋词条的击杀计数：达到 KillHealThreshold 时回复 1 点生命。
-    private int killHealCounter;
 
     public int CurrentHp => currentHp;
 
@@ -58,27 +51,11 @@ public class Player : MonoBehaviour
 
     public bool IsDead => currentHp <= 0;
 
-    /// <summary>当前队列内可发射的球数(不含飞行中的)。</summary>
-    public int QueueCount => ballQueue.Count;
+    /// <summary>当前发射冷却间隔（升级体系清空期间为固定值，重新设计后可改由属性系统驱动）。</summary>
+    public float FireInterval => fireInterval;
 
-    /// <summary>历史入队总数,等价于"容量":队列内 + 飞行中 = TotalBalls。</summary>
-    public int TotalBalls => totalBalls;
-
-    /// <summary>当前飞行在外的球数。</summary>
-    public int BallsInFlight => totalBalls - ballQueue.Count;
-
-    /// <summary>HUD 用:按队列顺序(队首→队尾)只读暴露当前队列内容。</summary>
-    public IReadOnlyCollection<BallType> BallQueue => ballQueue;
-
-    /// <summary>当前发射冷却间隔,来自 <see cref="BallStats"/>。</summary>
-    public float FireInterval
-    {
-        get
-        {
-            BallStats stats = GetStats();
-            return stats != null ? stats.Get(BallStatType.FireInterval) : 0.3f;
-        }
-    }
+    /// <summary>当前射击策略（只读查看；切换用 <see cref="SetFireStrategy"/>）。</summary>
+    public FireStrategy FireStrategy => fireStrategy;
 
     public Vector2 Direction
     {
@@ -102,18 +79,14 @@ public class Player : MonoBehaviour
 
     public void Init()
     {
-        ballQueue.Clear();
-        unlockedSpecials.Clear();
-        totalBalls = 0;
+        // 清掉上一局可能残留的连发延迟（Burst 策略的跨局安全）。
+        StopAllCoroutines();
 
-        int initial = Mathf.Max(0, initialBallCount);
-        for (int i = 0; i < initial; i++)
-            ballQueue.Enqueue(BallType.Base);
-        totalBalls = initial;
+        // 每局从单发射击开始；射击模式的成长由升级词条在本局内叠加。
+        fireStrategy = new SingleFireStrategy();
 
         fireTimer = 0f;
         currentHp = maxHp;
-        killHealCounter = 0;
         if (muzzle != null)
             muzzle.localRotation = Quaternion.identity;
     }
@@ -135,33 +108,11 @@ public class Player : MonoBehaviour
         return IsDead;
     }
 
-    /// <summary>回复生命（振奋词条等使用），不超过上限。</summary>
+    /// <summary>回复生命（不超过上限）。</summary>
     public void Heal(int amount)
     {
         if (amount <= 0 || IsDead) return;
         currentHp = Mathf.Min(maxHp, currentHp + amount);
-    }
-
-    /// <summary>
-    /// 击杀计数：由 UpgradeService 在每次击杀时调用。
-    /// KillHealThreshold base=10 表示未解锁；振奋词条以 flat -2/层 递减为 8/6/4，
-    /// 只有被修饰（threshold &lt; 10）时才启用计数回血。
-    /// </summary>
-    public void RegisterKill()
-    {
-        BallStats stats = GetStats();
-        if (stats == null) return;
-
-        float threshold = stats.Get(BallStatType.KillHealThreshold);
-        if (threshold >= 10f) return;
-
-        killHealCounter++;
-        int need = Mathf.Max(1, Mathf.RoundToInt(threshold));
-        if (killHealCounter >= need)
-        {
-            killHealCounter = 0;
-            Heal(1);
-        }
     }
 
     public void Tick()
@@ -174,39 +125,6 @@ public class Player : MonoBehaviour
         if (fireTimer > 0f)
             fireTimer -= Time.deltaTime;
     }
-
-    /// <summary>
-    /// 球回收时调用(GameLogicManager.RecyclePinBall):按其类型入队尾,**不改变 totalBalls**。
-    /// </summary>
-    public void AddPinBall(BallType type)
-    {
-        ballQueue.Enqueue(type);
-    }
-
-    /// <summary>
-    /// 升级解锁/扩容:在队尾追加 <paramref name="count"/> 个 <paramref name="type"/>,
-    /// 同步增加 totalBalls。第一次添加非 Base 类型时会被记入"已解锁特殊球"集合。
-    /// </summary>
-    public void AddBalls(BallType type, int count)
-    {
-        if (count <= 0) return;
-        for (int i = 0; i < count; i++)
-            ballQueue.Enqueue(type);
-        totalBalls += count;
-
-        if (type != BallType.Base)
-            unlockedSpecials.Add(type);
-    }
-
-    /// <summary>查询某种特殊球是否已被解锁(历史上有过入队)。Base 永远视为已解锁。</summary>
-    public bool IsUnlocked(BallType type)
-    {
-        if (type == BallType.Base) return true;
-        return unlockedSpecials.Contains(type);
-    }
-
-    /// <summary>已解锁的特殊球集合(只读),供升级"全部已解锁特殊球 +N"等场景使用。</summary>
-    public IReadOnlyCollection<BallType> UnlockedSpecials => unlockedSpecials;
 
     /// <summary>
     /// 指针操作（兼容移动端）：按住时炮口持续跟随指针方向，松开时发射一发。
@@ -252,34 +170,53 @@ public class Player : MonoBehaviour
         muzzle.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 
+    /// <summary>替换射击模式；传入 null 回退为单发。升级词条应用时调用。</summary>
+    public void SetFireStrategy(FireStrategy strategy)
+    {
+        fireStrategy = strategy ?? new SingleFireStrategy();
+    }
+
+    // ---- IFireExecutor（Player 提供的发射能力）----
+
+    public Vector2 BaseDirection => Direction;
+
+    public void SpawnBall(Vector2 direction)
+    {
+        PinBallBase ball = GameLogicManager.Instance.SpawnPinBall(BaseBallAddress, FirePosition, direction, fireSpeed);
+
+        // 发射时：生成成功才广播（供升级效果在球出生瞬间附加影响）。
+        if (ball != null)
+            BallEvents.RaiseFired(ball, FirePosition, direction, fireSpeed);
+    }
+
+    public void Delay(float seconds, System.Action action)
+    {
+        if (action == null) return;
+        if (seconds <= 0f)
+        {
+            action();
+            return;
+        }
+        StartCoroutine(DelayRoutine(seconds, action));
+    }
+
+    private IEnumerator DelayRoutine(float seconds, System.Action action)
+    {
+        yield return new WaitForSeconds(seconds);
+        action();
+    }
+
+    /// <summary>无限发射入口：冷却结束后交给当前 FireStrategy 决定产出，随后进入冷却。</summary>
     private void TryFire()
     {
         if (fireTimer > 0f) return;
-        if (ballQueue.Count == 0) return;
 
-        BallType chosen = ballQueue.Dequeue();
+        if (fireStrategy != null)
+            fireStrategy.Fire(this);
 
-        BallStats stats = GetStats();
-        float speed = stats != null ? stats.Get(BallStatType.InitialSpeed) : 24f;
-        string address = ResolveAddress(chosen);
-
-        GameLogicManager.Instance.SpawnPinBall(address, FirePosition, Direction, speed);
-
-        float fireInterval = stats != null ? stats.Get(BallStatType.FireInterval) : 0.3f;
         fireTimer = fireInterval;
 
         if (playerRender != null)
             playerRender.PlayAttackAnimation();
-    }
-
-    private string ResolveAddress(BallType type)
-    {
-        return ballAddress.TryGetValue(type, out string addr) ? addr : ballAddress[BallType.Base];
-    }
-
-    private BallStats GetStats()
-    {
-        GameLogicManager mgr = GameLogicManager.Instance;
-        return mgr != null ? mgr.BallStats : null;
     }
 }

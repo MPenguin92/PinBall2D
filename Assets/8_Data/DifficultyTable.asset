@@ -16,154 +16,236 @@ MonoBehaviour:
   - startTime: 0
     spawnMin: 1
     spawnMax: 1
-    unitHp: 3
-    unitAttack: 1
     stepInterval: 1.2
-    unitExperience: 1
+    spawnLevels:
+    - level: 1
+      weight: 100
   - startTime: 30
     spawnMin: 1
     spawnMax: 2
-    unitHp: 3
-    unitAttack: 1
     stepInterval: 1.1
-    unitExperience: 1
+    spawnLevels:
+    - level: 1
+      weight: 80
+    - level: 2
+      weight: 20
   - startTime: 60
     spawnMin: 1
     spawnMax: 3
-    unitHp: 6
-    unitAttack: 1
     stepInterval: 1
-    unitExperience: 2
+    spawnLevels:
+    - level: 1
+      weight: 60
+    - level: 2
+      weight: 30
+    - level: 3
+      weight: 10
   - startTime: 120
     spawnMin: 2
     spawnMax: 4
-    unitHp: 9
-    unitAttack: 1
     stepInterval: 0.85
-    unitExperience: 2
+    spawnLevels:
+    - level: 2
+      weight: 50
+    - level: 3
+      weight: 30
+    - level: 4
+      weight: 20
   - startTime: 180
     spawnMin: 7
     spawnMax: 10
-    unitHp: 24
-    unitAttack: 1
     stepInterval: 0.42
-    unitExperience: 4
+    spawnLevels:
+    - level: 3
+      weight: 40
+    - level: 4
+      weight: 35
+    - level: 5
+      weight: 25
   - startTime: 240
     spawnMin: 8
     spawnMax: 11
-    unitHp: 33
-    unitAttack: 1
     stepInterval: 0.36
-    unitExperience: 5
+    spawnLevels:
+    - level: 4
+      weight: 40
+    - level: 5
+      weight: 40
+    - level: 6
+      weight: 20
   - startTime: 300
     spawnMin: 9
     spawnMax: 12
-    unitHp: 45
-    unitAttack: 1
     stepInterval: 0.32
-    unitExperience: 6
+    spawnLevels:
+    - level: 5
+      weight: 40
+    - level: 6
+      weight: 40
+    - level: 7
+      weight: 20
   - startTime: 360
     spawnMin: 10
     spawnMax: 13
-    unitHp: 60
-    unitAttack: 1
     stepInterval: 0.28
-    unitExperience: 8
+    spawnLevels:
+    - level: 6
+      weight: 40
+    - level: 7
+      weight: 40
+    - level: 8
+      weight: 20
   - startTime: 420
     spawnMin: 11
     spawnMax: 14
-    unitHp: 78
-    unitAttack: 1
     stepInterval: 0.25
-    unitExperience: 10
+    spawnLevels:
+    - level: 7
+      weight: 40
+    - level: 8
+      weight: 40
+    - level: 9
+      weight: 20
   - startTime: 480
     spawnMin: 12
     spawnMax: 15
-    unitHp: 99
-    unitAttack: 1
     stepInterval: 0.22
-    unitExperience: 12
+    spawnLevels:
+    - level: 8
+      weight: 40
+    - level: 9
+      weight: 40
+    - level: 10
+      weight: 20
   - startTime: 540
     spawnMin: 13
     spawnMax: 16
-    unitHp: 123
-    unitAttack: 1
     stepInterval: 0.2
-    unitExperience: 14
+    spawnLevels:
+    - level: 9
+      weight: 40
+    - level: 10
+      weight: 40
+    - level: 11
+      weight: 20
   - startTime: 600
     spawnMin: 14
     spawnMax: 17
-    unitHp: 150
-    unitAttack: 1
     stepInterval: 0.18
-    unitExperience: 16
+    spawnLevels:
+    - level: 10
+      weight: 40
+    - level: 11
+      weight: 40
+    - level: 12
+      weight: 20
   - startTime: 660
     spawnMin: 15
     spawnMax: 18
-    unitHp: 180
-    unitAttack: 1
     stepInterval: 0.16
-    unitExperience: 18
+    spawnLevels:
+    - level: 11
+      weight: 40
+    - level: 12
+      weight: 40
+    - level: 13
+      weight: 20
   - startTime: 720
     spawnMin: 16
     spawnMax: 19
-    unitHp: 216
-    unitAttack: 1
     stepInterval: 0.145
-    unitExperience: 20
+    spawnLevels:
+    - level: 12
+      weight: 40
+    - level: 13
+      weight: 40
+    - level: 14
+      weight: 20
   - startTime: 780
     spawnMin: 17
     spawnMax: 20
-    unitHp: 255
-    unitAttack: 1
     stepInterval: 0.13
-    unitExperience: 23
+    spawnLevels:
+    - level: 13
+      weight: 40
+    - level: 14
+      weight: 40
+    - level: 15
+      weight: 20
   - startTime: 840
     spawnMin: 18
     spawnMax: 21
-    unitHp: 300
-    unitAttack: 1
     stepInterval: 0.115
-    unitExperience: 26
+    spawnLevels:
+    - level: 14
+      weight: 40
+    - level: 15
+      weight: 40
+    - level: 16
+      weight: 20
   - startTime: 900
     spawnMin: 19
     spawnMax: 22
-    unitHp: 348
-    unitAttack: 1
     stepInterval: 0.1
-    unitExperience: 30
+    spawnLevels:
+    - level: 15
+      weight: 40
+    - level: 16
+      weight: 40
+    - level: 17
+      weight: 20
   - startTime: 960
     spawnMin: 20
     spawnMax: 23
-    unitHp: 402
-    unitAttack: 1
     stepInterval: 0.09
-    unitExperience: 34
+    spawnLevels:
+    - level: 16
+      weight: 40
+    - level: 17
+      weight: 40
+    - level: 18
+      weight: 20
   - startTime: 1020
     spawnMin: 21
     spawnMax: 24
-    unitHp: 462
-    unitAttack: 1
     stepInterval: 0.08
-    unitExperience: 38
+    spawnLevels:
+    - level: 17
+      weight: 40
+    - level: 18
+      weight: 40
+    - level: 19
+      weight: 20
   - startTime: 1080
     spawnMin: 22
     spawnMax: 25
-    unitHp: 528
-    unitAttack: 1
     stepInterval: 0.07
-    unitExperience: 42
+    spawnLevels:
+    - level: 18
+      weight: 40
+    - level: 19
+      weight: 40
+    - level: 20
+      weight: 20
   - startTime: 1140
     spawnMin: 23
     spawnMax: 26
-    unitHp: 600
-    unitAttack: 1
     stepInterval: 0.06
-    unitExperience: 46
+    spawnLevels:
+    - level: 19
+      weight: 40
+    - level: 20
+      weight: 40
+    - level: 21
+      weight: 20
   - startTime: 1200
     spawnMin: 24
     spawnMax: 28
-    unitHp: 675
-    unitAttack: 1
     stepInterval: 0.05
-    unitExperience: 50
+    spawnLevels:
+    - level: 20
+      weight: 40
+    - level: 21
+      weight: 40
+    - level: 22
+      weight: 20
