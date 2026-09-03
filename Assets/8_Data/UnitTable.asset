@@ -197,3 +197,11 @@ MonoBehaviour:
       attack: 1
       experience: 13
       gold: 240
+  - id: unit_chest
+    name: "\u5B9D\u7BB1"
+    prefabAddress: ChestUnit
+    levels:
+    - hp: 1
+      attack: 1
+      experience: 1
+      gold: 0

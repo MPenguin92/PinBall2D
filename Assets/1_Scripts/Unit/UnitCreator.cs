@@ -112,6 +112,7 @@ public class UnitCreator : IUnitCreator
         }
 
         // 宝箱替换位：整段随机挑 1 个下标（可能落在金币区 → 顶掉该金币）。
+        // 宝箱替换位：整段随机挑 1 个下标（可能落在金币区 → 顶掉该金币）。
         UnitDefinition chest = allowChestReplace ? mgr.UnitTable.Get(Defines.UnitChestId) : null;
         int chestIndex = -1;
         int chestLevel = 1;
@@ -119,6 +120,12 @@ public class UnitCreator : IUnitCreator
         {
             chestIndex = Random.Range(0, spawnCount);
             chestLevel = Mathf.Clamp(mgr.Difficulty.GetStageMaxLevel(), 1, Mathf.Max(1, chest.levels.Count));
+        }
+        else if (allowChestReplace)
+        {
+            // 里程碑已触发但表里查不到 unit_chest：通常是 Units.csv 改后未重新导入 UnitTable。
+            Debug.LogError($"[UnitCreator] 本波应刷宝箱怪，但 UnitTable 查不到 '{Defines.UnitChestId}'。" +
+                           "请通过 Tools/Data/Import Units 重新导入 Units.csv。");
         }
 
         for (int i = 0; i < spawnCount; i++)
