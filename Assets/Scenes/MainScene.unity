@@ -750,10 +750,6 @@ PrefabInstance:
       propertyPath: player
       value: 
       objectReference: {fileID: 2079131615}
-    - target: {fileID: 910000002, guid: fdb375761e7d4cd19e15a8c94f55232a, type: 3}
-      propertyPath: heartColor.a
-      value: 1
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1476,12 +1472,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ded04305562ba4cc49104f1c1dc3b552, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rotateSpeed: 120
-  maxAngle: 80
   maxHp: 5
-  initialBallCount: 5
   playerRender: {fileID: 1434359673}
   muzzle: {fileID: 2088000002}
+  fireInterval: 0.3
+  fireSpeed: 24
 --- !u!1 &2088000001
 GameObject:
   m_ObjectHideFlags: 0

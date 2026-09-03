@@ -17,8 +17,8 @@ MonoBehaviour:
     m_SerializedData: []
   m_GUID: 22d71a7c492f5994aa8eaea7849efe39
   m_SerializeEntries:
-  - m_GUID: a942602ee41230a49bee4bdb33e40636
-    m_Address: BallStatDefaultsTable
+  - m_GUID: 0471a4a1d14813b46ab62edbccdb6346
+    m_Address: BallSpriteSet
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -27,18 +27,8 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: c0c7af24325ebb043aec9f37ea0141af
-    m_Address: KillMilestoneTable
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: f345a4338456ff64eb064ca1536fdcc3
-    m_Address: UpgradeCatalog
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 0471a4a1d14813b46ab62edbccdb6346
-    m_Address: BallSpriteSet
+  - m_GUID: a942602ee41230a49bee4bdb33e40636
+    m_Address: BallStatDefaultsTable
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -49,6 +39,21 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: bec9ccc7432765e48ab3b9014a6a9555
     m_Address: VfxCatalog
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c0c7af24325ebb043aec9f37ea0141af
+    m_Address: KillMilestoneTable
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e344920cf5def40d39177f0568177b8e
+    m_Address: UnitTable
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f345a4338456ff64eb064ca1536fdcc3
+    m_Address: UpgradeCatalog
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
