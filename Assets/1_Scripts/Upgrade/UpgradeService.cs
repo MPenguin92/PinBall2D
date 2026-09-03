@@ -38,7 +38,6 @@ public class UpgradeService
         KillMilestoneTable milestoneTable,
         UpgradeCatalog catalog,
         BallStats stats,
-        SpecialBallParams specialParams,
         Player player)
     {
         this.milestoneTable = milestoneTable;
@@ -46,7 +45,6 @@ public class UpgradeService
         this.context = new UpgradeContext
         {
             Stats = stats,
-            SpecialParams = specialParams,
             Player = player,
         };
     }

@@ -62,7 +62,7 @@ public abstract class UpgradeBase : ScriptableObject
     }
 
     /// <summary>
-    /// 应用一层升级；由派生类实现具体逻辑（修改 BallStats / SpecialBallParams 等）。
+    /// 应用一层升级；由派生类实现具体逻辑（修改 BallStats 等）。
     /// 调用方在调用本方法后应自行 ++currentStack。
     /// </summary>
     public abstract void Apply(UpgradeContext ctx);
@@ -79,6 +79,5 @@ public abstract class UpgradeBase : ScriptableObject
 public class UpgradeContext
 {
     public BallStats Stats;
-    public SpecialBallParams SpecialParams;
     public Player Player;
 }

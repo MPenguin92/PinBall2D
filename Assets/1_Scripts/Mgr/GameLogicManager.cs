@@ -23,9 +23,8 @@ public class GameLogicManager : MonoBehaviour
     // Step 节拍计时：Running 中按 Difficulty 当前阶段的 StepInterval 触发 GameEvents.OnStep。
     private float stepTimer;
 
-    // Roguelike 升级体系：StartGame 时 Reset，PinBallBase / Player 通过这两个对象读取当前生效值。
+    // Roguelike 升级体系：StartGame 时 Reset，PinBallBase / Player 通过这些对象读取当前生效值。
     private BallStats ballStats;
-    private SpecialBallParams specialBallParams;
     private UpgradeService upgradeService;
 
     public Difficulty Difficulty => difficulty;
@@ -41,8 +40,6 @@ public class GameLogicManager : MonoBehaviour
     public VfxSpawner VfxSpawner => vfxSpawner;
 
     public BallStats BallStats => ballStats;
-
-    public SpecialBallParams SpecialBallParams => specialBallParams;
 
     public UpgradeService UpgradeService => upgradeService;
 
@@ -68,11 +65,10 @@ public class GameLogicManager : MonoBehaviour
 
         // Roguelike 升级体系初始化（BallStats 为通用属性容器，stat 定义待重新设计后回填；池数据通过 Addressables 加载）。
         ballStats = new BallStats();
-        specialBallParams = new SpecialBallParams();
 
         KillMilestoneTable milestoneTable = AssetLoader.Load<KillMilestoneTable>("KillMilestoneTable");
         UpgradeCatalog catalog = AssetLoader.Load<UpgradeCatalog>("UpgradeCatalog");
-        upgradeService = new UpgradeService(milestoneTable, catalog, ballStats, specialBallParams, player);
+        upgradeService = new UpgradeService(milestoneTable, catalog, ballStats, player);
         upgradeService.RegisterEvents();
 
         unitCreator = new UnitCreator();
@@ -107,10 +103,9 @@ public class GameLogicManager : MonoBehaviour
 
         borders = FindObjectsByType<Border>(FindObjectsSortMode.None);
 
-        // 重置 Roguelike 体系：清空所有 modifier、特殊球参数、击杀计数与候选。
+        // 重置 Roguelike 体系：清空所有 modifier 与击杀计数、候选。
         // 在 player.Init 之前完成，确保新一局所有数值都从基础值开始。
         if (ballStats != null) ballStats.Reset();
-        if (specialBallParams != null) specialBallParams.Reset();
         if (upgradeService != null) upgradeService.Reset();
 
         if (player != null)
@@ -247,13 +242,9 @@ public class GameLogicManager : MonoBehaviour
 
     public void RecyclePinBall(PinBallBase pb)
     {
-        BallType type = pb != null ? pb.BallType : BallType.Base;
-
+        // 无限发射模式下球回收仅归还对象池，不再操作玩家库存。
         if (poolManager != null)
             poolManager.RecyclePinBall(pb);
-
-        if (player != null)
-            player.AddPinBall(type);
     }
 
     public UnitBase SpawnUnit(string address, Vector2 position)

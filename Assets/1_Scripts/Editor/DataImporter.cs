@@ -197,7 +197,6 @@ public static class DataImporter
         List<UpgradeBase> entries = new List<UpgradeBase>();
 
         ImportBallStatUpgrades(entries);
-        ImportNewBallUpgrades(entries);
 
         // 写入 / 更新 UpgradeCatalog
         string catalogPath = DataFolder + "/UpgradeCatalog.asset";
@@ -266,79 +265,6 @@ public static class DataImporter
         }
     }
 
-    private static void ImportNewBallUpgrades(List<UpgradeBase> entries)
-    {
-        string csvPath = ExcelFolder + "/Upgrades_NewBall.csv";
-        if (!File.Exists(csvPath))
-        {
-            Debug.LogWarning($"[DataImporter] Upgrades_NewBall.csv not found: {csvPath}");
-            return;
-        }
-
-        string[] lines = File.ReadAllLines(csvPath);
-        for (int i = 1; i < lines.Length; i++)
-        {
-            string line = lines[i];
-            if (string.IsNullOrWhiteSpace(line)) continue;
-
-            string[] t = line.Split(',');
-            if (t.Length < 8)
-            {
-                Debug.LogWarning($"[DataImporter] NewBall upgrade line {i + 1} has too few columns, skipped: {line}");
-                continue;
-            }
-
-            string id = t[0].Trim();
-            if (string.IsNullOrEmpty(id)) continue;
-
-            string assetPath = $"{DataFolder}/{UpgradesSubFolder}/NewBall_{id}.asset";
-            NewBallUpgradeData asset = AssetDatabase.LoadAssetAtPath<NewBallUpgradeData>(assetPath);
-            if (asset == null)
-            {
-                asset = ScriptableObject.CreateInstance<NewBallUpgradeData>();
-                AssetDatabase.CreateAsset(asset, assetPath);
-            }
-
-            asset.SetMeta(
-                id,
-                t[1].Trim(),
-                t[2].Trim(),
-                ParseRarity(t[3]),
-                ParseInt(t[4])
-            );
-
-            BallType type = ParseBallType(t[5]);
-            List<string> keys = SplitPipe(t[6]);
-            List<BallLevelValues> levels = ParseLevelValues(t[7]);
-            asset.SetData(type, keys, levels);
-
-            EditorUtility.SetDirty(asset);
-            entries.Add(asset);
-        }
-    }
-
-    /// <summary>解析 levelValues 列：";" 分隔多个等级，每个等级用 "|" 分隔多个 float。</summary>
-    private static List<BallLevelValues> ParseLevelValues(string raw)
-    {
-        List<BallLevelValues> result = new List<BallLevelValues>();
-        if (string.IsNullOrWhiteSpace(raw)) return result;
-
-        string[] levelChunks = raw.Split(';');
-        for (int i = 0; i < levelChunks.Length; i++)
-        {
-            BallLevelValues lv = new BallLevelValues();
-            string chunk = levelChunks[i];
-            if (!string.IsNullOrWhiteSpace(chunk))
-            {
-                string[] nums = chunk.Split('|');
-                for (int j = 0; j < nums.Length; j++)
-                    lv.values.Add(ParseFloat(nums[j]));
-            }
-            result.Add(lv);
-        }
-        return result;
-    }
-
     private static void TryAddModifier(List<BallStatModifier> mods, string statRaw, string flatRaw, string pctRaw)
     {
         string s = statRaw == null ? string.Empty : statRaw.Trim();
@@ -363,38 +289,6 @@ public static class DataImporter
         if (Enum.TryParse<UpgradeRarity>(s.Trim(), true, out UpgradeRarity r))
             return r;
         return UpgradeRarity.Common;
-    }
-
-    private static BallType ParseBallType(string s)
-    {
-        if (Enum.TryParse<BallType>(s.Trim(), true, out BallType t))
-            return t;
-        return BallType.Base;
-    }
-
-    private static List<string> SplitPipe(string raw)
-    {
-        List<string> list = new List<string>();
-        if (string.IsNullOrWhiteSpace(raw)) return list;
-        string[] parts = raw.Split('|');
-        for (int i = 0; i < parts.Length; i++)
-        {
-            string p = parts[i].Trim();
-            if (!string.IsNullOrEmpty(p)) list.Add(p);
-        }
-        return list;
-    }
-
-    private static List<float> SplitPipeFloat(string raw)
-    {
-        List<float> list = new List<float>();
-        if (string.IsNullOrWhiteSpace(raw)) return list;
-        string[] parts = raw.Split('|');
-        for (int i = 0; i < parts.Length; i++)
-        {
-            list.Add(ParseFloat(parts[i]));
-        }
-        return list;
     }
 
     private static void EnsureDataFolder()
