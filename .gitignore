@@ -5,3 +5,4 @@ UserSettings
 Temp
 obj
 .vscode
+*.csproj
