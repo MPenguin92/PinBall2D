@@ -210,13 +210,13 @@ public class Player : MonoBehaviour
 
     /// <summary>
     /// 指针操作（兼容移动端）：按住时炮口持续跟随指针方向，松开时发射一发。
-    /// Android/iOS 真机用触摸，其余平台（Editor/桌面）用鼠标；松开的那一帧仍能读到按压状态，因此发射方向已对准指针。
+    /// 真机 Android/iOS 用触摸；Editor / 桌面用鼠标（切到移动目标时 Editor 也会定义 UNITY_ANDROID，故排除 UNITY_EDITOR）。
     /// </summary>
     private void HandlePointerInput()
     {
         if (muzzle == null || mainCamera == null) return;
 
-#if UNITY_ANDROID || UNITY_IOS
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
         if (Input.touchCount <= 0) return;
 
         Touch touch = Input.GetTouch(0);
