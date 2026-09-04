@@ -49,11 +49,13 @@ public class InGameUI : MonoBehaviour
 
     private int lastHp = -1;
     private int lastMaxHp = -1;
-    private KillMilestoneTable cachedMilestoneTable;
-    private bool milestoneTableLoaded;
 
     private void Awake()
     {
+        // 顶部经验显示已移除（升级机会改由击杀宝箱怪获得，经验作为内部节奏不再展示）。
+        if (killCountText != null)
+            killCountText.gameObject.SetActive(false);
+
         if (chestButton != null)
             chestButton.onClick.AddListener(OnChestClicked);
     }
@@ -80,7 +82,6 @@ public class InGameUI : MonoBehaviour
         if (force || target.CurrentHp != lastHp || target.MaxHp != lastMaxHp)
             RefreshHearts(target.CurrentHp, target.MaxHp);
 
-        RefreshKillCount();
         RefreshChestButton();
 
         lastHp = target.CurrentHp;
@@ -206,30 +207,5 @@ public class InGameUI : MonoBehaviour
                 Destroy(images[i].gameObject);
         }
         images.Clear();
-    }
-
-    private void RefreshKillCount()
-    {
-        if (killCountText == null) return;
-
-        UpgradeService svc = GameLogicManager.Instance != null ? GameLogicManager.Instance.UpgradeService : null;
-        if (svc == null)
-        {
-            killCountText.text = string.Empty;
-            return;
-        }
-
-        if (!milestoneTableLoaded)
-        {
-            cachedMilestoneTable = AssetLoader.Load<KillMilestoneTable>("KillMilestoneTable");
-            milestoneTableLoaded = true;
-        }
-
-        int cur = svc.ExperienceAccumulated;
-        int next = 0;
-        if (cachedMilestoneTable != null && cachedMilestoneTable.Count > 0)
-            next = cachedMilestoneTable.GetThresholdAt(svc.NextMilestoneIdx);
-
-        killCountText.text = next > 0 ? $"EXP {cur}/{next}" : $"EXP {cur}";
     }
 }

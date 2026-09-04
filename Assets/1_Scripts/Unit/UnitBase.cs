@@ -22,6 +22,8 @@ public class UnitBase : MonoBehaviour
 
     private int gold;
 
+    public string UnitId => unitId;
+
     private int currentHp;
 
     /// <summary>本次出场（spawn）时被注入的等级；场景初始 Unit 无注入时为 1。</summary>

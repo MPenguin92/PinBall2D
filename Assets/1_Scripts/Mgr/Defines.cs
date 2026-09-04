@@ -17,4 +17,14 @@ public static class Defines
 
     /// <summary>金币怪（unit_gold）独立刷新的间隔（秒）。</summary>
     public const float GoldSpawnInterval = 8f;
+
+    // 单位类型 id（Units.csv 第一列）。
+    /// <summary>普通怪（吃伤害型）。</summary>
+    public const string UnitDamageId = "unit_damage";
+
+    /// <summary>金币怪（击杀掉落金币）。</summary>
+    public const string UnitGoldId = "unit_gold";
+
+    /// <summary>宝箱怪（经验里程碑达成时刷出，击杀获得一次升级机会）。</summary>
+    public const string UnitChestId = "unit_chest";
 }

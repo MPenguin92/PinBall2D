@@ -128,7 +128,8 @@ public class UpgradeService
 
         if (milestoneTable == null || milestoneTable.Count == 0) return;
 
-        // 一次击杀可能跨多个里程碑：全部入队记账，弹窗时机交给玩家（宝箱按钮）。
+        // 经验累计推进里程碑；跨里程碑只广播（GameLogicManager 据此刷宝箱怪），
+        // 不再自动累计升级次数——升级机会改由「击杀宝箱怪」获得（GrantUpgradePoint）。
         while (nextMilestoneIdx < milestoneTable.Count)
         {
             int threshold = milestoneTable.GetThresholdAt(nextMilestoneIdx);
@@ -143,9 +144,17 @@ public class UpgradeService
 
             int reachedIdx = nextMilestoneIdx;
             nextMilestoneIdx++;
-            pendingMilestones.Enqueue(reachedIdx);
             GameEvents.RaiseKillMilestoneReached(reachedIdx);
         }
+    }
+
+    /// <summary>
+    /// 击杀宝箱怪：获得一次升级机会（右上角宝箱按钮 +1）。
+    /// 三选一品质权重按当前里程碑进度取（表末自动沿用末行权重）。
+    /// </summary>
+    public void GrantUpgradePoint()
+    {
+        pendingMilestones.Enqueue(Mathf.Max(0, nextMilestoneIdx));
     }
 
     /// <summary>按指定里程碑权重抽卡并推送 UI；无候选返回 false。</summary>

@@ -27,6 +27,9 @@ public class GameLogicManager : MonoBehaviour
     private float goldBountyTimer;
     private bool goldBountyPending;
 
+    // 宝箱怪待刷计数：经验每跨一个里程碑 +1，下一次普通波替换一只宝箱怪并 -1。
+    private int chestBountyPending;
+
     // Roguelike 升级体系：StartGame 时 Reset，PinBallBase / Player 通过这些对象读取当前生效值。
     private BallStats ballStats;
     private UpgradeService upgradeService;
@@ -97,13 +100,17 @@ public class GameLogicManager : MonoBehaviour
 
         unitCreator = new UnitCreator();
 
-        // 击杀结算：累计金币（经验由 UpgradeService 通过同一事件自行累计）。
+        // 击杀结算：累计金币、宝箱怪掉落升级机会（经验由 UpgradeService 通过同一事件自行累计）。
         GameEvents.OnUnitKilled += HandleUnitKilled;
+
+        // 经验跨里程碑：记一次"待刷宝箱怪"，下一次普通波替换生成。
+        GameEvents.OnKillMilestoneReached += HandleKillMilestoneReached;
     }
 
     private void OnDestroy()
     {
         GameEvents.OnUnitKilled -= HandleUnitKilled;
+        GameEvents.OnKillMilestoneReached -= HandleKillMilestoneReached;
 
         if (upgradeService != null)
         {
@@ -119,11 +126,21 @@ public class GameLogicManager : MonoBehaviour
             Instance = null;
     }
 
-    /// <summary>Unit 被击杀时回调：把该 Unit 掉落的金币计入全局存量。</summary>
+    /// <summary>Unit 被击杀时回调：累计该 Unit 掉落的金币；宝箱怪额外给一次升级机会。</summary>
     private void HandleUnitKilled(UnitBase unit)
     {
-        if (unit != null)
-            AddGold(unit.Gold);
+        if (unit == null) return;
+
+        AddGold(unit.Gold);
+
+        if (unit.UnitId == Defines.UnitChestId && upgradeService != null)
+            upgradeService.GrantUpgradePoint();
+    }
+
+    /// <summary>经验里程碑达成：记一只待刷宝箱怪（在后续普通波中替换生成）。</summary>
+    private void HandleKillMilestoneReached(int _)
+    {
+        chestBountyPending++;
     }
 
     private void Update()
@@ -165,6 +182,7 @@ public class GameLogicManager : MonoBehaviour
         stepTimer = 0f;
         goldBountyTimer = 0f;
         goldBountyPending = false;
+        chestBountyPending = 0;
         difficulty?.Reset();
 
         gameState = GameState.Running;
@@ -252,12 +270,18 @@ public class GameLogicManager : MonoBehaviour
         difficulty?.Tick(Time.deltaTime);
         stepTimer += Time.deltaTime;
         float interval = difficulty != null ? difficulty.GetStepInterval() : Defines.StepInterval;
+        bool chestReady = chestBountyPending > 0;
         while (stepTimer >= interval)
         {
             stepTimer -= interval;
             GameEvents.RaiseStep();
-            unitCreator?.SpawnStep(goldBountyPending);
+            unitCreator?.SpawnStep(goldBountyPending, chestReady);
             goldBountyPending = false;
+            if (chestReady)
+            {
+                chestBountyPending = Mathf.Max(0, chestBountyPending - 1);
+                chestReady = false;
+            }
             interval = difficulty != null ? difficulty.GetStepInterval() : Defines.StepInterval;
         }
 

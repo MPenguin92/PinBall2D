@@ -49,11 +49,15 @@
 - 订阅生命周期事件 + `OnStep`；普通怪（`unit_damage`）每 Step 生成一批：总数 `spawnMin~spawnMax`，
   每只按 `spawnLevels` 等级权重 roll；列随机不重叠，出生点被占则放弃该只。
 - **金币怪（`unit_gold`）混入普通波**：`GameLogicManager` 每 `Defines.GoldSpawnInterval` 秒
-  置一次就绪标记；下一次 `SpawnStep` 时本波随机 1~2 只原本的普通怪会被替换成金币怪
-  （等级 = 当前难度阶段最高等级，夹在该怪满级内）。金币怪 hp 低、击杀产出高额 `gold`
-  （普通怪 gold 恒 0）。
-- 怪的类型都查 `UnitTable`（id → prefab 地址），不硬编码资源字符串；加新怪 = `Units.csv`/`Units_Level.csv`
-  加行 + 提供对应 prefab。
+  置一次就绪标记，下一次普通波随机 1~2 只替换成金币怪（等级 = 难度最高级）。
+  hp 低、击杀产出高额 `gold`（普通怪 gold 恒 0）。
+- **宝箱怪（`unit_chest`）混入普通波**：经验每跨一个里程碑（`UpgradeService` 广播 →
+  `GameLogicManager` 记一次待刷），下一波替换 1 只（顺序靠后，随机位可能顶掉金币怪）。
+  hp=1 一击即死、漏底同普通怪处理；**击杀宝箱怪 = 获得一次升级机会**（右上宝箱按钮 +1，
+  点开三选一）。经验/里程碑不再自动累计升级机会（`UpgradeService.GrantUpgradePoint`），
+  HUD 顶部经验显示已移除。
+- 怪的类型都查 `UnitTable`（id → prefab 地址），id 常量见 `Defines.UnitDamageId/UnitGoldId/UnitChestId`；
+  加新怪 = `Units.csv`/`Units_Level.csv` 加行 + 提供对应 prefab。
 
 ---
 
