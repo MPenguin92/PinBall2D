@@ -1,0 +1,199 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e736068023eb5417daa078414bfa5862, type: 3}
+  m_Name: UnitTable
+  m_EditorClassIdentifier: 
+  units:
+  - id: unit_damage
+    name: "\u72EC\u773C\u6D77\u76D7\u98DE\u789F"
+    prefabAddress: SimpleUnit
+    levels:
+    - hp: 3
+      attack: 1
+      experience: 1
+      gold: 0
+    - hp: 3
+      attack: 1
+      experience: 1
+      gold: 0
+    - hp: 6
+      attack: 1
+      experience: 2
+      gold: 0
+    - hp: 9
+      attack: 1
+      experience: 2
+      gold: 0
+    - hp: 24
+      attack: 1
+      experience: 4
+      gold: 0
+    - hp: 33
+      attack: 1
+      experience: 5
+      gold: 0
+    - hp: 45
+      attack: 1
+      experience: 6
+      gold: 0
+    - hp: 60
+      attack: 1
+      experience: 8
+      gold: 0
+    - hp: 78
+      attack: 1
+      experience: 10
+      gold: 0
+    - hp: 99
+      attack: 1
+      experience: 12
+      gold: 0
+    - hp: 123
+      attack: 1
+      experience: 14
+      gold: 0
+    - hp: 150
+      attack: 1
+      experience: 16
+      gold: 0
+    - hp: 180
+      attack: 1
+      experience: 18
+      gold: 0
+    - hp: 216
+      attack: 1
+      experience: 20
+      gold: 0
+    - hp: 255
+      attack: 1
+      experience: 23
+      gold: 0
+    - hp: 300
+      attack: 1
+      experience: 26
+      gold: 0
+    - hp: 348
+      attack: 1
+      experience: 30
+      gold: 0
+    - hp: 402
+      attack: 1
+      experience: 34
+      gold: 0
+    - hp: 462
+      attack: 1
+      experience: 38
+      gold: 0
+    - hp: 528
+      attack: 1
+      experience: 42
+      gold: 0
+    - hp: 600
+      attack: 1
+      experience: 46
+      gold: 0
+    - hp: 675
+      attack: 1
+      experience: 50
+      gold: 0
+  - id: unit_gold
+    name: "\u91D1\u5E01\u98DE\u789F"
+    prefabAddress: GoldUnit
+    levels:
+    - hp: 1
+      attack: 1
+      experience: 1
+      gold: 10
+    - hp: 1
+      attack: 1
+      experience: 1
+      gold: 12
+    - hp: 2
+      attack: 1
+      experience: 1
+      gold: 15
+    - hp: 2
+      attack: 1
+      experience: 2
+      gold: 18
+    - hp: 3
+      attack: 1
+      experience: 2
+      gold: 22
+    - hp: 3
+      attack: 1
+      experience: 2
+      gold: 26
+    - hp: 4
+      attack: 1
+      experience: 3
+      gold: 30
+    - hp: 4
+      attack: 1
+      experience: 3
+      gold: 35
+    - hp: 5
+      attack: 1
+      experience: 4
+      gold: 40
+    - hp: 5
+      attack: 1
+      experience: 4
+      gold: 46
+    - hp: 6
+      attack: 1
+      experience: 5
+      gold: 52
+    - hp: 6
+      attack: 1
+      experience: 5
+      gold: 60
+    - hp: 7
+      attack: 1
+      experience: 6
+      gold: 68
+    - hp: 7
+      attack: 1
+      experience: 6
+      gold: 78
+    - hp: 8
+      attack: 1
+      experience: 7
+      gold: 90
+    - hp: 8
+      attack: 1
+      experience: 8
+      gold: 105
+    - hp: 9
+      attack: 1
+      experience: 8
+      gold: 120
+    - hp: 9
+      attack: 1
+      experience: 9
+      gold: 140
+    - hp: 10
+      attack: 1
+      experience: 10
+      gold: 160
+    - hp: 10
+      attack: 1
+      experience: 11
+      gold: 185
+    - hp: 11
+      attack: 1
+      experience: 12
+      gold: 210
+    - hp: 12
+      attack: 1
+      experience: 13
+      gold: 240
