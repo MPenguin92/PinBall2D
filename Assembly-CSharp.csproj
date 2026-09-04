@@ -45,6 +45,13 @@
     <Analyzer Include="D:\SOFT\2022.3.33f1\Editor\Data\Tools\Unity.SourceGenerators\Unity.Properties.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\1_Scripts\DataSO\FireBurstUpgradeData.cs" />
+    <Compile Include="Assets\1_Scripts\DataSO\UnitTable.cs" />
+    <Compile Include="Assets\1_Scripts\Fire\BurstFireStrategy.cs" />
+    <Compile Include="Assets\1_Scripts\Fire\FanFireStrategy.cs" />
+    <Compile Include="Assets\1_Scripts\Fire\FireStrategy.cs" />
+    <Compile Include="Assets\1_Scripts\Fire\SingleFireStrategy.cs" />
+    <Compile Include="Assets\1_Scripts\PInBall\BallEvents.cs" />
     <Compile Include="Assets\1_Scripts\Mgr\StarfieldController.cs" />
     <Compile Include="Assets\1_Scripts\DataSO\KillMilestoneData.cs" />
     <Compile Include="Assets\1_Scripts\UI\UpgradeSelectionUI.cs" />
