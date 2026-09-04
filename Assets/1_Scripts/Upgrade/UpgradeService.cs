@@ -139,10 +139,6 @@ public class UpgradeService
         int gain = (unit != null && unit.Experience > 0) ? unit.Experience : 1;
         experienceAccumulated += gain;
 
-        // [临时调试] 每次加经验打印当前进度；验证后可移除。
-        int need = NextMilestoneThreshold;
-        Debug.Log($"[EXP] {experienceAccumulated} / {(need > 0 ? need.ToString() : "--")}");
-
         if (milestoneTable == null || milestoneTable.Count == 0) return;
 
         // 经验累计推进里程碑；跨里程碑只广播（GameLogicManager 据此刷宝箱怪），
@@ -161,6 +157,11 @@ public class UpgradeService
 
             int reachedIdx = nextMilestoneIdx;
             nextMilestoneIdx++;
+
+            // [临时调试] 仅跨里程碑打印当前进度与下一档目标；验证后可移除。
+            int nextNeed = NextMilestoneThreshold;
+            Debug.Log($"[EXP] 里程碑达成，当前 {experienceAccumulated}，下一档 {nextNeed}");
+
             GameEvents.RaiseKillMilestoneReached(reachedIdx);
         }
     }
