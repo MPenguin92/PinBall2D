@@ -1,30 +1,44 @@
-# 升级效果总表（已清空，重新设计中）
+# 升级效果总表（重新设计中）
 
-> 升级体系已大幅精简（2026-09-03）：弹珠改为**无限发射**（无库存、无队列），
-> **newball（新球/扩容）大类已整体删除**，仅保留 stat 大类与抽卡机制框架。
-> 重新设计完成后需同步更新本表与 `doc/Function/Upgrade.md`。
+> 升级体系已推倒重来（2026-09-03 起）：清空旧数值词条，先搭底层支持再填内容。
+> 当前第一个测试词条：**连发（Burst）**。完成后同步更新本表与 `doc/Function/Upgrade.md`。
 
-## 当前保留（架构 / 机制）
+## 底层支持（已完成）
 
-- **stat（数值类）**：`BallStatUpgradeData`，通过修改 `BallStats` 的 stat 生效；
-  `BallStatType` 为空枚举，待重新定义
-- **抽卡机制框架**（保留可用）：经验累积 → `KillMilestones.csv` 里程碑 → HUD 宝箱 → 三选一面板
-  （`UpgradeService` / `UpgradeSelectionUI` / `GameEvents` 相关事件）
-- **空池子**：`UpgradeCatalog.asset` 已置空（entries = []）
+- **弹珠时机事件 `BallEvents`**：发射 / 命中 / 恰好击杀 / 反弹 / 返回（触底），
+  只读 struct 上下文、零分配，供效果订阅（`Assets/1_Scripts/PInBall/BallEvents.cs`）
+- **射击策略 `FireStrategy`**：Single / Burst（连发）/ Fan（扇形）互斥策略，
+  `Player` 只提供发射能力（`IFireExecutor`），策略决定"一次射击产出什么"
+- **抽卡机制框架**（保留可用）：经验 → 里程碑 → HUD 宝箱 → 三选一
 
-## 已删除 / 已清空
+## 配表结构（2026-09-04 起）
 
-| 项目 | 状态 |
-|------|------|
-| `NewBallUpgradeData` / `SpecialBallParams` / `Upgrades_NewBall.csv` | 已删除 |
-| `UpgradeContext.SpecialParams`、`GameLogicManager.SpecialBallParams` | 已删除 |
-| `Upgrades_Stat.csv`（原 9 条）、`BallStatDefaults.csv` | 只留表头 |
-| `8_Data/Upgrades/*.asset`、`BallStatDefaultsTable.asset` | 已删除 / 空表 |
-| 弹珠库存队列（`Player.ballQueue` / `totalBalls` / 出入队逻辑） | 已删除，改为无限发射 |
-| `InGameUI` 右下角弹珠队列 + `GameHUD.prefab` 的 BallQueueRoot | 已移除 / 已隐藏 |
-| `BallStatType` 枚举值、词条效果逻辑（暴击/处决/回血/倍率等） | 已清空 |
+升级数据拆成两层，加字段 = 加列，扩展不再散落：
+
+1. **`Upgrades.csv`（通用元信息，展示用）**
+   列：`id, name, desc, rarity, maxLevel`
+   - `desc` 为**抽象概括**（描述效果类别，如「增加每次射击的弹珠数量」），不做数值
+   - `maxLevel` = 满级等级，抽到一次升 1 级，满级后从池剔除
+   - 后续 icon 等通用展示列加这里
+
+2. **类型专有表（每类词条一张，逐级）**
+   一行 = 一个词条的某一级（`id, level, ...`），`level` 从 1 起；
+   某级未配置的行会沿用上一级数据。
+   - `Upgrades_Fire.csv`（射击类）：`id, level, desc, shots, interval`
+     - `desc` = **等级化描述**（选卡时展示「升到该级后」的文案，如「每次发射 3 颗弹珠」）
+     - `shots` = 该级每次发射球数（**直接取值**，不做推导）
+   - 运行时展示走 `UpgradeBase.OfferDescription`：子类词条返回目标等级的专有描述，基类回退通用 `desc`
+
+## 词条（测试中）
+
+| id | 名称 | 类型 | 机制 | 满级 |
+|----|------|------|------|------|
+| `burst` | 连发 | Fire（行为） | 逐级配表：发射 2→6 颗，间隔 0.08→0.04 | 5 |
+
+- 实现：`FireBurstUpgradeData`（每级 `FireLevelData{desc, shots, interval}`，Apply 直接取该级 shots/interval 替换 FireStrategy）
+- 导入：`DataImporter` 读 `Upgrades.csv` 元信息 + `Upgrades_Fire.csv` 逐级数据 → 生成 `Fire_burst.asset` 写入 `UpgradeCatalog`
 
 ## 重建提示
 
-- 修改配表后在 Unity 执行 `Tools/Data/Import All` 重新导入（已不再读取 `Upgrades_NewBall.csv`）。
-- 重新设计 stat 时：`BallStatType` 回填枚举 → `BallStats.Reset()` 设默认值 → 按类型补充钳制规则 → 使用方（Player / PinBallBase）接回读取。
+- 修改配表后在 Unity 执行 `Tools/Data/Import All` 重新导入。
+- 新增行为词条类时：在 `Upgrades.csv` 加元信息行 → 新建类型专有表/行 → `DataImporter` 加对应导入方法。

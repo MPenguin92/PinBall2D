@@ -97,7 +97,7 @@ public class UpgradeService
         if (!currentOffer.Contains(chosen)) return;
 
         chosen.Apply(context);
-        chosen.IncrementStack();
+        chosen.IncrementLevel();
 
         // 消费当前这一组的升级次数。
         pendingMilestones.Dequeue();

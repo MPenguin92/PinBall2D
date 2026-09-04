@@ -113,7 +113,8 @@ public class UpgradeSelectionUI : MonoBehaviour
 
             UpgradeBase u = currentOptions[i];
             if (card.nameText != null) card.nameText.text = u.DisplayName;
-            if (card.descText != null) card.descText.text = u.Description;
+            // 等级化描述优先：子类词条返回「下一级效果」文案，基类回退通用描述。
+            if (card.descText != null) card.descText.text = u.OfferDescription;
             if (card.rarityText != null) card.rarityText.text = u.Rarity.ToString();
 
             Color tint = GetRarityColor(u.Rarity);

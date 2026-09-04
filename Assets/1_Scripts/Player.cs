@@ -1,16 +1,24 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
 /// 玩家：发射弹珠 + 鼠标瞄准 + 生命值。
 /// 弹珠为无限发射模式（2026-09-03 起不再维护库存队列）：
-/// 发射不扣库存、回收不还库存，每次松开鼠标直接发射一发普通球。
+/// 发射不扣库存、回收不还库存，每次松开鼠标执行一次射击。
 ///
-/// 操作方式：按住鼠标左键时炮口持续跟随鼠标方向，松开鼠标发射一发。
+/// 「一次射击产出什么」由 <see cref="FireStrategy"/> 决定（单发 / 连发 / 扇形…），
+/// 玩家自身只提供发射能力（生成球、延迟调度、当前瞄准方向），
+/// 升级词条可通过 <see cref="SetFireStrategy"/> 替换射击模式。
+///
+/// 操作方式：按住鼠标左键时炮口持续跟随鼠标方向，松开鼠标发射。
 /// </summary>
-public class Player : MonoBehaviour
+public class Player : MonoBehaviour, IFireExecutor
 {
     /// <summary>普通球在 Addressables 中的地址（BaseBall.prefab，注册于 Unit 组）。</summary>
     private const string BaseBallAddress = "BaseBall";
+
+    /// <summary>当前射击模式；默认单发，升级系统可替换。</summary>
+    private FireStrategy fireStrategy = new SingleFireStrategy();
 
     [SerializeField]
     [Tooltip("Player 最大生命值")]
@@ -46,6 +54,9 @@ public class Player : MonoBehaviour
     /// <summary>当前发射冷却间隔（升级体系清空期间为固定值，重新设计后可改由属性系统驱动）。</summary>
     public float FireInterval => fireInterval;
 
+    /// <summary>当前射击策略（只读查看；切换用 <see cref="SetFireStrategy"/>）。</summary>
+    public FireStrategy FireStrategy => fireStrategy;
+
     public Vector2 Direction
     {
         get
@@ -68,6 +79,12 @@ public class Player : MonoBehaviour
 
     public void Init()
     {
+        // 清掉上一局可能残留的连发延迟（Burst 策略的跨局安全）。
+        StopAllCoroutines();
+
+        // 每局从单发射击开始；射击模式的成长由升级词条在本局内叠加。
+        fireStrategy = new SingleFireStrategy();
+
         fireTimer = 0f;
         currentHp = maxHp;
         if (muzzle != null)
@@ -153,12 +170,49 @@ public class Player : MonoBehaviour
         muzzle.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 
-    /// <summary>无限发射：冷却结束后直接发射一发普通球，不依赖任何库存。</summary>
+    /// <summary>替换射击模式；传入 null 回退为单发。升级词条应用时调用。</summary>
+    public void SetFireStrategy(FireStrategy strategy)
+    {
+        fireStrategy = strategy ?? new SingleFireStrategy();
+    }
+
+    // ---- IFireExecutor（Player 提供的发射能力）----
+
+    public Vector2 BaseDirection => Direction;
+
+    public void SpawnBall(Vector2 direction)
+    {
+        PinBallBase ball = GameLogicManager.Instance.SpawnPinBall(BaseBallAddress, FirePosition, direction, fireSpeed);
+
+        // 发射时：生成成功才广播（供升级效果在球出生瞬间附加影响）。
+        if (ball != null)
+            BallEvents.RaiseFired(ball, FirePosition, direction, fireSpeed);
+    }
+
+    public void Delay(float seconds, System.Action action)
+    {
+        if (action == null) return;
+        if (seconds <= 0f)
+        {
+            action();
+            return;
+        }
+        StartCoroutine(DelayRoutine(seconds, action));
+    }
+
+    private IEnumerator DelayRoutine(float seconds, System.Action action)
+    {
+        yield return new WaitForSeconds(seconds);
+        action();
+    }
+
+    /// <summary>无限发射入口：冷却结束后交给当前 FireStrategy 决定产出，随后进入冷却。</summary>
     private void TryFire()
     {
         if (fireTimer > 0f) return;
 
-        GameLogicManager.Instance.SpawnPinBall(BaseBallAddress, FirePosition, Direction, fireSpeed);
+        if (fireStrategy != null)
+            fireStrategy.Fire(this);
 
         fireTimer = fireInterval;
 

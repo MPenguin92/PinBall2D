@@ -49,12 +49,14 @@ public class PinBallBase : MonoBehaviour
 
             if (border.IsBottomBorder)
             {
+                // 返回时（触底回收前）：广播后回收，回收后球实例不再有效。
+                BallEvents.RaiseReturned(this, currentPos);
                 GameLogicManager.Instance.RecyclePinBall(this);
                 return;
             }
 
             Vector2 normal = border.GetNormal();
-            ApplyBounce(normal);
+            ApplyBounce(normal, nextPos);
             bounced = true;
             break;
         }
@@ -75,17 +77,23 @@ public class PinBallBase : MonoBehaviour
 
                 bool destroyed = unit.TakeDamage(1, BallType);
 
+                // 命中时（无论是否击杀）：在子类钩子前广播，让效果与钩子都能拿到存活/摧毁信息。
+                BallEvents.RaiseHitUnit(this, unit, nextPos, hitNormal, dir, destroyed);
+
                 // 子类钩子：可在击杀/未击杀分支前注入额外效果。
                 OnHitUnit(unit, nextPos, hitNormal, dir, destroyed);
 
                 if (destroyed)
                 {
+                    // 恰好击杀时（unit 回收前，引用仍有效）。
+                    BallEvents.RaiseKilledUnit(this, unit, nextPos, hitNormal, dir);
+
                     // OnUnitKilled 必须在回收前 Raise，UpgradeService 才能拿到有效引用。
                     GameEvents.RaiseUnitKilled(unit);
                     GameLogicManager.Instance.RecycleUnit(unit);
                 }
 
-                ApplyBounce(hitNormal);
+                ApplyBounce(hitNormal, nextPos);
                 break;
             }
         }
@@ -106,12 +114,14 @@ public class PinBallBase : MonoBehaviour
     {
     }
 
-    /// <summary>完全弹性反弹：仅反射速度方向，大小保持不变。</summary>
-    private void ApplyBounce(Vector2 normal)
+    /// <summary>完全弹性反弹：仅反射速度方向，大小保持不变；反射生效后广播反弹时机。</summary>
+    private void ApplyBounce(Vector2 normal, Vector2 bouncePos)
     {
         Vector2 reflected = Vector2.Reflect(velocity, normal);
         if (reflected.sqrMagnitude <= Mathf.Epsilon) return;
         velocity = reflected;
+
+        BallEvents.RaiseBounced(this, bouncePos, normal);
     }
 
     /// <summary>
