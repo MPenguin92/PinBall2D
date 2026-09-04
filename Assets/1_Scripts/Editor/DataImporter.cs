@@ -22,6 +22,7 @@ public static class DataImporter
     {
         EnsureDataFolder();
         ImportDifficulty();
+        ImportUnits();
         ImportKillMilestones();
         ImportBallStatDefaults();
         ImportUpgrades();
@@ -48,9 +49,9 @@ public static class DataImporter
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] tokens = line.Split(',');
-            if (tokens.Length < 7)
+            if (tokens.Length < 5)
             {
-                Debug.LogError($"[DataImporter] Difficulty line {i + 1} has too few columns (expected 7: startTime,spawnMin,spawnMax,unitHp,unitAttack,stepInterval,unitExperience), skipped: {line}");
+                Debug.LogError($"[DataImporter] Difficulty line {i + 1} has too few columns (expected 5: startTime,spawnMin,spawnMax,stepInterval,spawnLevels), skipped: {line}");
                 continue;
             }
 
@@ -59,10 +60,8 @@ public static class DataImporter
                 startTime = ParseFloat(tokens[0]),
                 spawnMin = ParseInt(tokens[1]),
                 spawnMax = ParseInt(tokens[2]),
-                unitHp = ParseInt(tokens[3]),
-                unitAttack = ParseInt(tokens[4]),
-                stepInterval = ParseFloat(tokens[5]),
-                unitExperience = ParseInt(tokens[6]),
+                stepInterval = ParseFloat(tokens[3]),
+                spawnLevels = ParseSpawnLevels(tokens[4]),
             });
         }
 
@@ -80,6 +79,107 @@ public static class DataImporter
         AssetDatabase.SaveAssets();
 
         Debug.Log($"[DataImporter] Difficulty imported: {stages.Count} stages -> {assetPath}");
+    }
+
+    [MenuItem("Tools/Data/Import Units")]
+    public static void ImportUnits()
+    {
+        // Units.csv：id, name, prefab（每类一行）—— 定义与 prefab 地址。
+        // Units_Level.csv：id, level, hp, attack, experience（每级一行）—— 逐级数值。
+        string metaCsv = ExcelFolder + "/Units.csv";
+        string levelCsv = ExcelFolder + "/Units_Level.csv";
+        if (!File.Exists(metaCsv) || !File.Exists(levelCsv))
+        {
+            Debug.LogError($"[DataImporter] Units.csv / Units_Level.csv not found (need both).");
+            return;
+        }
+
+        // 第一步：读定义。
+        Dictionary<string, UnitDefinition> defs = new Dictionary<string, UnitDefinition>();
+        string[] metaLines = File.ReadAllLines(metaCsv);
+        for (int i = 1; i < metaLines.Length; i++)
+        {
+            string line = metaLines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] t = line.Split(',');
+            if (t.Length < 3) continue;
+
+            string id = t[0].Trim();
+            if (string.IsNullOrEmpty(id)) continue;
+
+            defs[id] = new UnitDefinition
+            {
+                id = id,
+                name = t[1].Trim(),
+                prefabAddress = t[2].Trim(),
+            };
+        }
+
+        // 第二步：按 id 聚合逐级数值（level 升序填充，缺失沿用上一级）。
+        string[] levelLines = File.ReadAllLines(levelCsv);
+        for (int i = 1; i < levelLines.Length; i++)
+        {
+            string line = levelLines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] t = line.Split(',');
+            if (t.Length < 6)
+            {
+                Debug.LogWarning($"[DataImporter] Units_Level.csv line {i + 1} has too few columns, skipped: {line}");
+                continue;
+            }
+
+            string id = t[0].Trim();
+            int level = ParseInt(t[1]);
+            if (!defs.TryGetValue(id, out UnitDefinition def) || level < 1) continue;
+
+            // 填充到目标等级；缺口沿用上一级。
+            while (def.levels.Count < level)
+                def.levels.Add(LastOrNew(def));
+
+            def.levels[level - 1] = new UnitLevelData
+            {
+                hp = Mathf.Max(1, ParseInt(t[2])),
+                attack = Mathf.Max(0, ParseInt(t[3])),
+                experience = Mathf.Max(1, ParseInt(t[4])),
+                gold = Mathf.Max(0, ParseInt(t[5])),
+            };
+        }
+
+        // 第三步：写入 / 更新 UnitTable.asset。
+        EnsureDataFolder();
+        string assetPath = DataFolder + "/UnitTable.asset";
+        UnitTable table = AssetDatabase.LoadAssetAtPath<UnitTable>(assetPath);
+        if (table == null)
+        {
+            table = ScriptableObject.CreateInstance<UnitTable>();
+            AssetDatabase.CreateAsset(table, assetPath);
+        }
+
+        List<UnitDefinition> list = new List<UnitDefinition>(defs.Values);
+        table.SetUnits(list);
+        EditorUtility.SetDirty(table);
+        AssetDatabase.SaveAssets();
+
+        Debug.Log($"[DataImporter] Units imported: {list.Count} definitions -> {assetPath}");
+    }
+
+    /// <summary>取定义现有末级数值，用于补齐缺口；无末级时给默认（1/1/1/1）。</summary>
+    private static UnitLevelData LastOrNew(UnitDefinition def)
+    {
+        if (def.levels != null && def.levels.Count > 0)
+        {
+            UnitLevelData last = def.levels[def.levels.Count - 1];
+            return new UnitLevelData
+            {
+                hp = last.hp,
+                attack = last.attack,
+                experience = last.experience,
+                gold = last.gold,
+            };
+        }
+        return new UnitLevelData { hp = 1, attack = 1, experience = 1, gold = 1 };
     }
 
     [MenuItem("Tools/Data/Import Kill Milestones")]
@@ -351,6 +451,33 @@ public static class DataImporter
             EditorUtility.SetDirty(asset);
             entries.Add(asset);
         }
+    }
+
+    /// <summary>
+    /// 解析 spawnLevels 列：";" 分隔多个「levelxweight」段（如 1x60;2x30;3x10）。
+    /// 段格式不合法（缺 x 或权重 &lt;=0）时跳过该段。
+    /// </summary>
+    private static List<SpawnLevelEntry> ParseSpawnLevels(string raw)
+    {
+        List<SpawnLevelEntry> list = new List<SpawnLevelEntry>();
+        if (string.IsNullOrWhiteSpace(raw)) return list;
+
+        string[] segments = raw.Split(';');
+        for (int i = 0; i < segments.Length; i++)
+        {
+            string seg = segments[i];
+            if (string.IsNullOrWhiteSpace(seg)) continue;
+
+            string[] parts = seg.Split('x');
+            if (parts.Length < 2) continue;
+
+            int level = ParseInt(parts[0]);
+            int weight = ParseInt(parts[1]);
+            if (level < 1 || weight <= 0) continue;
+
+            list.Add(new SpawnLevelEntry { level = level, weight = weight });
+        }
+        return list;
     }
 
     private static UpgradeRarity ParseRarity(string s)

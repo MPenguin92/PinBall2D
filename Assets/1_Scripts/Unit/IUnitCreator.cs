@@ -8,6 +8,10 @@ using System;
 /// </summary>
 public interface IUnitCreator : IDisposable
 {
-    /// <summary>在一个 Step 节拍内、所有 Unit 完成移动决策后调用，生成顶部新一行。</summary>
-    void SpawnStep();
+    /// <summary>
+    /// 在一个 Step 节拍内、所有 Unit 完成移动决策后调用，生成顶部新一行。
+    /// <paramref name="allowGoldReplace"/> 为 true 表示金币冷却就绪：
+    /// 本波可以把少量普通怪替换成金币怪（由实现决定数量与等级）。
+    /// </summary>
+    void SpawnStep(bool allowGoldReplace);
 }

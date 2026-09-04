@@ -428,7 +428,7 @@ public class PoolManager : MonoBehaviour
             activeUnits.Add(unit);
     }
 
-    public UnitBase SpawnUnit(string address, Vector2 position)
+    public UnitBase SpawnUnit(string address, Vector2 position, int level)
     {
         ObjectPool<UnitBase> pool = GetOrCreateUnitPool(address);
         if (pool == null)
@@ -436,6 +436,7 @@ public class PoolManager : MonoBehaviour
 
         UnitBase unit = pool.Get();
         unit.transform.position = new Vector3(position.x, position.y, 0f);
+        unit.SetSpawnedLevel(level);
         unit.Init();
         activeUnits.Add(unit);
         unitPoolByInstance[unit] = pool;

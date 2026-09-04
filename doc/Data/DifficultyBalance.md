@@ -1,6 +1,12 @@
 # 难度数值设计说明
 
-本文档用于记录当前难度系统的字段含义、运行时规则与当前曲线设计意图。下次继续设计难度时，优先阅读本文档，再查看 `Assets/9_Excel/Difficulty.csv`。
+> ⚠️ **表结构已变更（2026-09-04）**：怪的 `hp/attack/experience` 已移出难度表，迁至
+> `Units.csv`（定义）+ `Units_Level.csv`（逐级数值）。`Difficulty.csv` 现为
+> `startTime,spawnMin,spawnMax,stepInterval,spawnLevels`——其中 `spawnLevels` 是
+> 「等级x权重」段数组（如 `1x60;2x30;3x10`），每波按数量区间随机后逐只按权重 roll 等级。
+> 本文档下述对 `unitHp/unitAttack/unitExperience` 的分析口径已失效，仅保留难度节奏意图参考。
+
+本文档用于记录当前难度系统的字段含义、运行时规则与当前曲线设计意图。下次继续设计难度时，优先阅读本文档，再查看 `Assets/9_Excel/Difficulty.csv` 与 `Assets/9_Excel/Units_Level.csv`。
 
 ## 当前设计目标
 

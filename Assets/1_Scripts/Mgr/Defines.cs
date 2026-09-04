@@ -14,4 +14,7 @@ public static class Defines
 
     /// <summary>单次 Step 的移动时长：从起点平滑插值到目标位置所用秒数。</summary>
     public const float StepMoveDuration = 0.2f;
+
+    /// <summary>金币怪（unit_gold）独立刷新的间隔（秒）。</summary>
+    public const float GoldSpawnInterval = 8f;
 }

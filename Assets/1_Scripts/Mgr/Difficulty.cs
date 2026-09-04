@@ -2,7 +2,9 @@ using UnityEngine;
 
 /// <summary>
 /// 难度运行时驱动：基于 <see cref="DifficultyTable"/> + 当前 gameTime 提供参数查询。
-/// 由 GameLogicManager 在 Awake 时加载并持有；StartGame 时 Reset，UpdateGame 时 Tick。
+/// 难度表只管「节奏 + 生成数量区间 + 等级分布权重」；怪的数值由
+/// <see cref="UnitTable"/> 按等级提供。由 GameLogicManager 在 Awake 时加载并持有；
+/// StartGame 时 Reset，UpdateGame 时 Tick。
 /// </summary>
 public class Difficulty
 {
@@ -31,7 +33,7 @@ public class Difficulty
 
     private DifficultyStageData CurrentStage => table != null ? table.GetStageAt(gameTime) : null;
 
-    /// <summary>当前阶段的生成区间 [min, max]，若无表返回 (1,1) 兜底。</summary>
+    /// <summary>当前阶段的生成数量区间 [min, max]，若无表返回 (1, 1) 兜底。</summary>
     public (int min, int max) GetSpawnRange()
     {
         DifficultyStageData s = CurrentStage;
@@ -42,18 +44,44 @@ public class Difficulty
         return (min, max);
     }
 
-    /// <summary>当前阶段 Unit 的 maxHp；无表时返回 1。</summary>
-    public int GetUnitHp()
+    /// <summary>
+    /// 按当前阶段的等级权重随机出一个刷怪等级（每 spawn 一只调用一次）。
+    /// 权重为空或全 0 时返回 1。
+    /// </summary>
+    public int RollSpawnLevel()
     {
         DifficultyStageData s = CurrentStage;
-        return s != null && s.unitHp > 0 ? s.unitHp : 3;
+        if (s == null || s.spawnLevels == null || s.spawnLevels.Count == 0) return 1;
+
+        int total = 0;
+        for (int i = 0; i < s.spawnLevels.Count; i++)
+            total += Mathf.Max(0, s.spawnLevels[i].weight);
+        if (total <= 0) return 1;
+
+        int roll = Random.Range(0, total);
+        int acc = 0;
+        for (int i = 0; i < s.spawnLevels.Count; i++)
+        {
+            acc += Mathf.Max(0, s.spawnLevels[i].weight);
+            if (roll < acc)
+                return Mathf.Max(1, s.spawnLevels[i].level);
+        }
+        return 1;
     }
 
-    /// <summary>当前阶段 Unit 的 attack；无表时返回 1。</summary>
-    public int GetUnitAttack()
+    /// <summary>
+    /// 当前阶段 spawnLevels 中配置的最高等级（供金币怪等「跟随难度」的独立刷怪使用）。
+    /// 无表或无配置返回 1。
+    /// </summary>
+    public int GetStageMaxLevel()
     {
         DifficultyStageData s = CurrentStage;
-        return s != null && s.unitAttack > 0 ? s.unitAttack : 1;
+        if (s == null || s.spawnLevels == null || s.spawnLevels.Count == 0) return 1;
+
+        int max = 1;
+        for (int i = 0; i < s.spawnLevels.Count; i++)
+            max = Mathf.Max(max, s.spawnLevels[i].level);
+        return max;
     }
 
     /// <summary>当前阶段的 Step 间隔；未配置（&lt;=0）时退回 Defines.StepInterval。</summary>
@@ -62,25 +90,5 @@ public class Difficulty
         DifficultyStageData s = CurrentStage;
         if (s == null || s.stepInterval <= 0f) return Defines.StepInterval;
         return s.stepInterval;
-    }
-
-    /// <summary>
-    /// 当前阶段单个 Unit 击杀给玩家累加的经验值。Roguelike 升级里程碑依赖此值,
-    /// 若 Difficulty 表缺失或当前阶段未配置(<=0)会输出 LogError 并回退为 1,避免静默错误。
-    /// </summary>
-    public int GetUnitExperience()
-    {
-        DifficultyStageData s = CurrentStage;
-        if (s == null)
-        {
-            Debug.LogError("[Difficulty] DifficultyTable missing or empty when querying unit experience; falling back to 1.");
-            return 1;
-        }
-        if (s.unitExperience <= 0)
-        {
-            Debug.LogError($"[Difficulty] Stage at startTime={s.startTime} has unitExperience<=0; falling back to 1. Check Difficulty.csv.");
-            return 1;
-        }
-        return s.unitExperience;
     }
 }

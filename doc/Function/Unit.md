@@ -19,8 +19,12 @@
 ## 形态与属性
 
 - **形状**：1x1 正方形，`Defines.UnitSize`；`Init()` 强制 `localScale`。
-- **HP / Attack**：运行时由 `Difficulty` 当前阶段覆盖；触底对 Player 造成 `Attack` 伤害。
-- **Experience**：击杀时累加到升级系统；由 `Difficulty.GetUnitExperience()` 在 `Init` 写入。
+- **HP / Attack / Experience / Gold**：不存难度表。`Init → ApplyDifficulty` 按 prefab 的 `unitId` +
+  出池时注入的等级查 `UnitTable`（来源 `Units.csv` 定义 + `Units_Level.csv` 逐级数值）覆盖。
+  触底对 Player 造成 `Attack` 伤害；击杀累加 `Experience`（升级经验）并把 `Gold` 计入全局金币
+  （`GameLogicManager.Gold`，每局清零，尚未接入显示/消费）。
+- **难度表（Difficulty.csv）**：只描述时间轴节奏（stepInterval）、每波数量区间（spawnMin/Max）与
+  等级分布权重（spawnLevels，如 `1x60;2x30;3x10`），不携带怪数值。
 
 ---
 
@@ -42,16 +46,23 @@
 
 ## 生成（UnitCreator）
 
-- 构造时订阅生命周期事件 + `OnStep`；`SpawnBatch` 按相机宽度与 `Difficulty.GetSpawnRange()` 决定数量。
-- 槽位随机 X，保证不重叠不越界；出生点已被占则放弃该颗（避免顶部压死）。
+- 订阅生命周期事件 + `OnStep`；普通怪（`unit_damage`）每 Step 生成一批：总数 `spawnMin~spawnMax`，
+  每只按 `spawnLevels` 等级权重 roll；列随机不重叠，出生点被占则放弃该只。
+- **金币怪（`unit_gold`）混入普通波**：`GameLogicManager` 每 `Defines.GoldSpawnInterval` 秒
+  置一次就绪标记；下一次 `SpawnStep` 时本波随机 1~2 只原本的普通怪会被替换成金币怪
+  （等级 = 当前难度阶段最高等级，夹在该怪满级内）。金币怪 hp 低、击杀产出高额 `gold`
+  （普通怪 gold 恒 0）。
+- 怪的类型都查 `UnitTable`（id → prefab 地址），不硬编码资源字符串；加新怪 = `Units.csv`/`Units_Level.csv`
+  加行 + 提供对应 prefab。
 
 ---
 
 ## 扩展
 
-- 新 Unit：继承 `UnitBase`，override `MoveDirection` / `HandleStep` / `ApplyDifficulty`。
+- 新 Unit：`Units.csv` 加一行（id/name/prefab 地址）+ `Units_Level.csv` 加逐级数值 → 派生 `UnitBase`
+  覆盖行为（override `MoveDirection` / `HandleStep` / `ApplyDifficulty`）。
 - 新生成策略：实现 `IUnitCreator`，在 `GameLogicManager.Awake` 替换实例。
-- 调节奏/尺寸：改 `Defines` 或缺省表；主曲线改 `Difficulty.csv`。
+- 调节奏/等级曲线：难度节奏改 `Difficulty.csv`；怪自身数值改 `Units_Level.csv`。
 
 ---
 
