@@ -23,6 +23,7 @@ public static class DataImporter
         EnsureDataFolder();
         ImportDifficulty();
         ImportUnits();
+        ImportBalls();
         ImportKillMilestones();
         ImportBallStatDefaults();
         ImportUpgrades();
@@ -163,6 +164,97 @@ public static class DataImporter
         AssetDatabase.SaveAssets();
 
         Debug.Log($"[DataImporter] Units imported: {list.Count} definitions -> {assetPath}");
+    }
+
+    [MenuItem("Tools/Data/Import Balls")]
+    public static void ImportBalls()
+    {
+        // Balls.csv：id, name, prefab（每类一行）—— 定义与出池 prefab 地址。
+        // Balls_Level.csv：id, level, damage（每级一行）—— 逐级数值（伤害）。
+        string metaCsv = ExcelFolder + "/Balls.csv";
+        string levelCsv = ExcelFolder + "/Balls_Level.csv";
+        if (!File.Exists(metaCsv) || !File.Exists(levelCsv))
+        {
+            Debug.LogError($"[DataImporter] Balls.csv / Balls_Level.csv not found (need both).");
+            return;
+        }
+
+        // 第一步：读定义。
+        Dictionary<string, BallDefinition> defs = new Dictionary<string, BallDefinition>();
+        string[] metaLines = File.ReadAllLines(metaCsv);
+        for (int i = 1; i < metaLines.Length; i++)
+        {
+            string line = metaLines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] t = line.Split(',');
+            if (t.Length < 3) continue;
+
+            string id = t[0].Trim();
+            if (string.IsNullOrEmpty(id)) continue;
+
+            defs[id] = new BallDefinition
+            {
+                id = id,
+                name = t[1].Trim(),
+                prefabAddress = t[2].Trim(),
+            };
+        }
+
+        // 第二步：按 id 聚合逐级数值（level 升序填充，缺口沿用上一级）。
+        string[] levelLines = File.ReadAllLines(levelCsv);
+        for (int i = 1; i < levelLines.Length; i++)
+        {
+            string line = levelLines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] t = line.Split(',');
+            if (t.Length < 3)
+            {
+                Debug.LogWarning($"[DataImporter] Balls_Level.csv line {i + 1} has too few columns, skipped: {line}");
+                continue;
+            }
+
+            string id = t[0].Trim();
+            int level = ParseInt(t[1]);
+            if (!defs.TryGetValue(id, out BallDefinition def) || level < 1) continue;
+
+            while (def.levels.Count < level)
+                def.levels.Add(LastBallLevelOrNew(def));
+
+            def.levels[level - 1] = new BallLevelData
+            {
+                damage = Mathf.Max(0f, ParseFloat(t[2])),
+            };
+        }
+
+        // 第三步：写入 / 更新 BallTable.asset。
+        EnsureDataFolder();
+        string assetPath = DataFolder + "/BallTable.asset";
+        BallTable table = AssetDatabase.LoadAssetAtPath<BallTable>(assetPath);
+        if (table == null)
+        {
+            table = ScriptableObject.CreateInstance<BallTable>();
+            AssetDatabase.CreateAsset(table, assetPath);
+        }
+
+        List<BallDefinition> list = new List<BallDefinition>(defs.Values);
+        table.SetBalls(list);
+        EditorUtility.SetDirty(table);
+        AssetDatabase.SaveAssets();
+
+        Debug.Log($"[DataImporter] Balls imported: {list.Count} definitions -> {assetPath}");
+    }
+
+    /// <summary>取 Ball 定义现有末级数值，用于补齐缺口；无末级时给默认伤害 1。</summary>
+    private static BallLevelData LastBallLevelOrNew(BallDefinition def)
+    {
+        if (def.levels != null && def.levels.Count > 0)
+        {
+            BallLevelData last = def.levels[def.levels.Count - 1];
+            return new BallLevelData { damage = last.damage };
+        }
+        return new BallLevelData { damage = 1f };
     }
 
     /// <summary>取定义现有末级数值，用于补齐缺口；无末级时给默认（1/1/1/1）。</summary>
@@ -366,8 +458,8 @@ public static class DataImporter
 
     /// <summary>
     /// 导入射击类行为词条（当前：连发 Burst）：
-    /// Upgrades_Fire.csv = id, level, desc, shots, interval —— 一行 = 一个词条的某一级。
-    /// desc 为等级化描述（选卡卡面展示）；shots 为该级每次发射球数（直接取值）。
+    /// Upgrades_Fire.csv = id, level, desc, subCount, interval —— 一行 = 一个词条的某一级；
+    /// desc 为等级化描述（选卡卡面展示）；subCount 为该级副弹颗数（主弹 base 固定 1 颗）。
     /// 生成 asset 前缀 Fire_；满级取自通用表的 maxLevel，某级未配置时沿用上一级。
     /// </summary>
     private static void ImportFireUpgrades(Dictionary<string, UpgradeMeta> meta, List<UpgradeBase> entries)
@@ -406,7 +498,7 @@ public static class DataImporter
             levels[level] = new FireLevelData
             {
                 desc = t[2].Trim(),
-                shots = Mathf.Max(1, ParseInt(t[3])),
+                subCount = Mathf.Max(0, ParseInt(t[3])),
                 interval = Mathf.Max(0f, ParseFloat(t[4])),
             };
         }
@@ -432,7 +524,7 @@ public static class DataImporter
                 levels.Add(new FireLevelData
                 {
                     desc = last != null ? last.desc : string.Empty,
-                    shots = last != null ? last.shots : 1,
+                    subCount = last != null ? last.subCount : 0,
                     interval = last != null ? last.interval : 0.08f,
                 });
             }

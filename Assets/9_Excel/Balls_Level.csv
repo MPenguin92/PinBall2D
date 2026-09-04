@@ -1,0 +1,7 @@
+id,level,damage
+base,1,1
+ball_sub,1,0.2
+ball_sub,2,0.4
+ball_sub,3,0.6
+ball_sub,4,0.8
+ball_sub,5,1

@@ -24,7 +24,8 @@ public class UnitBase : MonoBehaviour
 
     public string UnitId => unitId;
 
-    private int currentHp;
+    // 用 float 累积血量：支持小数伤害（如副弹 0.2 一次），<=0 判定死亡。
+    private float currentHp;
 
     /// <summary>本次出场（spawn）时被注入的等级；场景初始 Unit 无注入时为 1。</summary>
     private int spawnedLevel = 1;
@@ -43,12 +44,13 @@ public class UnitBase : MonoBehaviour
     private float moveTimer;
     private bool isMoving;
 
-    public int CurrentHp => currentHp;
+    /// <summary>当前血量（浮点内部向上取整展示）。</summary>
+    public int CurrentHp => Mathf.CeilToInt(currentHp);
 
     public int MaxHp => maxHp;
 
-    /// <summary>当前血量比例（0~1），处决词条按此判定斩杀线。</summary>
-    public float HpRatio => maxHp > 0 ? (float)currentHp / maxHp : 0f;
+    /// <summary>当前血量比例（0~1）。</summary>
+    public float HpRatio => maxHp > 0 ? currentHp / maxHp : 0f;
 
     public int Attack => attack;
 
@@ -162,24 +164,25 @@ public class UnitBase : MonoBehaviour
 
     /// <summary>
     /// 扣血并驱动 UnitRender 受击/死亡表现（含 VFX）。
+    /// 支持小数伤害（如副弹 20%）：按浮点累积，&lt;=0 判定击杀。
     /// </summary>
-    /// <param name="damage">伤害值。</param>
+    /// <param name="damage">伤害值（可为小数）。</param>
     /// <param name="sourceType">造成伤害的球种，用于查 VfxCatalog。</param>
-    public bool TakeDamage(int damage, BallType sourceType = BallType.Base)
+    public bool TakeDamage(float damage, BallType sourceType = BallType.Base)
     {
-        if (damage <= 0 || currentHp <= 0)
-            return currentHp <= 0;
+        if (damage <= 0f || currentHp <= 0f)
+            return currentHp <= 0f;
 
-        currentHp = Mathf.Max(0, currentHp - damage);
+        currentHp = Mathf.Max(0f, currentHp - damage);
         if (unitRender == null)
-            return currentHp <= 0;
+            return currentHp <= 0f;
 
-        if (currentHp <= 0)
+        if (currentHp <= 0f)
             unitRender.PlayDeathAnimation(sourceType);
         else
             unitRender.PlayHitAnimation(sourceType);
 
-        return currentHp <= 0;
+        return currentHp <= 0f;
     }
 
     public void PlayReachBottomAnimation()

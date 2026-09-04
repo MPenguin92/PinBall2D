@@ -385,7 +385,8 @@ public class PoolManager : MonoBehaviour
         }
     }
 
-    public PinBallBase SpawnPinBall(string address, Vector2 position, Vector2 direction, float speed)
+    public PinBallBase SpawnPinBall(string address, Vector2 position, Vector2 direction, float speed,
+        string ballId = null, int level = 1)
     {
         ObjectPool<PinBallBase> pool = GetOrCreatePinBallPool(address);
         if (pool == null)
@@ -393,6 +394,7 @@ public class PoolManager : MonoBehaviour
 
         PinBallBase pb = pool.Get();
         pb.transform.position = new Vector3(position.x, position.y, 0f);
+        pb.SetSpawnInfo(string.IsNullOrEmpty(ballId) ? Defines.BallBaseId : ballId, level);
         pb.Init(direction, speed);
 
         PinBallRender render = pb.GetComponent<PinBallRender>();

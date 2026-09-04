@@ -27,4 +27,11 @@ public static class Defines
 
     /// <summary>宝箱怪（经验里程碑达成时刷出，击杀获得一次升级机会）。</summary>
     public const string UnitChestId = "unit_chest";
+
+    // 球类型 id（Balls.csv 第一列）。
+    /// <summary>基础普通弹（Player 默认射击、连发主弹）。</summary>
+    public const string BallBaseId = "base";
+
+    /// <summary>连发副弹（伤害随 Balls_Level 等级提升）。</summary>
+    public const string BallSubId = "ball_sub";
 }

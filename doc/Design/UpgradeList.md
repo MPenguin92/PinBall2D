@@ -24,19 +24,24 @@
 2. **类型专有表（每类词条一张，逐级）**
    一行 = 一个词条的某一级（`id, level, ...`），`level` 从 1 起；
    某级未配置的行会沿用上一级数据。
-   - `Upgrades_Fire.csv`（射击类）：`id, level, desc, shots, interval`
-     - `desc` = **等级化描述**（选卡时展示「升到该级后」的文案，如「每次发射 3 颗弹珠」）
-     - `shots` = 该级每次发射球数（**直接取值**，不做推导）
+   - `Upgrades_Fire.csv`（射击类）：`id, level, desc, interval`
+     - `desc` = **等级化描述**（选卡时展示「升到该级后」的文案）
+     - 发几颗、发什么球**不入表**：由词条按升级等级推导（主弹 base + 副弹 `ball_sub@level`）
    - 运行时展示走 `UpgradeBase.OfferDescription`：子类词条返回目标等级的专有描述，基类回退通用 `desc`
+
+3. **弹珠定义表（仿 Unit 两层）**
+   - `Balls.csv`：`id, name, prefab`（如 base → BaseBall；ball_sub 副弹暂复用 BaseBall，可换视觉）
+   - `Balls_Level.csv`：`id, level, damage`（逐级伤害，可为小数如 0.2）
+   - 运行时：`BallTable`（DataImporter 生成）→ PinBall 出池按 `(ballId, level)` 查伤害；发射序列 `FireShot{ballId, level}` 由射击策略产出
 
 ## 词条（测试中）
 
 | id | 名称 | 类型 | 机制 | 满级 |
 |----|------|------|------|------|
-| `burst` | 连发 | Fire（行为） | 逐级配表：发射 2→6 颗，间隔 0.08→0.04 | 5 |
+| `burst` | 连发 | Fire（行为） | 发射序列 = 主弹 base + 副弹 ball_sub@本级；满级多发 1 颗副弹（共 3 发）。副弹伤害曲线 0.2→1.0 见 Balls_Level.csv | 5 |
 
-- 实现：`FireBurstUpgradeData`（每级 `FireLevelData{desc, shots, interval}`，Apply 直接取该级 shots/interval 替换 FireStrategy）
-- 导入：`DataImporter` 读 `Upgrades.csv` 元信息 + `Upgrades_Fire.csv` 逐级数据 → 生成 `Fire_burst.asset` 写入 `UpgradeCatalog`
+- 实现：`FireBurstUpgradeData`（每级 `FireLevelData{desc, interval}`；Apply 按等级推导序列 → `BurstFireStrategy(shots, interval)`）
+- 导入：`DataImporter` 读 `Upgrades.csv` 元信息 + `Upgrades_Fire.csv` 逐级数据 → 生成 `Fire_burst.asset` 写入 `UpgradeCatalog`；Balls 两张表 → `BallTable.asset`
 
 ## 重建提示
 

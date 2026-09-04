@@ -16,17 +16,46 @@ public class PinBallBase : MonoBehaviour
 
     private Vector2 velocity;
 
+    /// <summary>本次出场的球型 id（Balls.csv 第一列），由发射链路注入。</summary>
+    private string ballId = Defines.BallBaseId;
+
+    /// <summary>本次出场的球等级（查 Balls_Level.csv 得伤害），由发射链路注入。</summary>
+    private int spawnedLevel = 1;
+
+    /// <summary>本颗球的实际伤害：Init 时按 (ballId, level) 查 BallTable；无表回退 1。</summary>
+    private float damage = 1f;
+
     public Vector2 Velocity => velocity;
 
     public BallType BallType => ballType;
+
+    public string BallId => ballId;
 
     public Vector2 Position => transform.position;
 
     public float Radius => transform.localScale.x * 0.5f;
 
+    /// <summary>出池后、Init 前设置球型与等级（由发射链路传入）。</summary>
+    public void SetSpawnInfo(string id, int level)
+    {
+        if (!string.IsNullOrEmpty(id))
+            ballId = id;
+        spawnedLevel = Mathf.Max(1, level);
+    }
+
     public void Init(Vector2 direction, float speed)
     {
         velocity = direction.normalized * Mathf.Max(speed, 0.01f);
+        damage = ResolveDamage();
+    }
+
+    /// <summary>按 (ballId, level) 从 BallTable 取该级伤害；无表/未配置回退 1。</summary>
+    private float ResolveDamage()
+    {
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr == null || mgr.BallTable == null) return 1f;
+        if (!mgr.BallTable.TryGetLevel(ballId, spawnedLevel, out BallLevelData data)) return 1f;
+        return Mathf.Max(0f, data.damage);
     }
 
     public virtual void Tick(Border[] borders, IReadOnlyList<UnitBase> activeUnits)
@@ -75,7 +104,7 @@ public class PinBallBase : MonoBehaviour
                 Vector2 hitNormal = unit.GetCollisionNormal(nextPos);
                 HitDirection dir = ResolveHitDirection(hitNormal, unit.MoveDirection);
 
-                bool destroyed = unit.TakeDamage(1, BallType);
+                bool destroyed = unit.TakeDamage(damage, BallType);
 
                 // 命中时（无论是否击杀）：在子类钩子前广播，让效果与钩子都能拿到存活/摧毁信息。
                 BallEvents.RaiseHitUnit(this, unit, nextPos, hitNormal, dir, destroyed);
