@@ -24,6 +24,7 @@ public static class DataImporter
         ImportDifficulty();
         ImportUnits();
         ImportBalls();
+        ImportLocalization();
         ImportKillMilestones();
         ImportBallStatDefaults();
         ImportUpgrades();
@@ -164,6 +165,54 @@ public static class DataImporter
         AssetDatabase.SaveAssets();
 
         Debug.Log($"[DataImporter] Units imported: {list.Count} definitions -> {assetPath}");
+    }
+
+    [MenuItem("Tools/Data/Import Localization")]
+    public static void ImportLocalization()
+    {
+        // Localization.csv：key, zh, en —— 数据表里的展示文本 key 都查这张表。
+        string csvPath = ExcelFolder + "/Localization.csv";
+        if (!File.Exists(csvPath))
+        {
+            Debug.LogError($"[DataImporter] Localization.csv not found: {csvPath}");
+            return;
+        }
+
+        List<LocalizedText> list = new List<LocalizedText>();
+        string[] lines = File.ReadAllLines(csvPath);
+        for (int i = 1; i < lines.Length; i++)
+        {
+            string line = lines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] t = line.Split(',');
+            if (t.Length < 3) continue;
+
+            string key = t[0].Trim();
+            if (string.IsNullOrEmpty(key)) continue;
+
+            list.Add(new LocalizedText
+            {
+                key = key,
+                zh = t[1].Trim(),
+                en = t[2].Trim(),
+            });
+        }
+
+        EnsureDataFolder();
+        string assetPath = DataFolder + "/LocalizationTable.asset";
+        LocalizationTable table = AssetDatabase.LoadAssetAtPath<LocalizationTable>(assetPath);
+        if (table == null)
+        {
+            table = ScriptableObject.CreateInstance<LocalizationTable>();
+            AssetDatabase.CreateAsset(table, assetPath);
+        }
+
+        table.SetEntries(list);
+        EditorUtility.SetDirty(table);
+        AssetDatabase.SaveAssets();
+
+        Debug.Log($"[DataImporter] Localization imported: {list.Count} entries -> {assetPath}");
     }
 
     [MenuItem("Tools/Data/Import Balls")]

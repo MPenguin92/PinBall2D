@@ -9,7 +9,7 @@ using UnityEngine;
 [System.Serializable]
 public class FireLevelData
 {
-    /// <summary>等级化描述：选卡时展示（如「发射 2 颗：副弹伤害 20%」）。</summary>
+    /// <summary>等级化描述文本 key：选卡时展示（如「发射 2 颗：副弹伤害 20%」）。</summary>
     public string desc;
 
     /// <summary>该级副弹（ball_sub）发射颗数；主弹 1 颗固定。</summary>
@@ -49,7 +49,7 @@ public class FireBurstUpgradeData : UpgradeBase
         levels = list ?? new List<FireLevelData>();
     }
 
-    /// <summary>卡面展示：返回「升到下一级后」的等级化描述；无等级数据时回退通用描述。</summary>
+    /// <summary>卡面展示：返回「升到下一级后」的等级化描述（按 key 本地化）；无等级数据时回退通用描述。</summary>
     public override string OfferDescription
     {
         get
@@ -57,7 +57,7 @@ public class FireBurstUpgradeData : UpgradeBase
             FireLevelData data = GetLevelData(CurrentLevel + 1);
             if (data == null || string.IsNullOrEmpty(data.desc))
                 return Description;
-            return data.desc;
+            return GetText(data.desc);
         }
     }
 

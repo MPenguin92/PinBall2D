@@ -1,3 +1,3 @@
 id,name,prefab
-base,普通弹,BaseBall
-ball_sub,副弹,SubBall
+base,ball_base_name,BaseBall
+ball_sub,ball_sub_name,SubBall

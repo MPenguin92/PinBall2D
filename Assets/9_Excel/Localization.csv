@@ -1,0 +1,13 @@
+key,zh,en
+upgrade_burst_name,连发,Burst
+upgrade_burst_desc,增加每次射击的弹珠数量,More balls per shot
+fire_burst_lv1,发射 2 颗：副弹伤害 20%,Fire 2 balls - sub 20% dmg
+fire_burst_lv2,发射 2 颗：副弹伤害 40%,Fire 2 balls - sub 40% dmg
+fire_burst_lv3,发射 2 颗：副弹伤害 60%,Fire 2 balls - sub 60% dmg
+fire_burst_lv4,发射 2 颗：副弹伤害 80%,Fire 2 balls - sub 80% dmg
+fire_burst_lv5,发射 3 颗：主弹 + 副弹×2,Fire 3 balls - main + 2 subs
+unit_damage_name,独眼海盗飞碟,Pirate UFO
+unit_gold_name,金币飞碟,Coin UFO
+unit_chest_name,宝箱,Chest
+ball_base_name,普通弹,Ball
+ball_sub_name,副弹,Sub ball

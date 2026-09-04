@@ -1,4 +1,4 @@
 id,name,prefab
-unit_damage,独眼海盗飞碟,SimpleUnit
-unit_gold,金币飞碟,GoldUnit
-unit_chest,宝箱,ChestUnit
+unit_damage,unit_damage_name,SimpleUnit
+unit_gold,unit_gold_name,GoldUnit
+unit_chest,unit_chest_name,ChestUnit

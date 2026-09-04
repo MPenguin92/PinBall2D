@@ -98,6 +98,9 @@ public class GameLogicManager : MonoBehaviour
         // 弹珠定义表：通过 Addressables 短地址加载（Balls.csv + Balls_Level.csv 导入生成）。
         ballTable = AssetLoader.Load<BallTable>("BallTable");
 
+        // 本地化：预加载文本表（展示文本按 key 查 Localization）。
+        Localization.Preload();
+
         // Roguelike 升级体系初始化（BallStats 为通用属性容器，stat 定义待重新设计后回填；池数据通过 Addressables 加载）。
         ballStats = new BallStats();
 

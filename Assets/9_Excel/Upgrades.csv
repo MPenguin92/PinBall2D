@@ -1,2 +1,2 @@
 id,name,desc,rarity,maxLevel
-burst,连发,增加每次射击的弹珠数量,Common,5
+burst,upgrade_burst_name,upgrade_burst_desc,Common,5

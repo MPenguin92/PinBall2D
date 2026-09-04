@@ -13,12 +13,11 @@ public abstract class UpgradeBase : ScriptableObject
     private string id;
 
     [SerializeField]
-    [Tooltip("展示名")]
+    [Tooltip("展示名文本 key（Localization.csv）")]
     private string displayName;
 
     [SerializeField]
-    [TextArea]
-    [Tooltip("展示描述（支持简单 rich text）")]
+    [Tooltip("展示描述文本 key（Localization.csv，支持简单 rich text）")]
     private string description;
 
     [SerializeField]
@@ -33,9 +32,11 @@ public abstract class UpgradeBase : ScriptableObject
 
     public string Id => id;
 
-    public string DisplayName => displayName;
+    /// <summary>本地化展示名（key 查 Localization；无表/缺失时回退 key）。</summary>
+    public string DisplayName => GetText(displayName);
 
-    public string Description => description;
+    /// <summary>本地化描述（key 查 Localization；无表/缺失时回退 key）。</summary>
+    public string Description => GetText(description);
 
     public UpgradeRarity Rarity => rarity;
 
@@ -57,11 +58,17 @@ public abstract class UpgradeBase : ScriptableObject
     }
 
     /// <summary>
-    /// 抽卡卡面展示描述：默认返回通用描述（Upgrades.csv 的 desc）。
+    /// 抽卡卡面展示描述（已本地化）：默认返回通用描述（Upgrades.csv 的 desc）。
     /// 子类可覆盖为「升级到下一级的等级化描述」（如专有表里每级更具体的文案），
     /// 展示时升级尚未应用，因此按 CurrentLevel + 1 取目标等级。
     /// </summary>
-    public virtual string OfferDescription => description;
+    public virtual string OfferDescription => Description;
+
+    /// <summary>按当前语言取词：key 经 <see cref="Localization"/> 查表；缺失回退 key 本身。</summary>
+    protected string GetText(string key)
+    {
+        return Localization.Get(key);
+    }
 
     /// <summary>由 UpgradeService 在 GameStart 时调用，重置等级计数。</summary>
     public void ResetRuntimeState()

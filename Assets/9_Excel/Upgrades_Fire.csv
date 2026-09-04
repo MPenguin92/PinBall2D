@@ -1,6 +1,6 @@
 id,level,desc,subCount,interval
-burst,1,发射 2 颗：副弹伤害 20%,1,0.08
-burst,2,发射 2 颗：副弹伤害 40%,1,0.07
-burst,3,发射 2 颗：副弹伤害 60%,1,0.06
-burst,4,发射 2 颗：副弹伤害 80%,1,0.05
-burst,5,发射 3 颗：主弹 + 副弹×2,2,0.04
+burst,1,fire_burst_lv1,1,0.08
+burst,2,fire_burst_lv2,1,0.07
+burst,3,fire_burst_lv3,1,0.06
+burst,4,fire_burst_lv4,1,0.05
+burst,5,fire_burst_lv5,2,0.04
