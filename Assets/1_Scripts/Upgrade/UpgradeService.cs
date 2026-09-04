@@ -27,6 +27,19 @@ public class UpgradeService
 
     public int NextMilestoneIdx => nextMilestoneIdx;
 
+    /// <summary>
+    /// 下一个里程碑的经验阈值（与 <see cref="ExperienceAccumulated"/> 配合显示 cur/next；
+    /// 跨过该阈值即会刷出一只宝箱怪）。无里程碑表时返回 -1。
+    /// </summary>
+    public int NextMilestoneThreshold
+    {
+        get
+        {
+            if (milestoneTable == null || milestoneTable.Count == 0) return -1;
+            return milestoneTable.GetThresholdAt(nextMilestoneIdx);
+        }
+    }
+
     public bool IsOffering => isOffering;
 
     /// <summary>当前累积、尚未消费的升级次数（HUD 宝箱角标读取）。</summary>
@@ -125,6 +138,10 @@ public class UpgradeService
         // 兜底:不传 Unit 或经验<=0 时按 1 计,避免完全不累积。
         int gain = (unit != null && unit.Experience > 0) ? unit.Experience : 1;
         experienceAccumulated += gain;
+
+        // [临时调试] 每次加经验打印当前进度；验证后可移除。
+        int need = NextMilestoneThreshold;
+        Debug.Log($"[EXP] {experienceAccumulated} / {(need > 0 ? need.ToString() : "--")}");
 
         if (milestoneTable == null || milestoneTable.Count == 0) return;
 

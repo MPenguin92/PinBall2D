@@ -4,8 +4,9 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 游戏中 HUD：左下纵向生命值、顶部居中经验值、右侧升级宝箱入口。
-/// （右下角弹珠队列已于 2026-09-03 移除：弹珠改为无限发射，不再有库存概念。）
+/// 游戏中 HUD：左下纵向生命值、右侧升级宝箱入口。
+/// （右下角弹珠队列已于 2026-09-03 移除；顶部经验文本已于 2026-09-04 移除——
+/// 升级机会改由击杀宝箱怪获得，经验进度改为数据接口供后续手动查看 UI 接入。）
 /// </summary>
 public class InGameUI : MonoBehaviour
 {
@@ -32,10 +33,6 @@ public class InGameUI : MonoBehaviour
     [Range(0f, 1f)]
     private float emptyHeartAlpha = 0.25f;
 
-    [Header("Experience — top center")]
-    [SerializeField]
-    private TextMeshProUGUI killCountText;
-
     [Header("Upgrade chest button — right side")]
     [SerializeField]
     [Tooltip("升级宝箱按钮：有剩余升级次数时显示，点击打开三选一面板。图标为 Image，Sprite 留空由美术资源导入。")]
@@ -52,10 +49,6 @@ public class InGameUI : MonoBehaviour
 
     private void Awake()
     {
-        // 顶部经验显示已移除（升级机会改由击杀宝箱怪获得，经验作为内部节奏不再展示）。
-        if (killCountText != null)
-            killCountText.gameObject.SetActive(false);
-
         if (chestButton != null)
             chestButton.onClick.AddListener(OnChestClicked);
     }
