@@ -19,28 +19,21 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
     [SerializeField]
     private float hitPunchScale = 0.16f;
 
-    [Header("Slow")]
-    [SerializeField]
-    [Tooltip("被减速 buff 命中时整体染色到这个色;buff 结束后恢复原色。")]
-    private Color slowTintColor = new Color(0.55f, 0.85f, 1f, 1f);
-
-    private Color originalColor;
+    private Color originalColor = Color.white;
     private Vector3 originalScale;
     private Sequence hitSequence;
     private bool isPlayingHitAnimation;
-    private bool isSlowedVisual;
 
     private void Awake()
     {
+        originalScale = transform.localScale;
+        // 外观颜色以 prefab 上 SpriteRenderer.color 为准，运行时不覆盖。
         if (spriteRenderer != null)
             originalColor = spriteRenderer.color;
-
-        originalScale = transform.localScale;
     }
 
     private void OnEnable()
     {
-        isSlowedVisual = false;
         ResetRenderState();
     }
 
@@ -55,18 +48,7 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         if (unit == null || spriteRenderer == null) return;
         if (isPlayingHitAnimation) return;
 
-        //spriteRenderer.color = GetHpColor();
-    }
-
-    /// <summary>
-    /// 由 UnitBase.Tick 每帧调用,把 IsSlowed 状态映射到外观染色上。
-    /// 命中闪白动画期间不覆盖颜色,等动画结束后下一帧自然恢复。
-    /// </summary>
-    public void SetSlowVisual(bool on)
-    {
-        isSlowedVisual = on;
-        if (spriteRenderer == null || isPlayingHitAnimation) return;
-        spriteRenderer.color = on ? slowTintColor : originalColor;
+        spriteRenderer.color = GetHpColor();
     }
 
     public virtual void PlayAttackAnimation()
@@ -121,7 +103,7 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         transform.localScale = originalScale;
         isPlayingHitAnimation = true;
 
-        Color restoreColor = isSlowedVisual ? slowTintColor : originalColor;
+        Color restoreColor = GetHpColor();
         hitSequence = DOTween.Sequence()
             .AppendCallback(() => spriteRenderer.color = hitFlashColor)
             .Join(transform.DOPunchScale(Vector3.one * hitPunchScale, hitFlashDuration, 8, 0.6f))
@@ -145,8 +127,12 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
 
     private Color GetHpColor()
     {
-        float hpRatio = unit != null && unit.MaxHp > 0 ? (float)unit.CurrentHp / unit.MaxHp : 0f;
-        return Color.Lerp(Color.gray, originalColor, hpRatio);
+        float hpRatio = unit != null && unit.MaxHp > 0 ? (float)unit.CurrentHp / unit.MaxHp : 1f;
+        Color dark = originalColor;
+        dark.r *= 0.55f;
+        dark.g *= 0.55f;
+        dark.b *= 0.55f;
+        return Color.Lerp(dark, originalColor, hpRatio);
     }
 
     private void ResetRenderState()
@@ -156,6 +142,6 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         transform.localScale = originalScale;
 
         if (spriteRenderer != null)
-            spriteRenderer.color = originalColor;
+            spriteRenderer.color = GetHpColor();
     }
 }

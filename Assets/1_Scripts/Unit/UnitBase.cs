@@ -125,7 +125,6 @@ public class UnitBase : MonoBehaviour
     ///   1) 减速 buff 倒计时
     ///   2) 当前 Step 触发的位移插值(moveStart→moveTarget,持续 StepMoveDuration)
     ///   3) 到达目标后做触底检测(覆盖底边 Border 时回调 OnUnitReachBottom)
-    ///   4) 同步外观染色到 IsSlowed 状态
     /// 子类如需扩展位移逻辑,可重写本方法并 base.Tick()。
     /// </summary>
     public virtual void Tick()
@@ -155,9 +154,6 @@ public class UnitBase : MonoBehaviour
                 CheckBottomCollision();
             }
         }
-
-        if (unitRender != null)
-            unitRender.SetSlowVisual(IsSlowed);
     }
 
     /// <summary>
