@@ -6,17 +6,15 @@ using UnityEngine;
 /// 弹珠为无限发射模式（2026-09-03 起不再维护库存队列）：
 /// 发射不扣库存、回收不还库存，每次松开鼠标执行一次射击。
 ///
-/// 「一次射击产出什么」由 <see cref="FireStrategy"/> 决定（单发 / 连发 / 扇形…），
-/// 玩家自身只提供发射能力（生成球、延迟调度、当前瞄准方向），
+/// 「一次射击产出哪些球」由 <see cref="FireStrategy"/> 决定（发射序列：单发 / 连发主弹+副弹…），
+/// 每颗弹按 Balls 表（id → prefab 地址）+ Balls_Level 表（等级 → 伤害）出池；
+/// 玩家自身只提供发射能力（查表出池、延迟调度、当前瞄准方向），
 /// 升级词条可通过 <see cref="SetFireStrategy"/> 替换射击模式。
 ///
 /// 操作方式：按住鼠标左键时炮口持续跟随鼠标方向，松开鼠标发射。
 /// </summary>
 public class Player : MonoBehaviour, IFireExecutor
 {
-    /// <summary>普通球在 Addressables 中的地址（BaseBall.prefab，注册于 Unit 组）。</summary>
-    private const string BaseBallAddress = "BaseBall";
-
     /// <summary>当前射击模式；默认单发，升级系统可替换。</summary>
     private FireStrategy fireStrategy = new SingleFireStrategy();
 
@@ -180,9 +178,16 @@ public class Player : MonoBehaviour, IFireExecutor
 
     public Vector2 BaseDirection => Direction;
 
-    public void SpawnBall(Vector2 direction)
+    public void SpawnBall(Vector2 direction, FireShot shot)
     {
-        PinBallBase ball = GameLogicManager.Instance.SpawnPinBall(BaseBallAddress, FirePosition, direction, fireSpeed);
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr == null) return;
+
+        // prefab 地址按球型查 Balls 表；未登记的球型直接跳过（防御，避免空地址出池）。
+        BallDefinition def = mgr.BallTable != null ? mgr.BallTable.Get(shot.BallId) : null;
+        if (def == null) return;
+
+        PinBallBase ball = mgr.SpawnPinBall(def.prefabAddress, FirePosition, direction, fireSpeed, shot.BallId, shot.Level);
 
         // 发射时：生成成功才广播（供升级效果在球出生瞬间附加影响）。
         if (ball != null)

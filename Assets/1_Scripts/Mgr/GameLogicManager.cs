@@ -37,12 +37,17 @@ public class GameLogicManager : MonoBehaviour
     // 单位定义表：Unit.Init 按 (unitId, 难度等级) 查询数值。
     private UnitTable unitTable;
 
+    // 弹珠定义表：PinBall 出池时按 (ballId, level) 查询伤害。
+    private BallTable ballTable;
+
     // 全局金币：击杀 Unit 累加；暂未接入显示/消费（后续经济系统使用）。
     private int gold;
 
     public Difficulty Difficulty => difficulty;
 
     public UnitTable UnitTable => unitTable;
+
+    public BallTable BallTable => ballTable;
 
     /// <summary>当前全局金币存量（击杀 Unit 累加；每局 StartGame 清零）。</summary>
     public int Gold => gold;
@@ -89,6 +94,12 @@ public class GameLogicManager : MonoBehaviour
 
         // 单位定义表：通过 Addressables 短地址加载（Units.csv + Units_Level.csv 导入生成）。
         unitTable = AssetLoader.Load<UnitTable>("UnitTable");
+
+        // 弹珠定义表：通过 Addressables 短地址加载（Balls.csv + Balls_Level.csv 导入生成）。
+        ballTable = AssetLoader.Load<BallTable>("BallTable");
+
+        // 本地化：预加载文本表（展示文本按 key 查 Localization）。
+        Localization.Preload();
 
         // Roguelike 升级体系初始化（BallStats 为通用属性容器，stat 定义待重新设计后回填；池数据通过 Addressables 加载）。
         ballStats = new BallStats();
@@ -306,10 +317,11 @@ public class GameLogicManager : MonoBehaviour
         }
     }
 
-    public PinBallBase SpawnPinBall(string address, Vector2 position, Vector2 direction, float speed)
+    public PinBallBase SpawnPinBall(string address, Vector2 position, Vector2 direction, float speed,
+        string ballId = null, int level = 1)
     {
         if (poolManager == null) return null;
-        return poolManager.SpawnPinBall(address, position, direction, speed);
+        return poolManager.SpawnPinBall(address, position, direction, speed, ballId, level);
     }
 
     public void RecyclePinBall(PinBallBase pb)

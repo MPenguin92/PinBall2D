@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// 默认单位生成器实现：
 /// - 普通怪（unit_damage，吃伤害型）：每个 Step 在屏幕外生成一批，
-///   总数与等级均由难度表驱动（spawnMin~spawnMax + 等级权重）；
+///   总数与等级均由难度表驱动（刷怪密度百分比 + 等级权重）；
 /// - 金币怪（unit_gold）**混入普通波**：金币冷却就绪（GameLogicManager 计时），
 ///   本波会把随机 1~2 只原本的普通怪替换成金币怪（等级跟随当前难度最高等级）；
 /// - 宝箱怪（unit_chest）**混入普通波**：经验里程碑达成（GameLogicManager 置标记），
@@ -74,7 +74,7 @@ public class UnitCreator : IUnitCreator
     }
 
     /// <summary>
-    /// 普通怪一批：总数取当前难度阶段 spawnMin~spawnMax 随机区间（不超屏幕列数），
+    /// 普通怪一批：本波数量 = 难度阶段密度百分比（spawnFillMin~Max）换算到屏幕列数，
     /// 随机不重复列放置；每只的等级由难度阶段等级权重独立 roll。
     /// 金币就绪（allowGoldReplace）：随机 1~2 个位置标为金币怪（等级取难度最高级）；
     /// 宝箱就绪（allowChestReplace）：再随机挑 1 个位置标为宝箱怪（顺序靠后，
@@ -90,8 +90,12 @@ public class UnitCreator : IUnitCreator
 
         if (!TryResolveSpawnGrid(out int columnCount, out float gridStartX, out float y)) return;
 
-        (int min, int max) range = mgr.Difficulty.GetSpawnRange();
-        int spawnCount = Mathf.Clamp(Random.Range(range.min, range.max + 1), 1, columnCount);
+        // 本波密度：难度阶段给百分比区间，换算成「屏幕可容纳列数」的比例。
+        (int minPct, int maxPct) pct = mgr.Difficulty.GetSpawnFillRange();
+        int fillPct = Random.Range(pct.minPct, pct.maxPct + 1);
+        int spawnCount = Mathf.Clamp(
+            Mathf.Max(1, Mathf.RoundToInt(columnCount * fillPct / 100f)),
+            1, columnCount);
 
         int[] columns = ShuffledColumns(columnCount);
 

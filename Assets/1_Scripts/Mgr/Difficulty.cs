@@ -33,14 +33,18 @@ public class Difficulty
 
     private DifficultyStageData CurrentStage => table != null ? table.GetStageAt(gameTime) : null;
 
-    /// <summary>当前阶段的生成数量区间 [min, max]，若无表返回 (1, 1) 兜底。</summary>
-    public (int min, int max) GetSpawnRange()
+    /// <summary>
+    /// 当前阶段的刷怪密度区间（百分比 0~100），无表时返回 (20, 30) 兜底。
+    /// 实际数量由 UnitCreator 按屏幕可容纳列数换算。
+    /// </summary>
+    public (int min, int max) GetSpawnFillRange()
     {
         DifficultyStageData s = CurrentStage;
-        if (s == null) return (1, 1);
+        if (s == null) return (20, 30);
 
-        int min = Mathf.Max(1, s.spawnMin);
-        int max = Mathf.Max(min, s.spawnMax);
+        int min = Mathf.Clamp(s.spawnFillMin, 0, 100);
+        int max = Mathf.Clamp(s.spawnFillMax, 0, 100);
+        if (max < min) max = min;
         return (min, max);
     }
 
