@@ -51,15 +51,15 @@ public static class DataImporter
             string[] tokens = line.Split(',');
             if (tokens.Length < 5)
             {
-                Debug.LogError($"[DataImporter] Difficulty line {i + 1} has too few columns (expected 5: startTime,spawnMin,spawnMax,stepInterval,spawnLevels), skipped: {line}");
+                Debug.LogError($"[DataImporter] Difficulty line {i + 1} has too few columns (expected 5: startTime,spawnFillMin,spawnFillMax,stepInterval,spawnLevels), skipped: {line}");
                 continue;
             }
 
             stages.Add(new DifficultyStageData
             {
                 startTime = ParseFloat(tokens[0]),
-                spawnMin = ParseInt(tokens[1]),
-                spawnMax = ParseInt(tokens[2]),
+                spawnFillMin = ParseInt(tokens[1]),
+                spawnFillMax = ParseInt(tokens[2]),
                 stepInterval = ParseFloat(tokens[3]),
                 spawnLevels = ParseSpawnLevels(tokens[4]),
             });
