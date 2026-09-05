@@ -9,10 +9,12 @@ public class PinBallRender : MonoBehaviour
     [SerializeField]
     private SpriteRenderer spriteRenderer;
 
-    private BallSpriteSet spriteSet;
-    private BallTrailSet trailSet;
     private Material trailMaterial;
     private TrailRenderer trailRenderer;
+    private string loadedSpriteAddress;
+
+    /// <summary>弹珠当前底色（SpriteRenderer.color），供击碎等特效取色。</summary>
+    public Color DisplayColor => spriteRenderer != null ? spriteRenderer.color : Color.white;
 
     private void Awake()
     {
@@ -72,9 +74,9 @@ public class PinBallRender : MonoBehaviour
         if (trailRenderer == null || pinBall == null)
             return;
 
-        BallTrailSet set = ResolveTrailSet();
-        if (set != null)
-            set.ApplyTo(trailRenderer, pinBall.BallType);
+        BallDefinition def = ResolveBallDefinition();
+        if (def != null)
+            def.ApplyTrail(trailRenderer);
 
         if (spriteRenderer != null)
         {
@@ -84,11 +86,13 @@ public class PinBallRender : MonoBehaviour
     }
 
     /// <summary>
-    /// 出池并完成位置设置后调用，清除旧轨迹并开始发射。
+    /// 出池并完成球型注入后调用：套用外观/拖尾，清除旧轨迹并开始发射。
     /// </summary>
     public void ResetTrailAfterSpawn()
     {
         EnsureTrailRenderer();
+        ApplySprite();
+        ApplyTrail();
         if (trailRenderer == null)
             return;
 
@@ -111,27 +115,26 @@ public class PinBallRender : MonoBehaviour
         if (spriteRenderer == null || pinBall == null)
             return;
 
-        BallSpriteSet set = ResolveSpriteSet();
-        Sprite sprite = set != null ? set.Get(pinBall.BallType) : null;
-        if (sprite != null)
-            spriteRenderer.sprite = sprite;
+        BallDefinition def = ResolveBallDefinition();
+        if (def == null || string.IsNullOrEmpty(def.spriteAddress))
+            return;
+
+        if (loadedSpriteAddress == def.spriteAddress && spriteRenderer.sprite != null)
+            return;
+
+        Sprite sprite = AssetLoader.Load<Sprite>(def.spriteAddress);
+        if (sprite == null)
+            return;
+
+        spriteRenderer.sprite = sprite;
+        loadedSpriteAddress = def.spriteAddress;
     }
 
-    private BallSpriteSet ResolveSpriteSet()
+    private BallDefinition ResolveBallDefinition()
     {
-        if (spriteSet != null)
-            return spriteSet;
-
-        spriteSet = AssetLoader.Load<BallSpriteSet>("BallSpriteSet");
-        return spriteSet;
-    }
-
-    private BallTrailSet ResolveTrailSet()
-    {
-        if (trailSet != null)
-            return trailSet;
-
-        trailSet = AssetLoader.Load<BallTrailSet>("BallTrailSet");
-        return trailSet;
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr == null || mgr.BallTable == null || pinBall == null)
+            return null;
+        return mgr.BallTable.Get(pinBall.BallId);
     }
 }

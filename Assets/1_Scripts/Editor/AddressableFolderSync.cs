@@ -16,6 +16,8 @@ using UnityEngine;
 /// - Assets/2_Prefab/*.prefab（不含子目录）→ Unit，地址 = 文件名
 /// - Assets/2_Prefab/UI/**/*.prefab → UI，地址 = 文件名
 /// - Assets/2_Prefab/VFX/**/*.prefab → VFX，地址 = VFX/文件名（兼容 VfxCatalog）
+/// - Assets/4_Audio/** → Audio，地址 = Audio/文件名（无扩展名）
+/// - Assets/7_Res/balls/** → Balls，地址 = Balls/文件名（无扩展名，Sprite）
 /// - Assets/8_Data/**/*.asset → Data，地址 = 文件名
 /// </summary>
 public static class AddressableFolderSync
@@ -44,6 +46,8 @@ public static class AddressableFolderSync
         new FolderRule("Assets/2_Prefab", "Unit", "t:Prefab", recursive: false),
         new FolderRule("Assets/2_Prefab/UI", "UI", "t:Prefab", recursive: true),
         new FolderRule("Assets/2_Prefab/VFX", "VFX", "t:Prefab", recursive: true, addressPrefix: "VFX/"),
+        new FolderRule("Assets/4_Audio", "Audio", "t:AudioClip", recursive: true, addressPrefix: "Audio/"),
+        new FolderRule("Assets/7_Res/balls", "Balls", "t:Texture2D", recursive: true, addressPrefix: "Balls/"),
         new FolderRule("Assets/8_Data", "Data", "t:ScriptableObject", recursive: true),
     };
 
@@ -78,7 +82,20 @@ public static class AddressableFolderSync
                 AddressableAssetGroup group = settings.FindGroup(rule.GroupName);
                 if (group == null)
                 {
-                    Debug.LogError($"[AddressableFolderSync] Group not found: '{rule.GroupName}'. Create it in Addressables Groups window first.");
+                    group = settings.CreateGroup(
+                        rule.GroupName,
+                        setAsDefaultGroup: false,
+                        readOnly: false,
+                        postEvent: true,
+                        schemasToCopy: null,
+                        typeof(UnityEditor.AddressableAssets.Settings.GroupSchemas.BundledAssetGroupSchema),
+                        typeof(UnityEditor.AddressableAssets.Settings.GroupSchemas.ContentUpdateGroupSchema));
+                    log.AppendLine($"- created group: {rule.GroupName}");
+                }
+
+                if (group == null)
+                {
+                    Debug.LogError($"[AddressableFolderSync] Failed to create group: '{rule.GroupName}'.");
                     continue;
                 }
 

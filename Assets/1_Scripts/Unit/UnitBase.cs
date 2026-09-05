@@ -165,8 +165,9 @@ public class UnitBase : MonoBehaviour
     /// 支持小数伤害（如副弹 20%）：按浮点累积，&lt;=0 判定击杀。
     /// </summary>
     /// <param name="damage">伤害值（可为小数）。</param>
-    /// <param name="sourceType">造成伤害的球种，用于查 VfxCatalog。</param>
-    public bool TakeDamage(float damage, BallType sourceType = BallType.Base)
+    /// <param name="sourceType">造成伤害的球种。</param>
+    /// <param name="sourceColor">击杀球底色；未击杀时也可传入，仅死亡碎块使用。</param>
+    public bool TakeDamage(float damage, BallType sourceType = BallType.Base, Color sourceColor = default)
     {
         if (damage <= 0f || currentHp <= 0f)
             return currentHp <= 0f;
@@ -175,8 +176,11 @@ public class UnitBase : MonoBehaviour
         if (unitRender == null)
             return currentHp <= 0f;
 
+        if (sourceColor.a <= 0f && sourceColor.r <= 0f && sourceColor.g <= 0f && sourceColor.b <= 0f)
+            sourceColor = Color.white;
+
         if (currentHp <= 0f)
-            unitRender.PlayDeathAnimation(sourceType);
+            unitRender.PlayDeathAnimation(sourceType, sourceColor);
         else
             unitRender.PlayHitAnimation(sourceType);
 

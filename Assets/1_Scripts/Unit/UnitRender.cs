@@ -35,7 +35,12 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
     private float hitFlashDuration = 0.12f;
 
     [SerializeField]
-    private float hitPunchScale = 0.16f;
+    [Tooltip("受击缩放弹一下的幅度（相对原 scale）。")]
+    private float hitPunchScale = 0.12f;
+
+    [SerializeField]
+    [Tooltip("受击缩放到恢复的总时长（秒）。")]
+    private float hitScaleDuration = 0.2f;
 
     private Color baseColor = Color.white;
     private Color colorFull = Color.white;
@@ -44,6 +49,9 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
     private Sequence hitSequence;
     private bool isPlayingHitAnimation;
     private MaterialPropertyBlock propertyBlock;
+
+    /// <summary>单位底色（prefab 上 SpriteRenderer.color）。</summary>
+    public Color BaseColor => baseColor;
 
     private void Awake()
     {
@@ -96,26 +104,37 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
 
     public virtual void PlayHitAnimation(BallType sourceType)
     {
-        PlayHitFlash();
-        PlayHitVfx(sourceType);
+        PlayHitFeedback();
     }
 
     public virtual void PlayDeathAnimation()
     {
-        PlayDeathAnimation(BallType.Base);
+        PlayDeathAnimation(BallType.Base, Color.white);
     }
 
     public virtual void PlayDeathAnimation(BallType sourceType)
     {
-        PlayHitFlash();
-        PlayKillVfx(sourceType);
+        PlayDeathAnimation(sourceType, Color.white);
+    }
+
+    public virtual void PlayDeathAnimation(BallType sourceType, Color sourceBallColor)
+    {
+        PlayShatterDebris(sourceBallColor);
     }
 
     public virtual void PlayReachBottomAnimation()
     {
     }
 
-    private void PlayHitFlash()
+    private void PlayShatterDebris(Color ballColor)
+    {
+        GameLogicManager mgr = GameLogicManager.Instance;
+        if (mgr == null || mgr.VfxSpawner == null) return;
+        mgr.VfxSpawner.PlayShatter(transform.position, baseColor, ballColor);
+    }
+
+    /// <summary>未击杀受击：轻闪 + 快速缩放回弹。</summary>
+    private void PlayHitFeedback()
     {
         if (spriteRenderer == null) return;
 
@@ -123,29 +142,20 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         transform.localScale = originalScale;
         isPlayingHitAnimation = true;
 
+        float punch = Mathf.Max(0f, hitPunchScale);
+        float duration = Mathf.Max(0.01f, hitScaleDuration);
+
         hitSequence = DOTween.Sequence()
             .AppendCallback(() => ApplyHpFill(flash: true))
-            .Join(transform.DOPunchScale(Vector3.one * hitPunchScale, hitFlashDuration, 8, 0.6f))
-            .AppendInterval(hitFlashDuration)
-            .AppendCallback(() =>
+            .Append(transform.DOScale(originalScale * (1f + punch), duration * 0.4f).SetEase(Ease.OutQuad))
+            .Append(transform.DOScale(originalScale, duration * 0.6f).SetEase(Ease.InOutQuad))
+            .InsertCallback(Mathf.Min(hitFlashDuration, duration), () => ApplyHpFill(flash: false))
+            .OnComplete(() =>
             {
+                transform.localScale = originalScale;
                 isPlayingHitAnimation = false;
                 ApplyHpFill(flash: false);
             });
-    }
-
-    private void PlayHitVfx(BallType sourceType)
-    {
-        GameLogicManager mgr = GameLogicManager.Instance;
-        if (mgr == null || mgr.VfxSpawner == null) return;
-        mgr.VfxSpawner.PlayHit(sourceType, transform.position);
-    }
-
-    private void PlayKillVfx(BallType sourceType)
-    {
-        GameLogicManager mgr = GameLogicManager.Instance;
-        if (mgr == null || mgr.VfxSpawner == null) return;
-        mgr.VfxSpawner.PlayKill(sourceType, transform.position);
     }
 
     private void ApplyHpFill(float? fillOverride = null, bool flash = false)

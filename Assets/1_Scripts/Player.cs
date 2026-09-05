@@ -5,14 +5,14 @@ using UnityEngine.EventSystems;
 /// <summary>
 /// 玩家：发射弹珠 + 鼠标瞄准 + 生命值。
 /// 弹珠为无限发射模式（2026-09-03 起不再维护库存队列）：
-/// 发射不扣库存、回收不还库存，每次松开鼠标执行一次射击。
+/// 发射不扣库存、回收不还库存；按住指针持续瞄准并按冷却连射，松手停止。
 ///
 /// 「一次射击产出哪些球」由 <see cref="FireStrategy"/> 决定（发射序列：单发 / 连发主弹+副弹…），
 /// 每颗弹按 Balls 表（id → prefab 地址）+ Balls_Level 表（等级 → 伤害）出池；
 /// 玩家自身只提供发射能力（查表出池、延迟调度、当前瞄准方向），
 /// 升级词条可通过 <see cref="SetFireStrategy"/> 替换射击模式。
 ///
-/// 操作方式：按住鼠标左键时炮口持续跟随鼠标方向，松开鼠标发射。
+/// 操作方式：按住鼠标左键 / 触摸时持续转向并射击，松开停止。
 /// </summary>
 public class Player : MonoBehaviour, IFireExecutor
 {
@@ -49,7 +49,7 @@ public class Player : MonoBehaviour, IFireExecutor
     private float fireTimer;
     private int currentHp;
 
-    /// <summary>本局内已按下瞄准（按下发生在 Running 且非 UI）；松开时才开火，避免点「开始」的抬起误射。</summary>
+    /// <summary>本局内已按下（按下发生在 Running 且非 UI）；按住期间持续瞄准+射击。</summary>
     private bool aimPressActive;
 
     public int CurrentHp => currentHp;
@@ -136,43 +136,49 @@ public class Player : MonoBehaviour, IFireExecutor
     }
 
     /// <summary>
-    /// 指针操作（兼容移动端）：按住时炮口持续跟随指针方向，松开时发射一发。
+    /// 指针操作（兼容移动端）：按住时持续瞄准并按冷却连射，松手停止。
     /// 真机 Android/iOS 用触摸；Editor / 桌面用鼠标（切到移动目标时 Editor 也会定义 UNITY_ANDROID，故排除 UNITY_EDITOR）。
-    /// 必须在 Running 内完成「按下」才允许松开开火，避免点开始/UI 的抬起误射。
+    /// 必须在 Running 内、非 UI 上按下才进入射击，避免点开始按钮误射。
     /// </summary>
     private void HandlePointerInput()
     {
         if (mainCamera == null) return;
 
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
-        if (Input.touchCount <= 0) return;
+        if (Input.touchCount <= 0)
+        {
+            aimPressActive = false;
+            return;
+        }
 
         Touch touch = Input.GetTouch(0);
         if (touch.phase == TouchPhase.Began && !IsPointerOverUI(touch.fingerId))
             aimPressActive = true;
 
-        if (aimPressActive && touch.phase != TouchPhase.Canceled)
-            AimTowardScreen(touch.position);
-
         if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
         {
-            if (aimPressActive && touch.phase == TouchPhase.Ended)
-                TryFire();
             aimPressActive = false;
+            return;
         }
+
+        if (!aimPressActive) return;
+
+        AimTowardScreen(touch.position);
+        TryFire();
 #else
         if (Input.GetMouseButtonDown(0) && !IsPointerOverUI())
             aimPressActive = true;
 
-        if (aimPressActive && (Input.GetMouseButton(0) || Input.GetMouseButtonUp(0)))
-            AimTowardScreen(Input.mousePosition);
-
-        if (Input.GetMouseButtonUp(0))
+        if (!Input.GetMouseButton(0))
         {
-            if (aimPressActive)
-                TryFire();
             aimPressActive = false;
+            return;
         }
+
+        if (!aimPressActive) return;
+
+        AimTowardScreen(Input.mousePosition);
+        TryFire();
 #endif
     }
 

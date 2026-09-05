@@ -35,6 +35,16 @@ public class PinBallBase : MonoBehaviour
 
     public float Radius => transform.localScale.x * 0.5f;
 
+    /// <summary>弹珠显示底色，供击碎等特效使用。</summary>
+    public Color DisplayColor
+    {
+        get
+        {
+            PinBallRender render = GetComponent<PinBallRender>();
+            return render != null ? render.DisplayColor : Color.white;
+        }
+    }
+
     /// <summary>出池后、Init 前设置球型与等级（由发射链路传入）。</summary>
     public void SetSpawnInfo(string id, int level)
     {
@@ -104,7 +114,7 @@ public class PinBallBase : MonoBehaviour
                 Vector2 hitNormal = unit.GetCollisionNormal(nextPos);
                 HitDirection dir = ResolveHitDirection(hitNormal, unit.MoveDirection);
 
-                bool destroyed = unit.TakeDamage(damage, BallType);
+                bool destroyed = unit.TakeDamage(damage, BallType, DisplayColor);
 
                 // 命中时（无论是否击杀）：在子类钩子前广播，让效果与钩子都能拿到存活/摧毁信息。
                 BallEvents.RaiseHitUnit(this, unit, nextPos, hitNormal, dir, destroyed);

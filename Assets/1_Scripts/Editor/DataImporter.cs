@@ -218,7 +218,7 @@ public static class DataImporter
     [MenuItem("Tools/Data/Import Balls")]
     public static void ImportBalls()
     {
-        // Balls.csv：id, name, prefab（每类一行）—— 定义与出池 prefab 地址。
+        // Balls.csv：id, name, prefab, sprite, trailStartColor, trailEndColor, trailStartWidth, trailEndWidth, trailTime
         // Balls_Level.csv：id, level, damage（每级一行）—— 逐级数值（伤害）。
         string metaCsv = ExcelFolder + "/Balls.csv";
         string levelCsv = ExcelFolder + "/Balls_Level.csv";
@@ -237,7 +237,11 @@ public static class DataImporter
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] t = line.Split(',');
-            if (t.Length < 3) continue;
+            if (t.Length < 3)
+            {
+                Debug.LogWarning($"[DataImporter] Balls.csv line {i + 1} has too few columns, skipped: {line}");
+                continue;
+            }
 
             string id = t[0].Trim();
             if (string.IsNullOrEmpty(id)) continue;
@@ -247,6 +251,12 @@ public static class DataImporter
                 id = id,
                 name = t[1].Trim(),
                 prefabAddress = t[2].Trim(),
+                spriteAddress = t.Length > 3 ? t[3].Trim() : string.Empty,
+                trailStartColor = t.Length > 4 ? ParseColor(t[4], new Color(1f, 1f, 1f, 0.55f)) : new Color(1f, 1f, 1f, 0.55f),
+                trailEndColor = t.Length > 5 ? ParseColor(t[5], new Color(1f, 1f, 1f, 0f)) : new Color(1f, 1f, 1f, 0f),
+                trailStartWidth = t.Length > 6 ? Mathf.Max(0f, ParseFloat(t[6])) : 0.18f,
+                trailEndWidth = t.Length > 7 ? Mathf.Max(0f, ParseFloat(t[7])) : 0.04f,
+                trailTime = t.Length > 8 ? Mathf.Max(0f, ParseFloat(t[8])) : 0.12f,
             };
         }
 
@@ -655,6 +665,32 @@ public static class DataImporter
     {
         float.TryParse((s ?? string.Empty).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float v);
         return v;
+    }
+
+    /// <summary>
+    /// 解析 #RRGGBB / #RRGGBBAA；失败时返回 fallback。
+    /// </summary>
+    private static Color ParseColor(string s, Color fallback)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return fallback;
+        string hex = s.Trim();
+        if (hex.StartsWith("#", StringComparison.Ordinal))
+            hex = hex.Substring(1);
+        if (hex.Length != 6 && hex.Length != 8) return fallback;
+
+        if (!byte.TryParse(hex.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte r))
+            return fallback;
+        if (!byte.TryParse(hex.Substring(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte g))
+            return fallback;
+        if (!byte.TryParse(hex.Substring(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte b))
+            return fallback;
+
+        byte a = 255;
+        if (hex.Length == 8
+            && !byte.TryParse(hex.Substring(6, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out a))
+            return fallback;
+
+        return new Color(r / 255f, g / 255f, b / 255f, a / 255f);
     }
 }
 #endif

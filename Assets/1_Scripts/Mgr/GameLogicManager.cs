@@ -14,6 +14,8 @@ public class GameLogicManager : MonoBehaviour
 
     private VfxSpawner vfxSpawner;
 
+    private AudioManager audioManager;
+
     private IUnitCreator unitCreator;
 
     private Border[] borders;
@@ -87,6 +89,7 @@ public class GameLogicManager : MonoBehaviour
     {
         Instance = this;
         vfxSpawner = new VfxSpawner(poolManager);
+        audioManager = new AudioManager(transform);
 
         // 难度表：通过 Addressables 短地址加载。
         DifficultyTable difficultyTable = AssetLoader.Load<DifficultyTable>("DifficultyTable");
@@ -132,6 +135,12 @@ public class GameLogicManager : MonoBehaviour
         if (unitCreator is System.IDisposable disposable)
             disposable.Dispose();
         unitCreator = null;
+
+        if (audioManager != null)
+        {
+            audioManager.Dispose();
+            audioManager = null;
+        }
 
         if (Instance == this)
             Instance = null;

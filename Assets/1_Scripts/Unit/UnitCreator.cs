@@ -116,7 +116,6 @@ public class UnitCreator : IUnitCreator
         }
 
         // 宝箱替换位：整段随机挑 1 个下标（可能落在金币区 → 顶掉该金币）。
-        // 宝箱替换位：整段随机挑 1 个下标（可能落在金币区 → 顶掉该金币）。
         UnitDefinition chest = allowChestReplace ? mgr.UnitTable.Get(Defines.UnitChestId) : null;
         int chestIndex = -1;
         int chestLevel = 1;

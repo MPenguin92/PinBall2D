@@ -27,8 +27,50 @@ public class BallDefinition
     /// <summary>出池用 prefab 的 Addressables 短地址（不同球型可共用同一 prefab）。</summary>
     public string prefabAddress;
 
+    /// <summary>外观 Sprite 的 Addressables 短地址（如 Balls/ball_base）。</summary>
+    public string spriteAddress;
+
+    /// <summary>拖尾起点颜色（含 alpha）。</summary>
+    public Color trailStartColor = new Color(1f, 1f, 1f, 0.55f);
+
+    /// <summary>拖尾终点颜色（含 alpha）。</summary>
+    public Color trailEndColor = new Color(1f, 1f, 1f, 0f);
+
+    /// <summary>拖尾起点宽度。</summary>
+    public float trailStartWidth = 0.18f;
+
+    /// <summary>拖尾终点宽度。</summary>
+    public float trailEndWidth = 0.04f;
+
+    /// <summary>拖尾持续时间（秒）。</summary>
+    public float trailTime = 0.12f;
+
     /// <summary>逐级数值：下标 0 = Lv1；未配置更高等级时取末级。</summary>
     public List<BallLevelData> levels = new List<BallLevelData>();
+
+    /// <summary>把本球拖尾样式应用到 TrailRenderer。</summary>
+    public void ApplyTrail(TrailRenderer trail)
+    {
+        if (trail == null) return;
+
+        trail.time = Mathf.Max(0f, trailTime);
+        trail.startWidth = trailStartWidth;
+        trail.endWidth = trailEndWidth;
+
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(trailStartColor, 0f),
+                new GradientColorKey(trailEndColor, 1f),
+            },
+            new[]
+            {
+                new GradientAlphaKey(trailStartColor.a, 0f),
+                new GradientAlphaKey(trailEndColor.a, 1f),
+            });
+        trail.colorGradient = gradient;
+    }
 }
 
 /// <summary>

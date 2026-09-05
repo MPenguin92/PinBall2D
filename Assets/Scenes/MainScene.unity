@@ -1475,8 +1475,8 @@ MonoBehaviour:
   playerRender: {fileID: 1434359673}
   muzzle: {fileID: 2088000002}
   aimVisual: {fileID: 0}
-  fireInterval: 0.3
-  fireSpeed: 24
+  fireInterval: 0.5
+  fireSpeed: 18
 --- !u!1 &2088000001
 GameObject:
   m_ObjectHideFlags: 0

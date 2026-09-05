@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Balls
+  m_EditorClassIdentifier: 
+  m_GroupName: Balls
+  m_Data:
+    m_SerializedData: []
+  m_GUID: bb55cc66dd77ee88ff99001122334455
+  m_SerializeEntries:
+  - m_GUID: e1f2a3b4c5d6478890a1b2c3d4e5f601
+    m_Address: Balls/ball_base
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1f2a3b4c5d6478890a1b2c3d4e5f607
+    m_Address: Balls/ball_boomerang
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1f2a3b4c5d6478890a1b2c3d4e5f602
+    m_Address: Balls/ball_fire
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1f2a3b4c5d6478890a1b2c3d4e5f606
+    m_Address: Balls/ball_heavy
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1f2a3b4c5d6478890a1b2c3d4e5f603
+    m_Address: Balls/ball_ice
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1f2a3b4c5d6478890a1b2c3d4e5f604
+    m_Address: Balls/ball_lightning
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1f2a3b4c5d6478890a1b2c3d4e5f605
+    m_Address: Balls/ball_poison
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: a8b2ee6c42b83c845bfedc96b07f5c5c, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: cc66dd77ee88ff990011223344556677, type: 2}
+    - {fileID: 11400000, guid: dd77ee88ff9900112233445566778899, type: 2}

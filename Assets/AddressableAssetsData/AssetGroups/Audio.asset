@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
-  m_Name: VFX
+  m_Name: Audio
   m_EditorClassIdentifier: 
-  m_GroupName: VFX
+  m_GroupName: Audio
   m_Data:
     m_SerializedData: []
-  m_GUID: 536bae668fed34047ae8dbc8707a45c1
+  m_GUID: aa11bb22cc33dd44ee55ff6677889900
   m_SerializeEntries:
-  - m_GUID: 713850c6e11abd34ab09d28996b7b489
-    m_Address: VFX/UnitShatter
+  - m_GUID: c3d4e5f60718293a4b5c6d7e8f901a2b
+    m_Address: Audio/bgm_main
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -26,5 +26,5 @@ MonoBehaviour:
   m_Settings: {fileID: 11400000, guid: a8b2ee6c42b83c845bfedc96b07f5c5c, type: 2}
   m_SchemaSet:
     m_Schemas:
-    - {fileID: 11400000, guid: c4b625e13379cc84e80e00833c30d90a, type: 2}
-    - {fileID: 11400000, guid: ef1fd5f369ea5054d809028c875a2704, type: 2}
+    - {fileID: 11400000, guid: bb22cc33dd44ee55ff66778899001122, type: 2}
+    - {fileID: 11400000, guid: cc33dd44ee55ff667788990011223344, type: 2}
