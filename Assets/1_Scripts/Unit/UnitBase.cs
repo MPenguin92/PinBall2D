@@ -84,6 +84,8 @@ public class UnitBase : MonoBehaviour
         // 强制统一尺寸，避免预制体 scale 不为 1 导致视觉/碰撞与逻辑不一致。
         transform.localScale = Vector3.one * Defines.UnitSize;
         RefreshRect();
+        if (unitRender != null)
+            unitRender.SyncColorFromHp();
     }
 
     /// <summary>

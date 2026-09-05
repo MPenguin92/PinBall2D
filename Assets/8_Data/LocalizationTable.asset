@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 752b5ca4fa9d8ae4ea80ea57ff82f95b, type: 3}
+  m_Name: LocalizationTable
+  m_EditorClassIdentifier: 
+  entries:
+  - key: upgrade_burst_name
+    zh: "\u8FDE\u53D1"
+    en: Burst
+  - key: upgrade_burst_desc
+    zh: "\u589E\u52A0\u6BCF\u6B21\u5C04\u51FB\u7684\u5F39\u73E0\u6570\u91CF"
+    en: More balls per shot
+  - key: fire_burst_lv1
+    zh: "\u53D1\u5C04 2 \u9897\uFF1A\u526F\u5F39\u4F24\u5BB3 20%"
+    en: Fire 2 balls - sub 20% dmg
+  - key: fire_burst_lv2
+    zh: "\u53D1\u5C04 2 \u9897\uFF1A\u526F\u5F39\u4F24\u5BB3 40%"
+    en: Fire 2 balls - sub 40% dmg
+  - key: fire_burst_lv3
+    zh: "\u53D1\u5C04 2 \u9897\uFF1A\u526F\u5F39\u4F24\u5BB3 60%"
+    en: Fire 2 balls - sub 60% dmg
+  - key: fire_burst_lv4
+    zh: "\u53D1\u5C04 2 \u9897\uFF1A\u526F\u5F39\u4F24\u5BB3 80%"
+    en: Fire 2 balls - sub 80% dmg
+  - key: fire_burst_lv5
+    zh: "\u53D1\u5C04 3 \u9897\uFF1A\u4E3B\u5F39 + \u526F\u5F39\xD72"
+    en: Fire 3 balls - main + 2 subs
+  - key: unit_damage_name
+    zh: "\u72EC\u773C\u6D77\u76D7\u98DE\u789F"
+    en: Pirate UFO
+  - key: unit_gold_name
+    zh: "\u91D1\u5E01\u98DE\u789F"
+    en: Coin UFO
+  - key: unit_chest_name
+    zh: "\u5B9D\u7BB1"
+    en: Chest
+  - key: ball_base_name
+    zh: "\u666E\u901A\u5F39"
+    en: Ball
+  - key: ball_sub_name
+    zh: "\u526F\u5F39"
+    en: Sub ball

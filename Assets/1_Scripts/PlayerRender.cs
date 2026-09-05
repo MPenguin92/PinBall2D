@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using DG.Tweening;
 using UnityEngine;
 
 public class PlayerRender : MonoBehaviour, ICombatAnimation
@@ -13,20 +12,14 @@ public class PlayerRender : MonoBehaviour, ICombatAnimation
     private LineRenderer lineRenderer;
 
     [SerializeField]
-    [Tooltip("瞄准线起点沿炮口方向前移的距离，避免线段插到炮口内侧。")]
-    private float lineForwardOffset = 0.45f;
+    [Tooltip("瞄准线起点相对发射点沿射击方向的前移；0 = 与出球点重合。")]
+    private float lineForwardOffset = 0f;
 
     [SerializeField]
     private float maxLineLength = 20f;
 
-    [SerializeField]
-    private int maxBounces = 10;
-
     [SerializeField, HideInInspector]
     private Material dashedLineMaterial;
-
-    private readonly List<Vector3> linePoints = new List<Vector3>();
-    private Tween attackTween;
 
     public void Tick()
     {
@@ -35,13 +28,6 @@ public class PlayerRender : MonoBehaviour, ICombatAnimation
 
     public virtual void PlayAttackAnimation()
     {
-        // float duration = player != null ? Mathf.Max(0.01f, player.FireInterval) : 0.3f;
-        // attackTween?.Kill();
-        // transform.localRotation = Quaternion.identity;
-        // attackTween = transform
-        //     .DOLocalRotate(new Vector3(0f, 0f, 360f), duration, RotateMode.FastBeyond360)
-        //     .SetEase(Ease.Linear)
-        //     .OnComplete(() => transform.localRotation = Quaternion.identity);
     }
 
     public virtual void PlayHitAnimation()
@@ -56,8 +42,6 @@ public class PlayerRender : MonoBehaviour, ICombatAnimation
     {
         if (player == null || lineRenderer == null) return;
 
-        linePoints.Clear();
-
         Vector2 direction = player.Direction;
         if (direction.sqrMagnitude <= Mathf.Epsilon)
         {
@@ -68,80 +52,46 @@ public class PlayerRender : MonoBehaviour, ICombatAnimation
         direction.Normalize();
 
         Vector2 origin = player.FirePosition + direction * lineForwardOffset;
-        float remainingLength = maxLineLength;
-
-        linePoints.Add(origin);
+        float stopDist = maxLineLength;
 
         GameLogicManager manager = GameLogicManager.Instance;
         Border[] borders = manager != null ? manager.Borders : null;
         IReadOnlyList<UnitBase> activeUnits = manager != null ? manager.ActiveUnits : null;
 
-        int bounceCount = 0;
-
-        while (remainingLength > 0f && bounceCount < maxBounces)
+        if (borders != null)
         {
-            float nearestDist = remainingLength;
-            Vector2 nearestNormal = Vector2.zero;
-            bool hitSomething = false;
-            bool shouldStop = false;
-
-            if (borders != null)
+            for (int i = 0; i < borders.Length; i++)
             {
-                for (int i = 0; i < borders.Length; i++)
-                {
-                    Border border = borders[i];
-                    if (border == null) continue;
+                Border border = borders[i];
+                if (border == null) continue;
 
-                    if (RaycastRect(origin, direction, border.BorderRect, out float dist, out Vector2 normal))
-                    {
-                        if (dist > 0.001f && dist < nearestDist)
-                        {
-                            nearestDist = dist;
-                            nearestNormal = normal;
-                            hitSomething = true;
-                            shouldStop = border.IsBottomBorder;
-                        }
-                    }
+                if (RaycastRect(origin, direction, border.BorderRect, out float dist, out _)
+                    && dist > 0.001f && dist < stopDist)
+                {
+                    stopDist = dist;
                 }
             }
+        }
 
-            if (activeUnits != null)
+        if (activeUnits != null)
+        {
+            for (int i = 0; i < activeUnits.Count; i++)
             {
-                for (int i = 0; i < activeUnits.Count; i++)
-                {
-                    UnitBase unit = activeUnits[i];
-                    if (unit == null || !unit.gameObject.activeSelf) continue;
+                UnitBase unit = activeUnits[i];
+                if (unit == null || !unit.gameObject.activeSelf) continue;
 
-                    if (RaycastRect(origin, direction, unit.UnitRect, out float dist, out Vector2 normal))
-                    {
-                        if (dist > 0.001f && dist < nearestDist)
-                        {
-                            nearestDist = dist;
-                            nearestNormal = normal;
-                            hitSomething = true;
-                            shouldStop = true;
-                        }
-                    }
+                if (RaycastRect(origin, direction, unit.UnitRect, out float dist, out _)
+                    && dist > 0.001f && dist < stopDist)
+                {
+                    stopDist = dist;
                 }
             }
-
-            Vector2 hitPoint = origin + direction * nearestDist;
-            linePoints.Add(hitPoint);
-            remainingLength -= nearestDist;
-
-            if (!hitSomething || shouldStop)
-                break;
-
-            direction = Vector2.Reflect(direction, nearestNormal);
-            origin = hitPoint;
-            bounceCount++;
         }
 
-        lineRenderer.positionCount = linePoints.Count;
-        for (int i = 0; i < linePoints.Count; i++)
-        {
-            lineRenderer.SetPosition(i, linePoints[i]);
-        }
+        Vector2 end = origin + direction * stopDist;
+        lineRenderer.positionCount = 2;
+        lineRenderer.SetPosition(0, origin);
+        lineRenderer.SetPosition(1, end);
     }
 
     /// <summary>

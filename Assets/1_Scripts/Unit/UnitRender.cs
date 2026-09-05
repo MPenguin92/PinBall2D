@@ -3,15 +3,33 @@ using UnityEngine;
 
 public class UnitRender : MonoBehaviour, ICombatAnimation
 {
+    private static readonly int FillAmountId = Shader.PropertyToID("_FillAmount");
+    private static readonly int ColorFullId = Shader.PropertyToID("_ColorFull");
+    private static readonly int ColorEmptyId = Shader.PropertyToID("_ColorEmpty");
+
     [SerializeField]
     private UnitBase unit;
 
     [SerializeField]
     private SpriteRenderer spriteRenderer;
 
+    [Header("HP Fill")]
+    [SerializeField]
+    [Tooltip("相对 prefab Color 提亮，作为满血亮色。")]
+    private float fullBrightness = 1.15f;
+
+    [SerializeField]
+    [Tooltip("相对 prefab Color 压暗，作为空血底色。")]
+    private float emptyBrightness = 0.55f;
+
     [Header("Hit")]
     [SerializeField]
-    private Color hitFlashColor = Color.white;
+    private Color hitFlashColor = new Color(1f, 1f, 1f, 1f);
+
+    [SerializeField]
+    [Range(0f, 1f)]
+    [Tooltip("受击时往闪白色混合的强度；1=整块纯闪白色，0=无闪白。")]
+    private float hitFlashStrength = 0.35f;
 
     [SerializeField]
     private float hitFlashDuration = 0.12f;
@@ -19,22 +37,32 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
     [SerializeField]
     private float hitPunchScale = 0.16f;
 
-    private Color originalColor = Color.white;
+    private Color baseColor = Color.white;
+    private Color colorFull = Color.white;
+    private Color colorEmpty = Color.white;
     private Vector3 originalScale;
     private Sequence hitSequence;
     private bool isPlayingHitAnimation;
+    private MaterialPropertyBlock propertyBlock;
 
     private void Awake()
     {
         originalScale = transform.localScale;
-        // 外观颜色以 prefab 上 SpriteRenderer.color 为准，运行时不覆盖。
+        propertyBlock = new MaterialPropertyBlock();
+
+        // prefab 上 SpriteRenderer.color 作为该单位色相；渲染时用白色乘遮罩，颜色走 shader。
         if (spriteRenderer != null)
-            originalColor = spriteRenderer.color;
+        {
+            baseColor = spriteRenderer.color;
+            colorFull = ScaleRgb(baseColor, fullBrightness);
+            colorEmpty = ScaleRgb(baseColor, emptyBrightness);
+            spriteRenderer.color = Color.white;
+        }
     }
 
     private void OnEnable()
     {
-        ResetRenderState();
+        ApplyHpFill(1f);
     }
 
     private void OnDisable()
@@ -43,48 +71,40 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         isPlayingHitAnimation = false;
     }
 
+    /// <summary>由 <see cref="UnitBase.Init"/> 在数值就绪后调用，按当前血量刷新 fill。</summary>
+    public void SyncColorFromHp()
+    {
+        if (isPlayingHitAnimation) return;
+        ApplyHpFill();
+    }
+
     public void Tick()
     {
         if (unit == null || spriteRenderer == null) return;
         if (isPlayingHitAnimation) return;
-
-        spriteRenderer.color = GetHpColor();
+        ApplyHpFill();
     }
 
     public virtual void PlayAttackAnimation()
     {
     }
 
-    /// <summary>
-    /// ICombatAnimation 入口；无球种信息时按 Base 播受击。
-    /// </summary>
     public virtual void PlayHitAnimation()
     {
         PlayHitAnimation(BallType.Base);
     }
 
-    /// <summary>
-    /// 受击反馈：本体闪白 + PunchScale，并按球种播 Hit VFX。
-    /// 由 <see cref="UnitBase.TakeDamage"/> 在未击杀时调用。
-    /// </summary>
     public virtual void PlayHitAnimation(BallType sourceType)
     {
         PlayHitFlash();
         PlayHitVfx(sourceType);
     }
 
-    /// <summary>
-    /// ICombatAnimation 入口；无球种信息时按 Base 播死亡。
-    /// </summary>
     public virtual void PlayDeathAnimation()
     {
         PlayDeathAnimation(BallType.Base);
     }
 
-    /// <summary>
-    /// 死亡反馈：闪白 + 按球种播 Kill VFX（无 Kill 地址时回退 Hit）。
-    /// 由 <see cref="UnitBase.TakeDamage"/> 在击杀时调用。
-    /// </summary>
     public virtual void PlayDeathAnimation(BallType sourceType)
     {
         PlayHitFlash();
@@ -103,12 +123,15 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         transform.localScale = originalScale;
         isPlayingHitAnimation = true;
 
-        Color restoreColor = GetHpColor();
         hitSequence = DOTween.Sequence()
-            .AppendCallback(() => spriteRenderer.color = hitFlashColor)
+            .AppendCallback(() => ApplyHpFill(flash: true))
             .Join(transform.DOPunchScale(Vector3.one * hitPunchScale, hitFlashDuration, 8, 0.6f))
-            .Append(spriteRenderer.DOColor(restoreColor, hitFlashDuration))
-            .OnComplete(() => isPlayingHitAnimation = false);
+            .AppendInterval(hitFlashDuration)
+            .AppendCallback(() =>
+            {
+                isPlayingHitAnimation = false;
+                ApplyHpFill(flash: false);
+            });
     }
 
     private void PlayHitVfx(BallType sourceType)
@@ -125,23 +148,33 @@ public class UnitRender : MonoBehaviour, ICombatAnimation
         mgr.VfxSpawner.PlayKill(sourceType, transform.position);
     }
 
-    private Color GetHpColor()
+    private void ApplyHpFill(float? fillOverride = null, bool flash = false)
     {
-        float hpRatio = unit != null && unit.MaxHp > 0 ? (float)unit.CurrentHp / unit.MaxHp : 1f;
-        Color dark = originalColor;
-        dark.r *= 0.55f;
-        dark.g *= 0.55f;
-        dark.b *= 0.55f;
-        return Color.Lerp(dark, originalColor, hpRatio);
+        if (spriteRenderer == null) return;
+
+        float fill = fillOverride ?? GetHpRatio();
+        Color full = flash ? Color.Lerp(colorFull, hitFlashColor, hitFlashStrength) : colorFull;
+        Color empty = flash ? Color.Lerp(colorEmpty, hitFlashColor, hitFlashStrength) : colorEmpty;
+
+        spriteRenderer.GetPropertyBlock(propertyBlock);
+        propertyBlock.SetFloat(FillAmountId, fill);
+        propertyBlock.SetColor(ColorFullId, full);
+        propertyBlock.SetColor(ColorEmptyId, empty);
+        spriteRenderer.SetPropertyBlock(propertyBlock);
     }
 
-    private void ResetRenderState()
+    private float GetHpRatio()
     {
-        hitSequence?.Kill();
-        isPlayingHitAnimation = false;
-        transform.localScale = originalScale;
+        if (unit == null || unit.MaxHp <= 0) return 1f;
+        return Mathf.Clamp01((float)unit.CurrentHp / unit.MaxHp);
+    }
 
-        if (spriteRenderer != null)
-            spriteRenderer.color = GetHpColor();
+    private static Color ScaleRgb(Color c, float scale)
+    {
+        return new Color(
+            Mathf.Clamp01(c.r * scale),
+            Mathf.Clamp01(c.g * scale),
+            Mathf.Clamp01(c.b * scale),
+            c.a);
     }
 }

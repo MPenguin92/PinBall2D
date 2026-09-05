@@ -14,15 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   stages:
   - startTime: 0
-    spawnMin: 1
-    spawnMax: 1
+    spawnFillMin: 20
+    spawnFillMax: 30
     stepInterval: 1.2
     spawnLevels:
     - level: 1
       weight: 100
   - startTime: 30
-    spawnMin: 1
-    spawnMax: 2
+    spawnFillMin: 30
+    spawnFillMax: 45
     stepInterval: 1.1
     spawnLevels:
     - level: 1
@@ -30,8 +30,8 @@ MonoBehaviour:
     - level: 2
       weight: 20
   - startTime: 60
-    spawnMin: 1
-    spawnMax: 3
+    spawnFillMin: 35
+    spawnFillMax: 50
     stepInterval: 1
     spawnLevels:
     - level: 1
@@ -41,8 +41,8 @@ MonoBehaviour:
     - level: 3
       weight: 10
   - startTime: 120
-    spawnMin: 2
-    spawnMax: 4
+    spawnFillMin: 40
+    spawnFillMax: 60
     stepInterval: 0.85
     spawnLevels:
     - level: 2
@@ -52,8 +52,8 @@ MonoBehaviour:
     - level: 4
       weight: 20
   - startTime: 180
-    spawnMin: 7
-    spawnMax: 10
+    spawnFillMin: 55
+    spawnFillMax: 80
     stepInterval: 0.42
     spawnLevels:
     - level: 3
@@ -63,8 +63,8 @@ MonoBehaviour:
     - level: 5
       weight: 25
   - startTime: 240
-    spawnMin: 8
-    spawnMax: 11
+    spawnFillMin: 60
+    spawnFillMax: 85
     stepInterval: 0.36
     spawnLevels:
     - level: 4
@@ -74,8 +74,8 @@ MonoBehaviour:
     - level: 6
       weight: 20
   - startTime: 300
-    spawnMin: 9
-    spawnMax: 12
+    spawnFillMin: 65
+    spawnFillMax: 90
     stepInterval: 0.32
     spawnLevels:
     - level: 5
@@ -85,8 +85,8 @@ MonoBehaviour:
     - level: 7
       weight: 20
   - startTime: 360
-    spawnMin: 10
-    spawnMax: 13
+    spawnFillMin: 70
+    spawnFillMax: 92
     stepInterval: 0.28
     spawnLevels:
     - level: 6
@@ -96,8 +96,8 @@ MonoBehaviour:
     - level: 8
       weight: 20
   - startTime: 420
-    spawnMin: 11
-    spawnMax: 14
+    spawnFillMin: 72
+    spawnFillMax: 94
     stepInterval: 0.25
     spawnLevels:
     - level: 7
@@ -107,8 +107,8 @@ MonoBehaviour:
     - level: 9
       weight: 20
   - startTime: 480
-    spawnMin: 12
-    spawnMax: 15
+    spawnFillMin: 75
+    spawnFillMax: 95
     stepInterval: 0.22
     spawnLevels:
     - level: 8
@@ -118,8 +118,8 @@ MonoBehaviour:
     - level: 10
       weight: 20
   - startTime: 540
-    spawnMin: 13
-    spawnMax: 16
+    spawnFillMin: 78
+    spawnFillMax: 96
     stepInterval: 0.2
     spawnLevels:
     - level: 9
@@ -129,8 +129,8 @@ MonoBehaviour:
     - level: 11
       weight: 20
   - startTime: 600
-    spawnMin: 14
-    spawnMax: 17
+    spawnFillMin: 80
+    spawnFillMax: 97
     stepInterval: 0.18
     spawnLevels:
     - level: 10
@@ -140,8 +140,8 @@ MonoBehaviour:
     - level: 12
       weight: 20
   - startTime: 660
-    spawnMin: 15
-    spawnMax: 18
+    spawnFillMin: 82
+    spawnFillMax: 98
     stepInterval: 0.16
     spawnLevels:
     - level: 11
@@ -151,8 +151,8 @@ MonoBehaviour:
     - level: 13
       weight: 20
   - startTime: 720
-    spawnMin: 16
-    spawnMax: 19
+    spawnFillMin: 84
+    spawnFillMax: 98
     stepInterval: 0.145
     spawnLevels:
     - level: 12
@@ -162,8 +162,8 @@ MonoBehaviour:
     - level: 14
       weight: 20
   - startTime: 780
-    spawnMin: 17
-    spawnMax: 20
+    spawnFillMin: 85
+    spawnFillMax: 99
     stepInterval: 0.13
     spawnLevels:
     - level: 13
@@ -173,8 +173,8 @@ MonoBehaviour:
     - level: 15
       weight: 20
   - startTime: 840
-    spawnMin: 18
-    spawnMax: 21
+    spawnFillMin: 86
+    spawnFillMax: 99
     stepInterval: 0.115
     spawnLevels:
     - level: 14
@@ -184,8 +184,8 @@ MonoBehaviour:
     - level: 16
       weight: 20
   - startTime: 900
-    spawnMin: 19
-    spawnMax: 22
+    spawnFillMin: 88
+    spawnFillMax: 100
     stepInterval: 0.1
     spawnLevels:
     - level: 15
@@ -195,8 +195,8 @@ MonoBehaviour:
     - level: 17
       weight: 20
   - startTime: 960
-    spawnMin: 20
-    spawnMax: 23
+    spawnFillMin: 90
+    spawnFillMax: 100
     stepInterval: 0.09
     spawnLevels:
     - level: 16
@@ -206,8 +206,8 @@ MonoBehaviour:
     - level: 18
       weight: 20
   - startTime: 1020
-    spawnMin: 21
-    spawnMax: 24
+    spawnFillMin: 90
+    spawnFillMax: 100
     stepInterval: 0.08
     spawnLevels:
     - level: 17
@@ -217,8 +217,8 @@ MonoBehaviour:
     - level: 19
       weight: 20
   - startTime: 1080
-    spawnMin: 22
-    spawnMax: 25
+    spawnFillMin: 92
+    spawnFillMax: 100
     stepInterval: 0.07
     spawnLevels:
     - level: 18
@@ -228,8 +228,8 @@ MonoBehaviour:
     - level: 20
       weight: 20
   - startTime: 1140
-    spawnMin: 23
-    spawnMax: 26
+    spawnFillMin: 94
+    spawnFillMax: 100
     stepInterval: 0.06
     spawnLevels:
     - level: 19
@@ -239,8 +239,8 @@ MonoBehaviour:
     - level: 21
       weight: 20
   - startTime: 1200
-    spawnMin: 24
-    spawnMax: 28
+    spawnFillMin: 95
+    spawnFillMax: 100
     stepInterval: 0.05
     spawnLevels:
     - level: 20

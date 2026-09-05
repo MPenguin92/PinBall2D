@@ -13,23 +13,23 @@ MonoBehaviour:
   m_Name: Fire_burst
   m_EditorClassIdentifier: 
   id: burst
-  displayName: "\u8FDE\u53D1"
-  description: "\u589E\u52A0\u6BCF\u6B21\u5C04\u51FB\u7684\u5F39\u73E0\u6570\u91CF"
+  displayName: upgrade_burst_name
+  description: upgrade_burst_desc
   rarity: 0
   maxLevel: 5
   levels:
-  - desc: "\u6BCF\u6B21\u53D1\u5C04 2 \u9897\u5F39\u73E0"
-    shots: 2
+  - desc: fire_burst_lv1
+    subCount: 1
     interval: 0.08
-  - desc: "\u6BCF\u6B21\u53D1\u5C04 3 \u9897\u5F39\u73E0"
-    shots: 3
+  - desc: fire_burst_lv2
+    subCount: 1
     interval: 0.07
-  - desc: "\u6BCF\u6B21\u53D1\u5C04 4 \u9897\u5F39\u73E0"
-    shots: 4
+  - desc: fire_burst_lv3
+    subCount: 1
     interval: 0.06
-  - desc: "\u6BCF\u6B21\u53D1\u5C04 5 \u9897\u5F39\u73E0"
-    shots: 5
+  - desc: fire_burst_lv4
+    subCount: 1
     interval: 0.05
-  - desc: "\u6BCF\u6B21\u53D1\u5C04 6 \u9897\u5F39\u73E0"
-    shots: 6
+  - desc: fire_burst_lv5
+    subCount: 2
     interval: 0.04

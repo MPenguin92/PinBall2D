@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// 玩家：发射弹珠 + 鼠标瞄准 + 生命值。
@@ -26,11 +27,16 @@ public class Player : MonoBehaviour, IFireExecutor
     private PlayerRender playerRender;
 
     [SerializeField]
-    [Tooltip("炮口 Transform，旋转与发射均以此为准；Player 本体不旋转。")]
+    [Tooltip("炮口 Transform：局部 +Y 为发射点偏移；旋转与外观一起跟随瞄准。")]
     private Transform muzzle;
+
+    [SerializeField]
+    [Tooltip("随瞄准旋转的外观（一般为 render 子节点）；为空则只转炮口。")]
+    private Transform aimVisual;
 
     /// <summary>屏幕→世界坐标转换用的主相机；无相机时禁用鼠标操作。</summary>
     private Camera mainCamera;
+
 
     [SerializeField]
     [Tooltip("发射间隔（秒）：重新设计升级体系前暂为固定值。")]
@@ -42,6 +48,9 @@ public class Player : MonoBehaviour, IFireExecutor
 
     private float fireTimer;
     private int currentHp;
+
+    /// <summary>本局内已按下瞄准（按下发生在 Running 且非 UI）；松开时才开火，避免点「开始」的抬起误射。</summary>
+    private bool aimPressActive;
 
     public int CurrentHp => currentHp;
 
@@ -67,12 +76,14 @@ public class Player : MonoBehaviour, IFireExecutor
         }
     }
 
-    /// <summary>当前发射位置（炮口世界坐标）。</summary>
-    public Vector2 FirePosition => muzzle != null ? muzzle.position : (Vector2)transform.position;
+    /// <summary>当前发射位置（炮口世界坐标；炮口绕玩家中心旋转，始终落在瞄准轴上）。</summary>
+    public Vector2 FirePosition => muzzle != null ? (Vector2)muzzle.position : (Vector2)transform.position;
 
     private void Awake()
     {
         mainCamera = Camera.main;
+        if (aimVisual == null && playerRender != null)
+            aimVisual = playerRender.transform;
     }
 
     public void Init()
@@ -85,8 +96,8 @@ public class Player : MonoBehaviour, IFireExecutor
 
         fireTimer = 0f;
         currentHp = maxHp;
-        if (muzzle != null)
-            muzzle.localRotation = Quaternion.identity;
+        aimPressActive = false;
+        SetAimRotation(Quaternion.identity);
     }
 
     public bool TakeDamage(int damage)
@@ -127,45 +138,82 @@ public class Player : MonoBehaviour, IFireExecutor
     /// <summary>
     /// 指针操作（兼容移动端）：按住时炮口持续跟随指针方向，松开时发射一发。
     /// 真机 Android/iOS 用触摸；Editor / 桌面用鼠标（切到移动目标时 Editor 也会定义 UNITY_ANDROID，故排除 UNITY_EDITOR）。
+    /// 必须在 Running 内完成「按下」才允许松开开火，避免点开始/UI 的抬起误射。
     /// </summary>
     private void HandlePointerInput()
     {
-        if (muzzle == null || mainCamera == null) return;
+        if (mainCamera == null) return;
 
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
         if (Input.touchCount <= 0) return;
 
         Touch touch = Input.GetTouch(0);
-        if (touch.phase != TouchPhase.Ended && touch.phase != TouchPhase.Canceled)
-            RotateMuzzleTowardScreen(touch.position);
+        if (touch.phase == TouchPhase.Began && !IsPointerOverUI(touch.fingerId))
+            aimPressActive = true;
+
+        if (aimPressActive && touch.phase != TouchPhase.Canceled)
+            AimTowardScreen(touch.position);
 
         if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
-            TryFire();
+        {
+            if (aimPressActive && touch.phase == TouchPhase.Ended)
+                TryFire();
+            aimPressActive = false;
+        }
 #else
-        if (Input.GetMouseButton(0))
-            RotateMuzzleTowardScreen(Input.mousePosition);
+        if (Input.GetMouseButtonDown(0) && !IsPointerOverUI())
+            aimPressActive = true;
+
+        if (aimPressActive && (Input.GetMouseButton(0) || Input.GetMouseButtonUp(0)))
+            AimTowardScreen(Input.mousePosition);
 
         if (Input.GetMouseButtonUp(0))
-            TryFire();
+        {
+            if (aimPressActive)
+                TryFire();
+            aimPressActive = false;
+        }
 #endif
     }
 
-    private void RotateMuzzleTowardScreen(Vector2 screenPos)
+    private static bool IsPointerOverUI(int pointerId = -1)
     {
-        Vector3 pointerWorld = mainCamera.ScreenToWorldPoint(screenPos);
-        pointerWorld.z = 0f;
+        EventSystem es = EventSystem.current;
+        if (es == null) return false;
+        return pointerId >= 0 ? es.IsPointerOverGameObject(pointerId) : es.IsPointerOverGameObject();
+    }
 
-        Vector2 worldDir = (Vector2)(pointerWorld - muzzle.position);
+    /// <summary>
+    /// 以玩家中心为瞄准原点指向指针，再旋转炮口/外观。
+    /// 避免「从带偏移的 muzzle 位置算方向再旋转」导致炮口绕飞、线与球不同轴。
+    /// </summary>
+    private void AimTowardScreen(Vector2 screenPos)
+    {
+        if (mainCamera == null) return;
+
+        Vector2 origin = transform.position;
+        Vector2 pointerWorld = ScreenToWorld2D(screenPos);
+        Vector2 worldDir = pointerWorld - origin;
         if (worldDir.sqrMagnitude <= Mathf.Epsilon) return;
 
-        // 炮口朝向以 muzzle.up 为准：把世界方向换算到父级局部空间后求偏转。
-        Transform parent = muzzle.parent;
-        Vector2 localDir = parent != null
-            ? (Vector2)(Quaternion.Inverse(parent.rotation) * worldDir)
-            : worldDir;
+        worldDir.Normalize();
+        float angle = Mathf.Atan2(worldDir.y, worldDir.x) * Mathf.Rad2Deg - 90f;
+        SetAimRotation(Quaternion.Euler(0f, 0f, angle));
+    }
 
-        float angle = Mathf.Atan2(localDir.y, localDir.x) * Mathf.Rad2Deg - 90f;
-        muzzle.localRotation = Quaternion.Euler(0f, 0f, angle);
+    private Vector2 ScreenToWorld2D(Vector2 screenPos)
+    {
+        float zDist = Mathf.Abs(mainCamera.transform.position.z);
+        Vector3 world = mainCamera.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, zDist));
+        return new Vector2(world.x, world.y);
+    }
+
+    private void SetAimRotation(Quaternion localRotation)
+    {
+        if (muzzle != null)
+            muzzle.localRotation = localRotation;
+        if (aimVisual != null)
+            aimVisual.localRotation = localRotation;
     }
 
     /// <summary>替换射击模式；传入 null 回退为单发。升级词条应用时调用。</summary>

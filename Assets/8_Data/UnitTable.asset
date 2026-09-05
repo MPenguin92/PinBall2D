@@ -14,99 +14,99 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   units:
   - id: unit_damage
-    name: "\u72EC\u773C\u6D77\u76D7\u98DE\u789F"
+    name: unit_damage_name
     prefabAddress: SimpleUnit
     levels:
-    - hp: 3
+    - hp: 4
       attack: 1
       experience: 1
       gold: 0
-    - hp: 3
+    - hp: 4
       attack: 1
       experience: 1
       gold: 0
-    - hp: 6
+    - hp: 8
       attack: 1
       experience: 2
       gold: 0
-    - hp: 9
+    - hp: 13
       attack: 1
       experience: 2
       gold: 0
-    - hp: 24
+    - hp: 34
       attack: 1
       experience: 4
       gold: 0
-    - hp: 33
+    - hp: 46
       attack: 1
       experience: 5
       gold: 0
-    - hp: 45
+    - hp: 63
       attack: 1
       experience: 6
       gold: 0
-    - hp: 60
+    - hp: 84
       attack: 1
       experience: 8
       gold: 0
-    - hp: 78
+    - hp: 109
       attack: 1
       experience: 10
       gold: 0
-    - hp: 99
+    - hp: 139
       attack: 1
       experience: 12
       gold: 0
-    - hp: 123
+    - hp: 172
       attack: 1
       experience: 14
       gold: 0
-    - hp: 150
+    - hp: 210
       attack: 1
       experience: 16
       gold: 0
-    - hp: 180
+    - hp: 252
       attack: 1
       experience: 18
       gold: 0
-    - hp: 216
+    - hp: 302
       attack: 1
       experience: 20
       gold: 0
-    - hp: 255
+    - hp: 357
       attack: 1
       experience: 23
       gold: 0
-    - hp: 300
+    - hp: 420
       attack: 1
       experience: 26
       gold: 0
-    - hp: 348
+    - hp: 487
       attack: 1
       experience: 30
       gold: 0
-    - hp: 402
+    - hp: 563
       attack: 1
       experience: 34
       gold: 0
-    - hp: 462
+    - hp: 647
       attack: 1
       experience: 38
       gold: 0
-    - hp: 528
+    - hp: 739
       attack: 1
       experience: 42
       gold: 0
-    - hp: 600
+    - hp: 840
       attack: 1
       experience: 46
       gold: 0
-    - hp: 675
+    - hp: 945
       attack: 1
       experience: 50
       gold: 0
   - id: unit_gold
-    name: "\u91D1\u5E01\u98DE\u789F"
+    name: unit_gold_name
     prefabAddress: GoldUnit
     levels:
     - hp: 1
@@ -198,7 +198,7 @@ MonoBehaviour:
       experience: 13
       gold: 240
   - id: unit_chest
-    name: "\u5B9D\u7BB1"
+    name: unit_chest_name
     prefabAddress: ChestUnit
     levels:
     - hp: 1
