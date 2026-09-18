@@ -17,6 +17,9 @@ public class FireLevelData
 
     /// <summary>该级相邻两发的时间间隔（秒）。</summary>
     public float interval;
+
+    /// <summary>该级连发能力触发 CD：每发射 N 颗普通球触发一次；触发后重置为该值。</summary>
+    public int cd;
 }
 
 /// <summary>
@@ -32,7 +35,7 @@ public class FireLevelData
 ///
 /// 数据来源（通用元信息 + 类型专有逐级表，由 DataImporter 写入）：
 ///   Upgrades.csv       通用列：id, name, desc（抽象概括）, rarity, maxLevel
-///   Upgrades_Fire.csv  专有列：id, level, desc（等级化描述）, interval
+///   Upgrades_Fire.csv  专有列：id, level, desc（等级化描述）, subCount, interval, cd
 ///   Balls.csv / Balls_Level.csv：球型定义与各等级伤害
 /// </summary>
 public class FireBurstUpgradeData : UpgradeBase
@@ -77,7 +80,10 @@ public class FireBurstUpgradeData : UpgradeBase
             shots.Add(new FireShot(Defines.BallSubId, level));
 
         float interval = Mathf.Max(0f, data.interval);
-        ctx.Player.SetFireStrategy(new BurstFireStrategy(shots, interval));
+        int cd = Mathf.Max(1, data.cd);
+
+        // 连发作为「射击能力」注册进统一 CD 管理：每次能力触发后 CD 重置为该级配表 cd。
+        ctx.Player.AddFireAbility(new BurstFireStrategy(shots, interval), cd);
     }
 
     private FireLevelData GetLevelData(int level)

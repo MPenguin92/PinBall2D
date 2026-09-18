@@ -40,8 +40,8 @@ public interface IFireExecutor
 
 /// <summary>
 /// 发射策略基类：决定「一次射击输入」产出哪些弹（发射序列）。
-/// 由 Player 持有当前策略并执行；升级词条可通过 Player.SetFireStrategy 替换，
-/// 例如连发 = 主弹 + 若干副弹的序列。
+/// 由 <see cref="FireAbilityManager"/> 持有的能力引用并执行；升级词条通过
+/// Player.AddFireAbility 注册为射击能力（如连发 = 主弹 + 若干副弹的序列）。
 ///
 /// 约定：策略产出的每一颗球都由 executor.SpawnBall 生成并广播 OnFired——
 /// OnFired 表示「本次射击产出的球」，派生弹不广播的规则由 executor 实现保证。

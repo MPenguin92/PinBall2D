@@ -7,17 +7,23 @@ using UnityEngine.EventSystems;
 /// 弹珠为无限发射模式（2026-09-03 起不再维护库存队列）：
 /// 发射不扣库存、回收不还库存；按住指针持续瞄准并按冷却连射，松手停止。
 ///
-/// 「一次射击产出哪些球」由 <see cref="FireStrategy"/> 决定（发射序列：单发 / 连发主弹+副弹…），
-/// 每颗弹按 Balls 表（id → prefab 地址）+ Balls_Level 表（等级 → 伤害）出池；
-/// 玩家自身只提供发射能力（查表出池、延迟调度、当前瞄准方向），
-/// 升级词条可通过 <see cref="SetFireStrategy"/> 替换射击模式。
+/// 射击规则（2026-09-18）：
+///   - 默认始终发射 1 颗普通弹（base）单发；
+///   - 已解锁的射击能力（如连发）由 <see cref="FireAbilityManager"/> 统一管理 CD：
+///     每发射一颗普通球推进所有能力 CD，就绪的能力在普通球发射时触发（替换本次为能力弹序），
+///     触发后 CD 重置；只有发射普通球才推进 CD，触发能力的当次不推进。
+///   - 升级词条通过 <see cref="AddFireAbility"/> 注册能力（策略 + CD）。
 ///
+/// 每颗弹按 Balls 表（id → prefab 地址）+ Balls_Level 表（等级 → 伤害）出池。
 /// 操作方式：按住鼠标左键 / 触摸时持续转向并射击，松开停止。
 /// </summary>
 public class Player : MonoBehaviour, IFireExecutor
 {
-    /// <summary>当前射击模式；默认单发，升级系统可替换。</summary>
-    private FireStrategy fireStrategy = new SingleFireStrategy();
+    /// <summary>普通弹单发策略（默认发射；未被能力接管时用）。</summary>
+    private readonly FireStrategy singleFireStrategy = new SingleFireStrategy();
+
+    /// <summary>射击能力 CD 统一管理（升级词条注册能力，Player 每次发射普通球驱动）。</summary>
+    private readonly FireAbilityManager abilityManager = new FireAbilityManager();
 
     [SerializeField]
     [Tooltip("Player 最大生命值")]
@@ -61,9 +67,6 @@ public class Player : MonoBehaviour, IFireExecutor
     /// <summary>当前发射冷却间隔（升级体系清空期间为固定值，重新设计后可改由属性系统驱动）。</summary>
     public float FireInterval => fireInterval;
 
-    /// <summary>当前射击策略（只读查看；切换用 <see cref="SetFireStrategy"/>）。</summary>
-    public FireStrategy FireStrategy => fireStrategy;
-
     public Vector2 Direction
     {
         get
@@ -88,11 +91,9 @@ public class Player : MonoBehaviour, IFireExecutor
 
     public void Init()
     {
-        // 清掉上一局可能残留的连发延迟（Burst 策略的跨局安全）。
+        // 清掉上一局可能残留的连发延迟；每局重置能力（连发等能力由升级词条本局内注册）。
         StopAllCoroutines();
-
-        // 每局从单发射击开始；射击模式的成长由升级词条在本局内叠加。
-        fireStrategy = new SingleFireStrategy();
+        abilityManager.Reset();
 
         fireTimer = 0f;
         currentHp = maxHp;
@@ -222,10 +223,10 @@ public class Player : MonoBehaviour, IFireExecutor
             aimVisual.localRotation = localRotation;
     }
 
-    /// <summary>替换射击模式；传入 null 回退为单发。升级词条应用时调用。</summary>
-    public void SetFireStrategy(FireStrategy strategy)
+    /// <summary>注册射击能力（策略 + CD）：由升级词条应用时调用；同策略更新 CD 并重置。</summary>
+    public void AddFireAbility(FireStrategy strategy, int maxCd)
     {
-        fireStrategy = strategy ?? new SingleFireStrategy();
+        abilityManager.AddAbility(strategy, maxCd);
     }
 
     // ---- IFireExecutor（Player 提供的发射能力）----
@@ -265,13 +266,17 @@ public class Player : MonoBehaviour, IFireExecutor
         action();
     }
 
-    /// <summary>无限发射入口：冷却结束后交给当前 FireStrategy 决定产出，随后进入冷却。</summary>
+    /// <summary>无限发射入口：每次射击先驱动能力 CD 管理；被能力接管则发能力弹序，否则发普通弹单发。</summary>
     private void TryFire()
     {
         if (fireTimer > 0f) return;
 
-        if (fireStrategy != null)
-            fireStrategy.Fire(this);
+        // 推进所有能力 CD，并尝试触发第一个就绪能力；返回 true = 本次被能力接管。
+        bool triggered = abilityManager.OnNormalShot(this);
+
+        // 未被任何能力接管：正常发射 1 颗普通球。
+        if (!triggered)
+            singleFireStrategy.Fire(this);
 
         fireTimer = fireInterval;
 

@@ -517,8 +517,8 @@ public static class DataImporter
 
     /// <summary>
     /// 导入射击类行为词条（当前：连发 Burst）：
-    /// Upgrades_Fire.csv = id, level, desc, subCount, interval —— 一行 = 一个词条的某一级；
-    /// desc 为等级化描述（选卡卡面展示）；subCount 为该级副弹颗数（主弹 base 固定 1 颗）。
+    /// Upgrades_Fire.csv = id, level, desc, subCount, interval, cd —— 一行 = 一个词条的某一级；
+    /// desc 为等级化描述（选卡卡面展示）；subCount 为该级副弹颗数；cd 为该级能力触发 CD。
     /// 生成 asset 前缀 Fire_；满级取自通用表的 maxLevel，某级未配置时沿用上一级。
     /// </summary>
     private static void ImportFireUpgrades(Dictionary<string, UpgradeMeta> meta, List<UpgradeBase> entries)
@@ -539,7 +539,7 @@ public static class DataImporter
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string[] t = line.Split(',');
-            if (t.Length < 5)
+            if (t.Length < 6)
             {
                 Debug.LogWarning($"[DataImporter] Upgrades_Fire.csv line {i + 1} has too few columns, skipped: {line}");
                 continue;
@@ -559,6 +559,7 @@ public static class DataImporter
                 desc = t[2].Trim(),
                 subCount = Mathf.Max(0, ParseInt(t[3])),
                 interval = Mathf.Max(0f, ParseFloat(t[4])),
+                cd = Mathf.Max(1, ParseInt(t[5])),
             };
         }
 
@@ -585,6 +586,7 @@ public static class DataImporter
                     desc = last != null ? last.desc : string.Empty,
                     subCount = last != null ? last.subCount : 0,
                     interval = last != null ? last.interval : 0.08f,
+                    cd = last != null ? last.cd : 4,
                 });
             }
 
