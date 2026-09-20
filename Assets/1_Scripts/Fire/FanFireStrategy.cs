@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -43,5 +44,11 @@ public class FanFireStrategy : FireStrategy
             float angle = startAngle + step * i;
             executor.SpawnBall(new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)), Shot);
         }
+    }
+
+    public override FirePreview PreviewShot()
+    {
+        // 扇形也是一次能力射击（多方向同时），弹舱占 1 格。
+        return new FirePreview(true);
     }
 }

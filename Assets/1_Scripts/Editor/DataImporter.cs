@@ -475,6 +475,7 @@ public static class DataImporter
         public string desc;
         public UpgradeRarity rarity;
         public int maxLevel;
+        public string icon;
     }
 
     /// <summary>读取通用元信息表；返回 id → 元信息（不含 id 无行）。</summary>
@@ -510,6 +511,8 @@ public static class DataImporter
                 desc = t[2].Trim(),
                 rarity = ParseRarity(t[3]),
                 maxLevel = ParseInt(t[4]),
+                // icon 列（下标 5，可缺省）：暂存图标 key，美术资源未定。
+                icon = t.Length > 5 ? t[5].Trim() : string.Empty,
             };
         }
         return result;
@@ -598,7 +601,7 @@ public static class DataImporter
                 AssetDatabase.CreateAsset(asset, assetPath);
             }
 
-            asset.SetMeta(id, m.name, m.desc, m.rarity, m.maxLevel);
+            asset.SetMeta(id, m.name, m.desc, m.rarity, m.maxLevel, m.icon);
             asset.SetLevels(levels);
 
             EditorUtility.SetDirty(asset);

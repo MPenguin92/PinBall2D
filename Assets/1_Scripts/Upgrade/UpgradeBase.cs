@@ -27,6 +27,10 @@ public abstract class UpgradeBase : ScriptableObject
     [Tooltip("满级等级：抽到一次升 1 级，达到满级后从抽卡池剔除")]
     private int maxLevel = 1;
 
+    [SerializeField]
+    [Tooltip("能力/词条在弹舱队列等处的展示图标 key（Upgrades.csv 的 icon 列；暂存字段，美术未定）")]
+    private string icon;
+
     [System.NonSerialized]
     private int currentLevel;
 
@@ -42,19 +46,23 @@ public abstract class UpgradeBase : ScriptableObject
 
     public int MaxLevel => Mathf.Max(1, maxLevel);
 
+    /// <summary>展示图标 key（Upgrades.csv icon 列；可能为空，渲染时按需占位）。</summary>
+    public string Icon => icon;
+
     /// <summary>当前已升到的等级（0 = 尚未抽中；抽中一次 +1）。</summary>
     public int CurrentLevel => currentLevel;
 
     public bool IsFull => currentLevel >= MaxLevel;
 
     /// <summary>设置由 CSV 写入的字段（仅 Editor 导入时使用）。</summary>
-    public void SetMeta(string id, string name, string desc, UpgradeRarity rarity, int maxLevel)
+    public void SetMeta(string id, string name, string desc, UpgradeRarity rarity, int maxLevel, string icon = null)
     {
         this.id = id;
         this.displayName = name;
         this.description = desc;
         this.rarity = rarity;
         this.maxLevel = Mathf.Max(1, maxLevel);
+        this.icon = string.IsNullOrEmpty(icon) ? null : icon;
     }
 
     /// <summary>

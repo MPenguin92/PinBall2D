@@ -101,4 +101,45 @@ public class FireAbilityManager
 
         return false;
     }
+
+    /// <summary>
+    /// 预测接下来 <paramref name="count"/> 次射击（不修改任何状态）：
+    /// 按真实规则模拟「先触发就绪能力、否则普通球并推进 CD」，用于 HUD 弹舱队列。
+    /// 返回的每一项 = 一次射击（一格），能力射击整组只占一项。
+    /// </summary>
+    public List<FirePreview> PreviewNextShots(int count)
+    {
+        List<FirePreview> result = new List<FirePreview>();
+
+        // 拷贝 CD 状态做模拟，不污染真实状态。
+        List<int> cds = new List<int>(abilities.Count);
+        for (int i = 0; i < abilities.Count; i++)
+            cds.Add(abilities[i].CdRemaining);
+
+        for (int s = 0; s < count; s++)
+        {
+            bool triggered = false;
+            for (int i = 0; i < cds.Count; i++)
+            {
+                if (cds[i] <= 0)
+                {
+                    result.Add(abilities[i].Strategy.PreviewShot());
+                    cds[i] = abilities[i].MaxCd;
+                    triggered = true;
+                    break;
+                }
+            }
+
+            if (!triggered)
+            {
+                result.Add(FirePreview.Single);
+                for (int i = 0; i < cds.Count; i++)
+                {
+                    if (cds[i] > 0)
+                        cds[i]--;
+                }
+            }
+        }
+        return result;
+    }
 }

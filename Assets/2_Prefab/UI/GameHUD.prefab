@@ -30,6 +30,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 910000011}
+  - {fileID: 910000021}
   - {fileID: 930000001}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -57,6 +58,12 @@ MonoBehaviour:
   heartSpacing: 8
   heartColor: {r: 1, g: 0, b: 0, a: 1}
   emptyHeartAlpha: 0.25
+  ballQueueContainer: {fileID: 910000021}
+  ballIconSize: {x: 36, y: 36}
+  ballIconSpacing: 6
+  baseBallColor: {r: 1, g: 1, b: 1, a: 1}
+  queueScrollDuration: 0.12
+  queueCapacity: 5
   chestButton: {fileID: 930000004}
   chestCountText: {fileID: 930000013}
 --- !u!1 &910000010
@@ -94,6 +101,41 @@ RectTransform:
   m_AnchoredPosition: {x: 32, y: 32}
   m_SizeDelta: {x: 42, y: 242}
   m_Pivot: {x: 0, y: 0}
+--- !u!1 &910000020
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000021}
+  m_Layer: 5
+  m_Name: BallQueueRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &910000021
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000020}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 910000001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 1, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
+  m_AnchoredPosition: {x: -32, y: 32}
+  m_SizeDelta: {x: 36, y: 210}
+  m_Pivot: {x: 1, y: 0}
 --- !u!1 &930000000
 GameObject:
   m_ObjectHideFlags: 0

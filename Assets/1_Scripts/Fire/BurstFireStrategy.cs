@@ -12,15 +12,25 @@ public class BurstFireStrategy : FireStrategy
     /// <summary>相邻两发的时间间隔（秒，&gt;0 即形成先后手感）。</summary>
     public float Interval { get; }
 
-    public BurstFireStrategy(IReadOnlyList<FireShot> shots, float interval = 0.08f)
+    /// <summary>能力词条的展示图标 key（Upgrades.csv icon 列；弹舱能力格用它）。</summary>
+    public string AbilityIcon { get; }
+
+    public BurstFireStrategy(IReadOnlyList<FireShot> shots, float interval = 0.08f, string abilityIcon = null)
     {
         Shots = shots ?? new List<FireShot>();
         Interval = System.Math.Max(0f, interval);
+        AbilityIcon = abilityIcon;
     }
 
     public override void Fire(IFireExecutor executor)
     {
         FireAt(executor, 0);
+    }
+
+    public override FirePreview PreviewShot()
+    {
+        // 连发是一次能力射击：弹舱占 1 格，图标用词条配置的 icon。
+        return new FirePreview(true, AbilityIcon);
     }
 
     /// <summary>发第 index 颗；未发完则延迟 Interval 再发下一颗（利用 executor 的延迟能力）。</summary>

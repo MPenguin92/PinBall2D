@@ -229,6 +229,12 @@ public class Player : MonoBehaviour, IFireExecutor
         abilityManager.AddAbility(strategy, maxCd);
     }
 
+    /// <summary>预测接下来 <paramref name="count"/> 次射击（一次一格，不修改状态；HUD 弹舱队列用）。</summary>
+    public List<FirePreview> PreviewNextShots(int count)
+    {
+        return abilityManager.PreviewNextShots(count);
+    }
+
     // ---- IFireExecutor（Player 提供的发射能力）----
 
     public Vector2 BaseDirection => Direction;

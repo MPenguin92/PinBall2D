@@ -83,7 +83,8 @@ public class FireBurstUpgradeData : UpgradeBase
         int cd = Mathf.Max(1, data.cd);
 
         // 连发作为「射击能力」注册进统一 CD 管理：每次能力触发后 CD 重置为该级配表 cd。
-        ctx.Player.AddFireAbility(new BurstFireStrategy(shots, interval), cd);
+        // 传入词条 icon（Upgrades.csv icon 列），供弹舱能力格显示。
+        ctx.Player.AddFireAbility(new BurstFireStrategy(shots, interval, Icon), cd);
     }
 
     private FireLevelData GetLevelData(int level)

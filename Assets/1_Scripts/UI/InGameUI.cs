@@ -5,10 +5,10 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 游戏中 HUD：左下纵向生命值、右侧升级宝箱入口。
-/// （右下角弹珠队列已于 2026-09-03 移除；顶部经验文本已于 2026-09-04 移除——
-/// 升级机会改由击杀宝箱怪获得，经验进度改为数据接口供后续手动查看 UI 接入。）
+/// 右下角弹舱队列（未来 N 发预测 + 滚动补位）逻辑拆在 partial 文件 InGameUI.BallQueue.cs。
+/// （顶部经验文本已于 2026-09-04 移除——升级机会改由击杀宝箱怪获得。）
 /// </summary>
-public class InGameUI : MonoBehaviour
+public partial class InGameUI : MonoBehaviour
 {
     [SerializeField]
     private Player player;
@@ -51,16 +51,25 @@ public class InGameUI : MonoBehaviour
     {
         if (chestButton != null)
             chestButton.onClick.AddListener(OnChestClicked);
+
+        OnBallQueueAwake();
+    }
+
+    private void OnDestroy()
+    {
+        OnBallQueueDestroy();
     }
 
     private void OnEnable()
     {
         Refresh(true);
+        RefreshBallQueue(true);
     }
 
     private void Update()
     {
         Refresh(false);
+        RefreshBallQueue(false);
     }
 
     private void Refresh(bool force)
@@ -151,6 +160,7 @@ public class InGameUI : MonoBehaviour
         }
     }
 
+    /// <summary>创建纵向排列的图标槽位（血条 / 弹舱共用）。</summary>
     private static Image CreateSlotIcon(
         RectTransform container,
         Sprite sprite,

@@ -1,2 +1,2 @@
-id,name,desc,rarity,maxLevel
-burst,upgrade_burst_name,upgrade_burst_desc,Common,5
+id,name,desc,rarity,maxLevel,icon
+burst,upgrade_burst_name,upgrade_burst_desc,Common,5,
